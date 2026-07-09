@@ -2,8 +2,8 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 2 storage/index production depth.
-- Gate: `pnpm verify` passes locally on 2026-07-09.
+- Current task: Phase 3 autosave-to-storage integration.
+- Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
 - 2026-07-09: Workspace contained only `SLATE_CODEX_HANDOFF.md`. Initialized Git in place because no existing repository or branch was available.
@@ -13,6 +13,7 @@
 - 2026-07-10: Replaced the storage JSON cache with a real SQLite FTS5 index through Node 24 `node:sqlite`; added corruption auto-rebuild, FTS search, external-change reconciliation, and polling watch notifications.
 - 2026-07-10: Added live CodeMirror invisible-Markdown decorations for inactive lines and covered them with a jsdom editor mount test.
 - 2026-07-10: Added axe Playwright accessibility coverage for the primary workspace on desktop and mobile projects.
+- 2026-07-10: Added a debounced autosave controller, browser draft writer, and SlateApp wiring so editor changes schedule writes and flush before sheet switches/new-sheet actions.
 
 ## Phase Board
 
@@ -51,7 +52,7 @@
 - [x] CommonMark/GFM setup
 - [x] Invisible Markdown marker range helper
 - [x] Find/replace support extension
-- [ ] Autosave hooks wired to storage
+- [x] Autosave hooks wired to storage writer interface
 - [x] Counters HUD
 - [x] Apply invisible Markdown decorations in the live editor view
 

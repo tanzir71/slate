@@ -47,3 +47,11 @@ Context: Vite preview stayed alive but did not satisfy Playwright's readiness ch
 Decision: Add `scripts/serve-static.mjs` and use it as Playwright's web server against `apps/web/dist`.
 
 Consequence: Production Vite build remains verified separately, and e2e runs against the exact built assets.
+
+## 2026-07-10 - Inject Autosave Writer Into UI
+
+Context: The handoff requires autosave to persist editor changes, but importing the Node/Tauri storage adapter directly into the shared React app would break the web bundle.
+
+Decision: Add a debounced `createAutosaveController` in `packages/ui` that accepts a `SheetAutosaveWriter` interface. `SlateApp` uses a browser draft writer by default and can receive a real storage-backed writer from native shells.
+
+Consequence: The UI now schedules and flushes autosaves without coupling React to Node-only storage. Native desktop/mobile still need runtime wiring to pass the real adapter.

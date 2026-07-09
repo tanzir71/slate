@@ -23,14 +23,24 @@ import {
   Sparkles,
   TextCursorInput
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { computeEditorHud } from "@slate/editor";
 import { slateTokens } from "@slate/tokens";
+import {
+  createAutosaveController,
+  createBrowserDraftAutosaveWriter,
+  type AutosaveController,
+  type SheetAutosaveWriter
+} from "./autosave";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { notebooks, sheets as seedSheets, spaces, type NotebookSeed, type SheetSeed } from "./sampleData";
 import "./styles.css";
 
 type InspectorTab = "Backlinks" | "Outline" | "Metadata";
+
+export interface SlateAppProps {
+  autosaveWriter?: SheetAutosaveWriter;
+}
 
 const smartFilters = [
   { label: "Today", count: 7, icon: CalendarDays },
@@ -41,15 +51,26 @@ const smartFilters = [
   { label: "Drafts", count: 9, icon: Pencil }
 ];
 
-export function SlateApp() {
+export function SlateApp({ autosaveWriter }: SlateAppProps = {}) {
   const [activeSpace, setActiveSpace] = useState("work");
   const [sheets, setSheets] = useState<SheetSeed[]>(seedSheets);
   const [selectedId, setSelectedId] = useState(seedSheets[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(true);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("Backlinks");
+  const autosaveRef = useRef<AutosaveController | undefined>(undefined);
   const selected = sheets.find((sheet) => sheet.id === selectedId) ?? sheets[0];
   const selectedSpace = spaces.find((space) => space.id === activeSpace) ?? spaces[0];
+
+  useEffect(() => {
+    const writer = autosaveWriter ?? createBrowserDraftAutosaveWriter();
+    const controller = createAutosaveController({ writer });
+    autosaveRef.current = controller;
+    return () => {
+      void controller.dispose();
+      autosaveRef.current = undefined;
+    };
+  }, [autosaveWriter]);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -84,12 +105,21 @@ export function SlateApp() {
   const outline = useMemo(() => extractOutline(selected?.markdown ?? ""), [selected?.markdown]);
 
   function updateSelectedMarkdown(markdown: string) {
+    const currentSheet = selected;
+    if (currentSheet) {
+      autosaveRef.current?.schedule({
+        path: sheetToPath(currentSheet),
+        content: markdown,
+        baseContent: currentSheet.markdown
+      });
+    }
     setSheets((current) =>
       current.map((sheet) => (sheet.id === selectedId ? { ...sheet, markdown, preview: previewFromMarkdown(markdown) } : sheet))
     );
   }
 
   function createSheet() {
+    void autosaveRef.current?.flush();
     const next: SheetSeed = {
       id: `sheet-${Date.now()}`,
       title: "Untitled Sheet",
@@ -201,7 +231,10 @@ export function SlateApp() {
               <button
                 className={sheet.id === selected.id ? "sheetRow active" : "sheetRow"}
                 key={sheet.id}
-                onClick={() => setSelectedId(sheet.id)}
+                onClick={() => {
+                  void autosaveRef.current?.flush();
+                  setSelectedId(sheet.id);
+                }}
               >
                 <span className="sheetTitleLine">
                   <strong>{sheet.title}</strong>
@@ -453,4 +486,16 @@ function previewFromMarkdown(markdown: string): string {
     .filter(Boolean)
     .slice(0, 18)
     .join(" ");
+}
+
+function sheetToPath(sheet: SheetSeed): string {
+  return `${sheet.notebook}/${slugify(sheet.title)}.md`;
+}
+
+function slugify(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "untitled";
 }
