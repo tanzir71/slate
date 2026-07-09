@@ -361,7 +361,19 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
 
           {commandOpen ? <CommandPalette onClose={() => setCommandOpen(false)} onCreate={createSheet} /> : null}
 
-          <MarkdownEditor value={selected.markdown} onChange={updateSelectedMarkdown} />
+          <MarkdownEditor
+            value={selected.markdown}
+            onChange={updateSelectedMarkdown}
+            onNavigateWikiLink={(link) => {
+              const nextId = resolveWikiLinkSheetId(sheets, link.target, link.targetId);
+              if (!nextId) {
+                return;
+              }
+              void autosaveRef.current?.flush();
+              setSelectedId(nextId);
+              setCommandOpen(false);
+            }}
+          />
 
           <div className="editorStatus">
             <span>{hud.words.toLocaleString()} words</span>
@@ -594,8 +606,28 @@ function moveSheetSeed(sheet: SheetSeed, notebook: string): SheetSeed {
   return { ...sheet, notebook, tags: nextTags, updated: "Now" };
 }
 
+export function resolveWikiLinkSheetId(
+  sheets: SheetSeed[],
+  target: string,
+  targetId?: string
+): string | undefined {
+  if (targetId) {
+    const byId = sheets.find((sheet) => sheet.id === targetId);
+    if (byId) {
+      return byId.id;
+    }
+  }
+
+  const normalizedTarget = normalizeWikiTitle(target);
+  return sheets.find((sheet) => normalizeWikiTitle(sheet.title) === normalizedTarget)?.id;
+}
+
 function sheetToPath(sheet: SheetSeed): string {
   return `${sheet.notebook}/${slugify(sheet.title)}.md`;
+}
+
+function normalizeWikiTitle(title: string): string {
+  return title.trim().toLowerCase();
 }
 
 function slugify(title: string): string {

@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   computeEditorHud,
   createInvisibleMarkdownExtension,
-  findInactiveMarkdownMarkerRanges
+  findInactiveMarkdownMarkerRanges,
+  findWikiLinkAtPosition
 } from "../src/index";
 
 describe("editor helpers", () => {
@@ -29,6 +30,25 @@ describe("editor helpers", () => {
       "]]"
     ]);
     expect(ranges.every((range) => range.line !== 4)).toBe(true);
+  });
+
+  it("finds a wiki-link target at a document position", () => {
+    const markdown = "See [[Product Vision|vision]] and [[id:01J22222222222222222222222|renamed]].";
+
+    expect(findWikiLinkAtPosition(markdown, markdown.indexOf("Vision"))).toEqual({
+      from: 4,
+      to: 29,
+      raw: "[[Product Vision|vision]]",
+      target: "Product Vision",
+      display: "vision",
+      targetId: undefined
+    });
+    expect(findWikiLinkAtPosition(markdown, markdown.indexOf("renamed"))).toMatchObject({
+      target: "01J22222222222222222222222",
+      targetId: "01J22222222222222222222222",
+      display: "renamed"
+    });
+    expect(findWikiLinkAtPosition(markdown, 1)).toBeUndefined();
   });
 
   it("applies invisible Markdown decorations only outside the active line", () => {

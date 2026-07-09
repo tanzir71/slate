@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 5 wiki-link navigation.
+- Current task: Phase 6 focus, typewriter, and full-screen modes.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -23,6 +23,7 @@
 - 2026-07-10: Added concrete native Markdown file-source commands and a Tauri invoke wrapper, giving desktop rebuilds the same abstract scanner contract as web.
 - 2026-07-10: Enforced the core coverage gate in `pnpm test` and broadened core tests for canonical Markdown round-trips, filter edge cases, fallback metadata, GFM parsing, and goal variants.
 - 2026-07-10: Added disk-backed sheet move safety/index refresh and a drag/drop UI move path with rendered desktop/mobile Playwright validation.
+- 2026-07-10: Added editor wiki-link hit detection and Ctrl/Cmd-click navigation that resolves sheets by stable id first, then by title.
 
 ## Phase Board
 
@@ -82,7 +83,7 @@
 
 ### Phase 5 - Power Features
 - [x] Smart filter UI skeleton
-- [ ] Wiki-link navigation
+- [x] Wiki-link navigation
 - [x] Inspector with backlinks and outline
 - [x] Writing goals UI
 - [x] Command palette

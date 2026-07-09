@@ -24,6 +24,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Native Tauri Markdown file source commands and invoke wrapper for recursive desktop rebuilds.
 - Core coverage enforcement and broader domain tests for round-trip stability, filters, metadata fallbacks, GFM parsing, and goal variants.
 - Disk-backed sheet moves that refresh the SQLite index, avoid destination overwrites, and can be triggered through notebook drag/drop in the UI.
+- Ctrl/Cmd-click wiki-link navigation in the editor with stable-id-first sheet resolution.
 - Tauri 2 desktop shell and debug build.
 - Rust authenticated encryption helpers with wrong-key failure tests.
 - Vitest, Playwright, ESLint, TypeScript, Cargo, and CI verify gate.
@@ -34,4 +35,4 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
 
 ### Known Gaps
-- Browser handle persistence, wiki-link navigation, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.
+- Browser handle persistence, focus/typewriter/full-screen modes, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.

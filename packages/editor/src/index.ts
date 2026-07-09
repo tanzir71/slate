@@ -26,6 +26,18 @@ export interface MarkerRange {
   kind: "heading" | "emphasis" | "wiki";
 }
 
+export interface WikiLinkHit {
+  from: number;
+  to: number;
+  raw: string;
+  target: string;
+  display: string;
+  targetId: string | undefined;
+}
+
+const wikiLinkPattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+const ulidLikePattern = /^(?:id:)?01[0-9A-HJKMNP-TV-Z]{24}$/i;
+
 export function createSlateMarkdownExtensions(): Extension[] {
   return [
     history(),
@@ -66,6 +78,32 @@ export function createInvisibleMarkdownExtension(): Extension {
       }
     })
   ];
+}
+
+export function findWikiLinkAtPosition(markdownText: string, position: number): WikiLinkHit | undefined {
+  for (const match of markdownText.matchAll(wikiLinkPattern)) {
+    const raw = match[0];
+    const from = match.index;
+    const to = from + raw.length;
+    if (position < from || position >= to) {
+      continue;
+    }
+
+    const rawTarget = (match[1] ?? "").trim();
+    const display = (match[2] ?? rawTarget).trim();
+    const targetId = normalizeTargetId(rawTarget);
+
+    return {
+      from,
+      to,
+      raw,
+      target: targetId ?? rawTarget,
+      display,
+      targetId
+    };
+  }
+
+  return undefined;
 }
 
 export function computeEditorHud(markdownText: string): EditorHud {
@@ -192,4 +230,12 @@ function computeVisibleCharacters(markdownText: string): number {
     .replace(/[*_`~=\-[\]()!?.:,;]/g, "");
 
   return visible.replace(/\s/g, "").length;
+}
+
+function normalizeTargetId(target: string): string | undefined {
+  if (!ulidLikePattern.test(target)) {
+    return undefined;
+  }
+
+  return target.replace(/^id:/i, "").toUpperCase();
 }
