@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 2 native/web storage adapter wiring.
+- Current task: Phase 2 web OPFS/wa-sqlite adapter wiring.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -15,6 +15,7 @@
 - 2026-07-10: Added axe Playwright accessibility coverage for the primary workspace on desktop and mobile projects.
 - 2026-07-10: Added a debounced autosave controller, browser draft writer, and SlateApp wiring so editor changes schedule writes and flush before sheet switches/new-sheet actions.
 - 2026-07-10: Wired the desktop app to a Tauri autosave writer backed by a Rust conflict-safe disk write helper; browser/mobile keep the draft fallback until their storage adapters land.
+- 2026-07-10: Added Tauri SQL plugin wiring, a default SQL capability, and a tested storage helper that opens the app-relative SQLite index and applies the shared FTS schema.
 
 ## Phase Board
 
@@ -45,7 +46,8 @@
 - [x] Conflict-safe write helpers
 - [x] Replace JSON cache implementation with SQLite/FTS for the Node/local adapter
 - [x] Add file watcher and external-change reconcile loop
-- [ ] Add Tauri plugin SQL adapter wiring for native desktop/mobile runtime
+- [x] Add Tauri plugin SQL adapter wiring for native desktop/mobile runtime
+- [ ] Use the Tauri SQL helper for native index rebuild/search operations beyond schema bootstrap
 - [ ] Add OPFS/wa-sqlite adapter wiring for web runtime
 
 ### Phase 3 - Editor MVP

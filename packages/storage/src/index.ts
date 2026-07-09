@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { parseSheet, type SheetDocument } from "@slate/core";
+import { sqliteIndexSchema } from "./schema";
 
 export interface SpaceMetadata {
   id?: string;
@@ -60,26 +61,6 @@ export interface LocalStorageAdapter {
 
 const slateDir = ".slate";
 const indexFile = "index.sqlite";
-const indexSchema = `
-CREATE TABLE IF NOT EXISTS sheets (
-  id TEXT PRIMARY KEY,
-  path TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL,
-  body TEXT NOT NULL,
-  tags_json TEXT NOT NULL,
-  links_json TEXT NOT NULL,
-  words INTEGER NOT NULL,
-  updated_at TEXT,
-  content_hash TEXT NOT NULL
-);
-CREATE VIRTUAL TABLE IF NOT EXISTS sheets_fts USING fts5(
-  path UNINDEXED,
-  title,
-  body,
-  tags
-);
-`;
-
 export function createLocalStorageAdapter(root: string): LocalStorageAdapter {
   const absoluteRoot = resolve(root);
   const sqlitePath = join(absoluteRoot, slateDir, indexFile);
@@ -324,7 +305,7 @@ function openIndexDatabase(path: string): DatabaseSync {
   let database: DatabaseSync | undefined;
   try {
     database = new DatabaseSync(path);
-    database.exec(indexSchema);
+    database.exec(sqliteIndexSchema);
     return database;
   } catch (error) {
     database?.close();

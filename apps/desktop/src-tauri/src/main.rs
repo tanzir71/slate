@@ -50,6 +50,7 @@ fn conflict_stamp() -> Result<String, String> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![write_sheet])
         .run(tauri::generate_context!())
         .expect("failed to run Slate desktop shell");

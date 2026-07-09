@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./tauri-sql": {
+      "types": "./dist/tauriSql.d.ts",
+      "import": "./dist/tauriSql.js"
     }
   },
   "scripts": {
@@ -13,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@slate/core": "workspace:*"
+    "@slate/core": "workspace:*",
+    "@tauri-apps/plugin-sql": "^2.4.0"
   }
 }
-
