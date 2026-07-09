@@ -151,3 +151,11 @@ Context: BYO-folder sync must work across desktop, web directory handles, and mo
 Decision: Add `reconcileByoFolderFile` in `packages/sync` as a pure decision model over base, local, and external file contents. Runtime adapters can map its actions to disk writes, deletes, clean merged writes, or conflict-copy writes.
 
 Consequence: The no-data-loss policy is testable without filesystem coupling, and platform adapters can share identical conflict semantics while still owning their IO details.
+
+## 2026-07-10 - Put Export Behind Format Adapters
+
+Context: PDF, DOCX, HTML, and ePub export will need different rendering libraries and platform packaging behavior, but the UI should call one stable export surface.
+
+Decision: Add `@slate/export` with an `ExportAdapter` contract and registry. The first concrete adapter renders sanitized, themeable HTML; PDF/DOCX/ePub can attach to the same registry later.
+
+Consequence: Export behavior is testable before heavier renderer dependencies arrive, and unsupported formats fail clearly instead of pretending to be implemented.
