@@ -11,6 +11,7 @@
 - 2026-07-09: Implemented a verified monorepo scaffold plus a thin product slice across core, storage, sync, editor, UI, web, desktop, mobile shell, Rust crypto, CI, and e2e.
 - 2026-07-09: Visual QA used an Image Gen concept and Playwright screenshots because the in-app browser backend reported `iab` unavailable.
 - 2026-07-10: Replaced the storage JSON cache with a real SQLite FTS5 index through Node 24 `node:sqlite`; added corruption auto-rebuild, FTS search, external-change reconciliation, and polling watch notifications.
+- 2026-07-10: Added live CodeMirror invisible-Markdown decorations for inactive lines and covered them with a jsdom editor mount test.
 
 ## Phase Board
 
@@ -51,7 +52,7 @@
 - [x] Find/replace support extension
 - [ ] Autosave hooks wired to storage
 - [x] Counters HUD
-- [ ] Apply invisible Markdown decorations in the live editor view
+- [x] Apply invisible Markdown decorations in the live editor view
 
 ### Phase 4 - Organization UI
 - [x] Three-pane app shell

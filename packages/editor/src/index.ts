@@ -2,8 +2,15 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { search } from "@codemirror/search";
-import { type Extension } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { RangeSetBuilder, type Extension } from "@codemirror/state";
+import {
+  Decoration,
+  EditorView,
+  keymap,
+  ViewPlugin,
+  type DecorationSet,
+  type ViewUpdate
+} from "@codemirror/view";
 import { computeStats } from "@slate/core";
 
 export interface EditorHud {
@@ -24,6 +31,7 @@ export function createSlateMarkdownExtensions(): Extension[] {
     history(),
     markdown(),
     search(),
+    createInvisibleMarkdownExtension(),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,
@@ -41,6 +49,20 @@ export function createSlateMarkdownExtensions(): Extension[] {
       },
       ".cm-line": {
         padding: "0 2px"
+      }
+    })
+  ];
+}
+
+export function createInvisibleMarkdownExtension(): Extension {
+  return [
+    invisibleMarkdownPlugin,
+    EditorView.theme({
+      ".cm-slate-hidden-marker": {
+        opacity: "0.22"
+      },
+      ".cm-focused .cm-slate-hidden-marker": {
+        transition: "opacity 120ms ease-out"
       }
     })
   ];
@@ -119,6 +141,43 @@ function collectWikiMarkers(line: string, offset: number, lineNumber: number, ra
 
     ranges.push({ from: start + text.length - 2, to: start + text.length, line: lineNumber, kind: "wiki" });
   }
+}
+
+const invisibleMarkdownPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = buildInvisibleMarkdownDecorations(view);
+    }
+
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+        this.decorations = buildInvisibleMarkdownDecorations(update.view);
+      }
+    }
+  },
+  {
+    decorations: (plugin) => plugin.decorations
+  }
+);
+
+function buildInvisibleMarkdownDecorations(view: EditorView): DecorationSet {
+  const markdownText = view.state.doc.toString();
+  const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number;
+  const builder = new RangeSetBuilder<Decoration>();
+
+  for (const range of findInactiveMarkdownMarkerRanges(markdownText, activeLine)) {
+    builder.add(
+      range.from,
+      range.to,
+      Decoration.mark({
+        class: `cm-slate-hidden-marker cm-slate-marker-${range.kind}`
+      })
+    );
+  }
+
+  return builder.finish();
 }
 
 function computeVisibleCharacters(markdownText: string): number {
