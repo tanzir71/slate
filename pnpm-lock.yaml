@@ -193,6 +193,9 @@ importers:
       '@slate/tokens':
         specifier: workspace:*
         version: link:../tokens
+      '@tauri-apps/api':
+        specifier: ^2.10.2
+        version: 2.11.1
       lucide-react:
         specifier: ^0.555.0
         version: 0.555.0(react@19.2.7)

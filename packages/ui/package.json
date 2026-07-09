@@ -18,6 +18,7 @@
     "@slate/core": "workspace:*",
     "@slate/editor": "workspace:*",
     "@slate/tokens": "workspace:*",
+    "@tauri-apps/api": "^2.10.2",
     "lucide-react": "^0.555.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
@@ -27,4 +28,3 @@
     "@types/react-dom": "^19.2.3"
   }
 }
-

@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 3 autosave-to-storage integration.
+- Current task: Phase 2 native/web storage adapter wiring.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -14,6 +14,7 @@
 - 2026-07-10: Added live CodeMirror invisible-Markdown decorations for inactive lines and covered them with a jsdom editor mount test.
 - 2026-07-10: Added axe Playwright accessibility coverage for the primary workspace on desktop and mobile projects.
 - 2026-07-10: Added a debounced autosave controller, browser draft writer, and SlateApp wiring so editor changes schedule writes and flush before sheet switches/new-sheet actions.
+- 2026-07-10: Wired the desktop app to a Tauri autosave writer backed by a Rust conflict-safe disk write helper; browser/mobile keep the draft fallback until their storage adapters land.
 
 ## Phase Board
 
@@ -53,6 +54,7 @@
 - [x] Invisible Markdown marker range helper
 - [x] Find/replace support extension
 - [x] Autosave hooks wired to storage writer interface
+- [x] Desktop autosave writes through Tauri to conflict-safe Markdown files
 - [x] Counters HUD
 - [x] Apply invisible Markdown decorations in the live editor view
 

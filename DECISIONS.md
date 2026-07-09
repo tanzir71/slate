@@ -55,3 +55,11 @@ Context: The handoff requires autosave to persist editor changes, but importing 
 Decision: Add a debounced `createAutosaveController` in `packages/ui` that accepts a `SheetAutosaveWriter` interface. `SlateApp` uses a browser draft writer by default and can receive a real storage-backed writer from native shells.
 
 Consequence: The UI now schedules and flushes autosaves without coupling React to Node-only storage. Native desktop/mobile still need runtime wiring to pass the real adapter.
+
+## 2026-07-10 - Use a Tauri Command for Desktop Autosave
+
+Context: The shared UI autosave controller needed a real native writer, but the full Tauri SQL index adapter is still separate runtime work.
+
+Decision: Add a desktop-only `write_sheet` Tauri command that writes Markdown under the app-data default Space through a tested Rust helper in `slate-core`. The helper performs root-safe path validation and conflict-copy preservation.
+
+Consequence: Desktop autosave now writes conflict-safe `.md` files without pulling native APIs into the web/mobile bundles. The SQLite index adapter still needs native Tauri SQL wiring.
