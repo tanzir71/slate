@@ -9,10 +9,12 @@ import {
   Code2,
   FilePlus2,
   Folder,
+  Focus,
   Gauge,
   Library,
   Link2,
   ListTree,
+  Maximize2,
   MoreHorizontal,
   PanelRight,
   Pencil,
@@ -64,6 +66,9 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(true);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("Backlinks");
+  const [focusMode, setFocusMode] = useState(false);
+  const [typewriterMode, setTypewriterMode] = useState(false);
+  const [fullscreenMode, setFullscreenMode] = useState(false);
   const [draggedSheetId, setDraggedSheetId] = useState<string | undefined>(undefined);
   const [dropTargetNotebook, setDropTargetNotebook] = useState<string | undefined>(undefined);
   const [moveError, setMoveError] = useState<string | undefined>(undefined);
@@ -195,9 +200,18 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
     return null;
   }
 
+  const appClassName = [
+    "slateApp",
+    focusMode ? "focusMode" : "",
+    typewriterMode ? "typewriterMode" : "",
+    fullscreenMode ? "fullscreenMode" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <main
-      className="slateApp"
+      className={appClassName}
       style={{ "--slate-accent": selectedSpace.color, "--token-accent": slateTokens.colors.accent } as CSSProperties}
     >
       <header className="topbar">
@@ -344,11 +358,32 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
               </span>
             </div>
             <div className="toolButtons">
-              <button aria-label="Typography">
+              <button
+                aria-label="Toggle typewriter mode"
+                aria-pressed={typewriterMode}
+                className={typewriterMode ? "active" : ""}
+                onClick={() => setTypewriterMode((enabled) => !enabled)}
+              >
                 <TextCursorInput size={17} />
+              </button>
+              <button
+                aria-label="Toggle focus mode"
+                aria-pressed={focusMode}
+                className={focusMode ? "active" : ""}
+                onClick={() => setFocusMode((enabled) => !enabled)}
+              >
+                <Focus size={17} />
               </button>
               <button aria-label="Toggle inspector" onClick={() => setInspectorTab("Backlinks")}>
                 <PanelRight size={17} />
+              </button>
+              <button
+                aria-label="Toggle full-screen mode"
+                aria-pressed={fullscreenMode}
+                className={fullscreenMode ? "active" : ""}
+                onClick={() => setFullscreenMode((enabled) => !enabled)}
+              >
+                <Maximize2 size={17} />
               </button>
               <button aria-label="Code tools">
                 <Code2 size={17} />

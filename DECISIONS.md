@@ -135,3 +135,11 @@ Context: Wiki-link navigation needs to work inside the plain Markdown editor wit
 Decision: Add an editor hit-test helper for `[[target|display]]` ranges and handle Ctrl/Cmd-clicks through a CodeMirror DOM event extension. `SlateApp` resolves links by stable id first and by normalized title second, then selects the matching sheet.
 
 Consequence: Wiki links are navigable while the Markdown source stays untouched. The first implementation is click-based; autocomplete and unresolved-link creation remain later Phase 5 polish.
+
+## 2026-07-10 - Keep Editor Modes as Local UI State
+
+Context: Focus, typewriter, and full-screen modes are writing-surface preferences, but the scaffold does not yet have persisted per-space settings.
+
+Decision: Implement the modes as local `SlateApp` state toggled from icon toolbar buttons. CSS classes control the layout: focus mode hides navigation and dims inactive editor lines, typewriter mode changes editor vertical rhythm, and full-screen mode hides top chrome.
+
+Consequence: The writing modes are usable and testable without inventing a settings store prematurely. Persisting these preferences can be layered onto per-space settings later.

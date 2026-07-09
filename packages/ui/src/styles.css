@@ -402,6 +402,11 @@ button {
   gap: 3px;
 }
 
+.toolButtons button.active {
+  background: var(--slate-accent-soft);
+  color: var(--slate-accent);
+}
+
 .editorHost {
   flex: 1;
   overflow: auto;
@@ -422,6 +427,46 @@ button {
 
 .editorHost .cm-line {
   font-family: var(--font-editor);
+}
+
+.slateApp.focusMode .workspace {
+  grid-template-columns: minmax(420px, 1fr);
+}
+
+.slateApp.focusMode .sidebar,
+.slateApp.focusMode .sheetList,
+.slateApp.focusMode .inspector {
+  display: none;
+}
+
+.slateApp.focusMode .editorHost .cm-line {
+  opacity: 0.48;
+}
+
+.slateApp.focusMode .editorHost .cm-activeLine {
+  opacity: 1;
+}
+
+.slateApp.typewriterMode .editorHost .cm-scroller {
+  padding-top: min(28vh, 220px);
+  padding-bottom: min(42vh, 320px);
+}
+
+.slateApp.typewriterMode .editorHost .cm-content {
+  max-width: 680px;
+}
+
+.slateApp.fullscreenMode {
+  min-height: 100vh;
+}
+
+.slateApp.fullscreenMode .topbar {
+  display: none;
+}
+
+.slateApp.fullscreenMode .workspace {
+  height: 100vh;
+  min-height: 100vh;
 }
 
 .commandPalette {

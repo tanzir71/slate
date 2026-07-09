@@ -6,6 +6,7 @@ import { RangeSetBuilder, type Extension } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
+  highlightActiveLine,
   keymap,
   ViewPlugin,
   type DecorationSet,
@@ -44,6 +45,7 @@ export function createSlateMarkdownExtensions(): Extension[] {
     markdown(),
     search(),
     createInvisibleMarkdownExtension(),
+    highlightActiveLine(),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,

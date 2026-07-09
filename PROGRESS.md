@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 6 focus, typewriter, and full-screen modes.
+- Current task: Phase 6 empty states.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -24,6 +24,7 @@
 - 2026-07-10: Enforced the core coverage gate in `pnpm test` and broadened core tests for canonical Markdown round-trips, filter edge cases, fallback metadata, GFM parsing, and goal variants.
 - 2026-07-10: Added disk-backed sheet move safety/index refresh and a drag/drop UI move path with rendered desktop/mobile Playwright validation.
 - 2026-07-10: Added editor wiki-link hit detection and Ctrl/Cmd-click navigation that resolves sheets by stable id first, then by title.
+- 2026-07-10: Added focus, typewriter, and full-screen editor modes with accessible toolbar toggles and rendered Playwright validation.
 
 ## Phase Board
 
@@ -91,7 +92,7 @@
 
 ### Phase 6 - Design Polish and Accessibility
 - [x] Light theme and design tokens
-- [ ] Focus, typewriter, and full-screen modes
+- [x] Focus, typewriter, and full-screen modes
 - [ ] Empty states
 - [ ] Keyboard-only walkthrough
 - [x] Axe/a11y coverage
