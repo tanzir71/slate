@@ -18,6 +18,10 @@
     "./runtime": {
       "types": "./dist/runtimeSqliteAdapter.d.ts",
       "import": "./dist/runtimeSqliteAdapter.js"
+    },
+    "./web-file-source": {
+      "types": "./dist/webFileSource.d.ts",
+      "import": "./dist/webFileSource.js"
     }
   },
   "scripts": {

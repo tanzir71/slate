@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 2 concrete native/web file source adapters.
+- Current task: Phase 2 concrete native file source adapter.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -19,6 +19,7 @@
 - 2026-07-10: Added wa-sqlite dependency wiring and a tested web OPFS helper that registers the OPFS VFS, opens the Slate index, and applies the shared FTS schema.
 - 2026-07-10: Added shared async SQLite index read/search/replace operations and wired them into both Tauri SQL and web OPFS helpers.
 - 2026-07-10: Added a runtime SQLite adapter that rebuilds the shared index from an abstract Markdown file source, so native/web file sources can plug into one parser/indexing path.
+- 2026-07-10: Added a concrete browser directory-handle Markdown file source that recursively lists `.md` files, ignores `.slate`, and prevents path traversal.
 
 ## Phase Board
 
@@ -54,7 +55,8 @@
 - [x] Add OPFS/wa-sqlite adapter wiring for web runtime
 - [x] Use the web OPFS helper for browser index read/search/replace operations beyond schema bootstrap
 - [x] Connect runtime SQL operations to an abstract Markdown file scanner
-- [ ] Implement concrete native/web file source adapters for full rebuild-from-disk parity
+- [x] Implement concrete web directory file source adapter
+- [ ] Implement concrete native file source adapter for full rebuild-from-disk parity
 
 ### Phase 3 - Editor MVP
 - [x] CodeMirror 6 host
