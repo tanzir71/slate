@@ -184,6 +184,13 @@ button {
   color: var(--slate-accent);
 }
 
+.navRow.dropTarget {
+  outline: 2px solid var(--slate-accent);
+  outline-offset: -2px;
+  background: var(--slate-accent-soft);
+  color: var(--slate-accent);
+}
+
 .rowCount {
   color: var(--slate-muted);
   font-variant-numeric: tabular-nums;
@@ -277,6 +284,14 @@ button {
 
 .sheetRow.active {
   background: var(--slate-accent-soft);
+}
+
+.sheetRow[draggable="true"] {
+  cursor: grab;
+}
+
+.sheetRow.dragging {
+  opacity: 0.72;
 }
 
 .sheetTitleLine,

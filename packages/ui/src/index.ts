@@ -8,5 +8,5 @@ export {
   type AutosaveWriteResult,
   type SheetAutosaveWriter
 } from "./autosave";
-export { SlateApp } from "./SlateApp";
+export { SlateApp, type SheetMoveWriter, type SlateAppProps } from "./SlateApp";
 export { createTauriAutosaveWriter, type TauriAutosaveWriterOptions, type TauriInvoke } from "./tauriAutosave";

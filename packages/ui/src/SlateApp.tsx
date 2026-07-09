@@ -24,6 +24,7 @@ import {
   TextCursorInput
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, DragEvent } from "react";
 import { computeEditorHud } from "@slate/editor";
 import { slateTokens } from "@slate/tokens";
 import {
@@ -40,6 +41,11 @@ type InspectorTab = "Backlinks" | "Outline" | "Metadata";
 
 export interface SlateAppProps {
   autosaveWriter?: SheetAutosaveWriter;
+  sheetMoveWriter?: SheetMoveWriter;
+}
+
+export interface SheetMoveWriter {
+  moveSheet(fromPath: string, toPath: string): Promise<void>;
 }
 
 const smartFilters = [
@@ -51,13 +57,16 @@ const smartFilters = [
   { label: "Drafts", count: 9, icon: Pencil }
 ];
 
-export function SlateApp({ autosaveWriter }: SlateAppProps = {}) {
+export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}) {
   const [activeSpace, setActiveSpace] = useState("work");
   const [sheets, setSheets] = useState<SheetSeed[]>(seedSheets);
   const [selectedId, setSelectedId] = useState(seedSheets[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(true);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("Backlinks");
+  const [draggedSheetId, setDraggedSheetId] = useState<string | undefined>(undefined);
+  const [dropTargetNotebook, setDropTargetNotebook] = useState<string | undefined>(undefined);
+  const [moveError, setMoveError] = useState<string | undefined>(undefined);
   const autosaveRef = useRef<AutosaveController | undefined>(undefined);
   const selected = sheets.find((sheet) => sheet.id === selectedId) ?? sheets[0];
   const selectedSpace = spaces.find((space) => space.id === activeSpace) ?? spaces[0];
@@ -137,6 +146,51 @@ export function SlateApp({ autosaveWriter }: SlateAppProps = {}) {
     setCommandOpen(false);
   }
 
+  async function moveSheetToNotebook(sheetId: string, notebook: string) {
+    const sheet = sheets.find((candidate) => candidate.id === sheetId);
+    if (!sheet || sheet.notebook === notebook) {
+      setDraggedSheetId(undefined);
+      setDropTargetNotebook(undefined);
+      return;
+    }
+
+    await autosaveRef.current?.flush();
+    const moved = moveSheetSeed(sheet, notebook);
+    const fromPath = sheetToPath(sheet);
+    const toPath = sheetToPath(moved);
+
+    try {
+      await sheetMoveWriter?.moveSheet(fromPath, toPath);
+      setSheets((current) => current.map((candidate) => (candidate.id === sheetId ? moved : candidate)));
+      setMoveError(undefined);
+    } catch (error) {
+      setMoveError(error instanceof Error ? error.message : "Could not move sheet");
+    } finally {
+      setDraggedSheetId(undefined);
+      setDropTargetNotebook(undefined);
+    }
+  }
+
+  function handleNotebookDragOver(event: DragEvent<HTMLElement>, notebook: string) {
+    if (!draggedSheetId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetNotebook(notebook);
+  }
+
+  function handleNotebookDrop(event: DragEvent<HTMLElement>, notebook: string) {
+    event.preventDefault();
+    const sheetId = event.dataTransfer.getData("text/plain") || draggedSheetId;
+    if (!sheetId) {
+      return;
+    }
+
+    void moveSheetToNotebook(sheetId, notebook);
+  }
+
   if (!selected || !selectedSpace) {
     return null;
   }
@@ -144,7 +198,7 @@ export function SlateApp({ autosaveWriter }: SlateAppProps = {}) {
   return (
     <main
       className="slateApp"
-      style={{ "--slate-accent": selectedSpace.color, "--token-accent": slateTokens.colors.accent } as React.CSSProperties}
+      style={{ "--slate-accent": selectedSpace.color, "--token-accent": slateTokens.colors.accent } as CSSProperties}
     >
       <header className="topbar">
         <div className="brand">Slate</div>
@@ -193,7 +247,17 @@ export function SlateApp({ autosaveWriter }: SlateAppProps = {}) {
           ))}
 
           <SectionHeader label="Tags" />
-          <div className="tagTree">{notebooks.map((notebook) => renderNotebook(notebook))}</div>
+          <div className="tagTree">
+            {notebooks.map((notebook) =>
+              renderNotebook(notebook, {
+                path: notebook.id,
+                dropTargetNotebook,
+                onDragOver: handleNotebookDragOver,
+                onDragLeave: () => setDropTargetNotebook(undefined),
+                onDrop: handleNotebookDrop
+              })
+            )}
+          </div>
 
           <div className="sidebarFooter">
             <button aria-label="Settings">
@@ -229,8 +293,19 @@ export function SlateApp({ autosaveWriter }: SlateAppProps = {}) {
           <div className="sheetRows">
             {filteredSheets.map((sheet) => (
               <button
-                className={sheet.id === selected.id ? "sheetRow active" : "sheetRow"}
+                className={`${sheet.id === selected.id ? "sheetRow active" : "sheetRow"}${sheet.id === draggedSheetId ? " dragging" : ""}`}
+                data-testid={`sheet-row-${sheet.id}`}
+                draggable
                 key={sheet.id}
+                onDragEnd={() => {
+                  setDraggedSheetId(undefined);
+                  setDropTargetNotebook(undefined);
+                }}
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", sheet.id);
+                  setDraggedSheetId(sheet.id);
+                }}
                 onClick={() => {
                   void autosaveRef.current?.flush();
                   setSelectedId(sheet.id);
@@ -255,7 +330,7 @@ export function SlateApp({ autosaveWriter }: SlateAppProps = {}) {
 
           <div className="listFooter">
             <span>{sheets.length} sheets</span>
-            <span>Updated</span>
+            <span>{moveError ?? "Updated"}</span>
           </div>
         </aside>
 
@@ -345,10 +420,25 @@ function SpaceIcon({ id }: { id: string }) {
   return <Pencil size={16} />;
 }
 
-function renderNotebook(notebook: NotebookSeed) {
+interface NotebookDropHandlers {
+  path: string;
+  dropTargetNotebook: string | undefined;
+  onDragOver: (event: DragEvent<HTMLElement>, notebook: string) => void;
+  onDragLeave: () => void;
+  onDrop: (event: DragEvent<HTMLElement>, notebook: string) => void;
+}
+
+function renderNotebook(notebook: NotebookSeed, handlers: NotebookDropHandlers) {
+  const isDropTarget = handlers.dropTargetNotebook === handlers.path;
   return (
     <div className="treeGroup" key={notebook.id}>
-      <button className="navRow compact treeParent">
+      <button
+        className={`navRow compact treeParent${isDropTarget ? " dropTarget" : ""}`}
+        data-testid={`notebook-drop-${notebook.id}`}
+        onDragLeave={handlers.onDragLeave}
+        onDragOver={(event) => handlers.onDragOver(event, handlers.path)}
+        onDrop={(event) => handlers.onDrop(event, handlers.path)}
+      >
         <ChevronDown size={14} />
         <Folder size={15} />
         <span>{notebook.label}</span>
@@ -357,7 +447,14 @@ function renderNotebook(notebook: NotebookSeed) {
       {notebook.children ? (
         <div className="treeChildren">
           {notebook.children.map((child) => (
-            <button className="navRow compact treeLeaf" key={child.id}>
+            <button
+              className={`navRow compact treeLeaf${handlers.dropTargetNotebook === `${handlers.path}/${child.id}` ? " dropTarget" : ""}`}
+              data-testid={`notebook-drop-${child.id}`}
+              key={child.id}
+              onDragLeave={handlers.onDragLeave}
+              onDragOver={(event) => handlers.onDragOver(event, `${handlers.path}/${child.id}`)}
+              onDrop={(event) => handlers.onDrop(event, `${handlers.path}/${child.id}`)}
+            >
               <Archive size={14} />
               <span>{child.label}</span>
               {child.count ? <span className="rowCount">{child.count}</span> : null}
@@ -486,6 +583,15 @@ function previewFromMarkdown(markdown: string): string {
     .filter(Boolean)
     .slice(0, 18)
     .join(" ");
+}
+
+function moveSheetSeed(sheet: SheetSeed, notebook: string): SheetSeed {
+  const nextTags = sheet.tags.map((tag) => (tag === sheet.notebook ? notebook : tag));
+  if (!nextTags.includes(notebook)) {
+    nextTags.unshift(notebook);
+  }
+
+  return { ...sheet, notebook, tags: nextTags, updated: "Now" };
 }
 
 function sheetToPath(sheet: SheetSeed): string {

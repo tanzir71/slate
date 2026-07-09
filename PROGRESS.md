@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 4 drag/drop and disk-backed move operations.
+- Current task: Phase 5 wiki-link navigation.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -22,6 +22,7 @@
 - 2026-07-10: Added a concrete browser directory-handle Markdown file source that recursively lists `.md` files, ignores `.slate`, and prevents path traversal.
 - 2026-07-10: Added concrete native Markdown file-source commands and a Tauri invoke wrapper, giving desktop rebuilds the same abstract scanner contract as web.
 - 2026-07-10: Enforced the core coverage gate in `pnpm test` and broadened core tests for canonical Markdown round-trips, filter edge cases, fallback metadata, GFM parsing, and goal variants.
+- 2026-07-10: Added disk-backed sheet move safety/index refresh and a drag/drop UI move path with rendered desktop/mobile Playwright validation.
 
 ## Phase Board
 
@@ -77,7 +78,7 @@
 - [x] Sheet list
 - [x] Tag/search filtering
 - [x] Per-space accent
-- [ ] Drag/drop and disk-backed move operations
+- [x] Drag/drop and disk-backed move operations
 
 ### Phase 5 - Power Features
 - [x] Smart filter UI skeleton
@@ -113,3 +114,4 @@
 - `pnpm install` needed `NODE_OPTIONS=--use-system-ca` locally because the npm registry certificate chain was not trusted by Node.
 - Cargo needed revocation checking disabled on this Windows host; `.cargo/config.toml` sets `check-revoke = false`.
 - Vite preview did not satisfy Playwright's readiness check in this shell, so e2e uses `scripts/serve-static.mjs` against the built web app.
+- The in-app Browser backend reported `iab` unavailable during move-flow QA, so rendered validation used Playwright against the local Vite dev server.

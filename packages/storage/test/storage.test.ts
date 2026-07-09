@@ -72,6 +72,37 @@ describe("local storage adapter", () => {
     await expect(adapter.searchSheets("#product")).resolves.toMatchObject([{ path: "Blog/launch.md" }]);
   });
 
+  it("moves sheets on disk and refreshes the SQLite index path", async () => {
+    const root = await makeRoot();
+    const adapter = createLocalStorageAdapter(root);
+    await adapter.ensureSpace({ name: "Work" });
+    await adapter.writeSheet("Drafts/note.md", "# Note\n\nA searchable espresso note.\n");
+    await adapter.rebuildIndex();
+
+    await adapter.moveSheet("Drafts/note.md", "Archive/note.md");
+
+    await expect(readFile(join(root, "Drafts/note.md"), "utf8")).rejects.toThrow();
+    await expect(readFile(join(root, "Archive/note.md"), "utf8")).resolves.toBe(
+      "# Note\n\nA searchable espresso note.\n"
+    );
+    await expect(adapter.readIndex()).resolves.toMatchObject([{ path: "Archive/note.md" }]);
+    await expect(adapter.searchSheets("espresso")).resolves.toMatchObject([{ path: "Archive/note.md" }]);
+  });
+
+  it("refuses to overwrite an existing sheet when moving", async () => {
+    const root = await makeRoot();
+    const adapter = createLocalStorageAdapter(root);
+    await adapter.ensureSpace({ name: "Work" });
+    await adapter.writeSheet("Drafts/source.md", "# Source\n");
+    await adapter.writeSheet("Archive/source.md", "# Existing\n");
+
+    await expect(adapter.moveSheet("Drafts/source.md", "Archive/source.md")).rejects.toThrow(
+      "destination already exists"
+    );
+    await expect(readFile(join(root, "Drafts/source.md"), "utf8")).resolves.toBe("# Source\n");
+    await expect(readFile(join(root, "Archive/source.md"), "utf8")).resolves.toBe("# Existing\n");
+  });
+
   it("auto-rebuilds a corrupted SQLite index from Markdown files", async () => {
     const root = await makeRoot();
     const adapter = createLocalStorageAdapter(root);

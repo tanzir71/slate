@@ -119,3 +119,11 @@ Context: The handoff requires `packages/core` at or above 90% line coverage, but
 Decision: Run Vitest with V8 coverage in `pnpm test`, scope the enforced include set to `packages/core/src/**/*.ts`, and set global thresholds at 90% lines/statements/functions with a 75% branch floor.
 
 Consequence: The Phase 1 core quality bar is now machine-enforced without forcing the scaffolded UI/storage packages to meet the final overall 75% threshold before their remaining behavior lands.
+
+## 2026-07-10 - Inject Sheet Moves Behind a UI Adapter
+
+Context: The three-pane UI needed drag/drop sheet moves, but the shared React package still runs in web, desktop, and mobile shells with different filesystem capabilities.
+
+Decision: Add a `SheetMoveWriter` prop to `SlateApp`, have notebook drop targets call it with source/destination Markdown paths, and update the visible sheet notebook only after the move writer succeeds. The Node local storage adapter now rebuilds SQLite after `moveSheet` and refuses to overwrite an existing destination.
+
+Consequence: The UI can prove the drag/drop workflow without importing Node or Tauri storage code, while disk-backed adapters preserve index freshness and avoid move-time data loss. Native/web shells still need to inject their concrete move writers.

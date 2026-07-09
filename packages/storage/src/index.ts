@@ -250,8 +250,12 @@ export function createLocalStorageAdapter(root: string): LocalStorageAdapter {
     async moveSheet(fromPath, toPath) {
       const from = safeJoin(absoluteRoot, fromPath);
       const to = safeJoin(absoluteRoot, toPath);
+      if (await pathExists(to)) {
+        throw new Error(`Cannot move sheet because destination already exists: ${toPath}`);
+      }
       await mkdir(dirname(to), { recursive: true });
       await rename(from, to);
+      await this.rebuildIndex();
     },
 
     async deleteSheet(path) {
@@ -443,6 +447,15 @@ async function readExisting(path: string): Promise<string | undefined> {
     return await readFile(path, "utf8");
   } catch {
     return undefined;
+  }
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
   }
 }
 
