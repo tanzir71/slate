@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 2 concrete native file source adapter.
+- Current task: Phase 1 property/coverage hardening.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -20,6 +20,7 @@
 - 2026-07-10: Added shared async SQLite index read/search/replace operations and wired them into both Tauri SQL and web OPFS helpers.
 - 2026-07-10: Added a runtime SQLite adapter that rebuilds the shared index from an abstract Markdown file source, so native/web file sources can plug into one parser/indexing path.
 - 2026-07-10: Added a concrete browser directory-handle Markdown file source that recursively lists `.md` files, ignores `.slate`, and prevents path traversal.
+- 2026-07-10: Added concrete native Markdown file-source commands and a Tauri invoke wrapper, giving desktop rebuilds the same abstract scanner contract as web.
 
 ## Phase Board
 
@@ -56,7 +57,7 @@
 - [x] Use the web OPFS helper for browser index read/search/replace operations beyond schema bootstrap
 - [x] Connect runtime SQL operations to an abstract Markdown file scanner
 - [x] Implement concrete web directory file source adapter
-- [ ] Implement concrete native file source adapter for full rebuild-from-disk parity
+- [x] Implement concrete native file source adapter for full rebuild-from-disk parity
 
 ### Phase 3 - Editor MVP
 - [x] CodeMirror 6 host

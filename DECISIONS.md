@@ -103,3 +103,11 @@ Context: The web runtime needs a concrete way to feed user-selected Markdown fol
 Decision: Add `@slate/storage/web-file-source`, a small adapter over browser directory/file handles that recursively lists `.md` files, ignores `.slate`, and normalizes workspace-relative reads.
 
 Consequence: The web path can now rebuild from a selected directory handle through the shared runtime adapter. Browser permission prompts and handle persistence remain app-integration work.
+
+## 2026-07-10 - Use Tauri Commands for Native File Sources
+
+Context: Native rebuilds need a concrete Markdown file scanner, but shared storage code should not import Tauri APIs directly unless the native shell opts in.
+
+Decision: Add root-safe Rust helpers for listing and reading Markdown files under the default Space, expose them as `list_markdown_files` and `read_markdown_file` Tauri commands, and publish an injectable `@slate/storage/tauri-file-source` wrapper over `invoke`.
+
+Consequence: Desktop rebuilds can now use the same `RuntimeMarkdownFileSource` contract as web directory handles. The app still needs a UI integration point to trigger full native rebuilds from this source.

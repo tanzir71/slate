@@ -134,6 +134,54 @@ pub fn write_sheet_to_space(
     })
 }
 
+pub fn list_markdown_files_in_space(root: impl AsRef<Path>) -> Result<Vec<String>, StorageError> {
+    let root = root.as_ref();
+    let mut paths = Vec::new();
+    collect_markdown_files(root, root, &mut paths)?;
+    paths.sort();
+    Ok(paths)
+}
+
+pub fn read_markdown_file_from_space(
+    root: impl AsRef<Path>,
+    path: &str,
+) -> Result<String, StorageError> {
+    if !path.to_lowercase().ends_with(".md") {
+        return Err(StorageError::InvalidSheetPath);
+    }
+
+    let target = safe_space_path(root.as_ref(), path)?;
+    Ok(fs::read_to_string(target)?)
+}
+
+fn collect_markdown_files(
+    root: &Path,
+    directory: &Path,
+    paths: &mut Vec<String>,
+) -> Result<(), StorageError> {
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name.to_string_lossy() == ".slate" {
+            continue;
+        }
+
+        let file_type = entry.file_type()?;
+        let path = entry.path();
+        if file_type.is_dir() {
+            collect_markdown_files(root, &path, paths)?;
+        } else if file_type.is_file()
+            && path
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+        {
+            paths.push(workspace_relative_path(root, &path)?);
+        }
+    }
+
+    Ok(())
+}
+
 fn safe_space_path(root: &Path, path: &str) -> Result<PathBuf, StorageError> {
     let requested = Path::new(path);
     if requested.is_absolute() {
@@ -172,9 +220,7 @@ fn conflict_copy_path(target: &Path, stamp: &str) -> Result<PathBuf, StorageErro
     };
     let suffix = extension.map_or(String::new(), |extension| format!(".{extension}"));
 
-    Ok(target.with_file_name(format!(
-        "{stem} (conflicted copy {stamp}){suffix}"
-    )))
+    Ok(target.with_file_name(format!("{stem} (conflicted copy {stamp}){suffix}")))
 }
 
 fn workspace_relative_path(root: &Path, target: &Path) -> Result<String, StorageError> {
@@ -262,8 +308,11 @@ mod tests {
         );
         assert_eq!(fs::read_to_string(&sheet_path).unwrap(), "existing edit");
         assert_eq!(
-            fs::read_to_string(root.join("Drafts").join("note (conflicted copy 2026-07-10 00-00-00).md"))
-                .unwrap(),
+            fs::read_to_string(
+                root.join("Drafts")
+                    .join("note (conflicted copy 2026-07-10 00-00-00).md")
+            )
+            .unwrap(),
             "incoming edit"
         );
 
@@ -285,6 +334,46 @@ mod tests {
 
         assert_eq!(error, StorageError::PathEscapesRoot);
         assert!(!root.parent().unwrap().join("outside.md").exists());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn lists_markdown_files_inside_space_root() {
+        let root = temp_root("list-markdown");
+        fs::create_dir_all(root.join("Blog")).unwrap();
+        fs::create_dir_all(root.join(".slate")).unwrap();
+        fs::write(root.join("Blog").join("post.md"), "# Post").unwrap();
+        fs::write(root.join("Blog").join("ignore.txt"), "Nope").unwrap();
+        fs::write(root.join(".slate").join("internal.md"), "Nope").unwrap();
+        fs::write(root.join("root.md"), "# Root").unwrap();
+
+        let paths = list_markdown_files_in_space(&root).unwrap();
+
+        assert_eq!(paths, vec!["Blog/post.md", "root.md"]);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reads_markdown_file_inside_space_root() {
+        let root = temp_root("read-markdown");
+        fs::write(root.join("note.md"), "# Note").unwrap();
+
+        let content = read_markdown_file_from_space(&root, "note.md").unwrap();
+
+        assert_eq!(content, "# Note");
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_reading_native_paths_that_escape_the_space_root() {
+        let root = temp_root("read-escape");
+
+        let error = read_markdown_file_from_space(&root, "../outside.md").unwrap_err();
+
+        assert_eq!(error, StorageError::PathEscapesRoot);
 
         fs::remove_dir_all(root).unwrap();
     }

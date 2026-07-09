@@ -21,6 +21,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Shared async SQLite index operations for native/web read, FTS search, and replace-all writes.
 - Runtime SQLite adapter that rebuilds the shared index from an abstract Markdown file source.
 - Browser directory-handle Markdown file source for recursive web rebuilds.
+- Native Tauri Markdown file source commands and invoke wrapper for recursive desktop rebuilds.
 - Tauri 2 desktop shell and debug build.
 - Rust authenticated encryption helpers with wrong-key failure tests.
 - Vitest, Playwright, ESLint, TypeScript, Cargo, and CI verify gate.
@@ -31,4 +32,4 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
 
 ### Known Gaps
-- Concrete native file source adapter for full rebuild parity, drag/drop disk moves, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.
+- Browser handle persistence, drag/drop disk moves, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.
