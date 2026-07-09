@@ -26,7 +26,14 @@ import {
   TextCursorInput
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, DragEvent } from "react";
+import type {
+  CSSProperties,
+  Dispatch,
+  DragEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MutableRefObject,
+  SetStateAction
+} from "react";
 import { computeEditorHud } from "@slate/editor";
 import { slateTokens } from "@slate/tokens";
 import {
@@ -40,6 +47,8 @@ import { notebooks, sheets as seedSheets, spaces, type NotebookSeed, type SheetS
 import "./styles.css";
 
 type InspectorTab = "Backlinks" | "Outline" | "Metadata";
+
+const inspectorTabs: InspectorTab[] = ["Backlinks", "Outline", "Metadata"];
 
 export interface SlateAppProps {
   autosaveWriter?: SheetAutosaveWriter;
@@ -69,10 +78,19 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   const [focusMode, setFocusMode] = useState(false);
   const [typewriterMode, setTypewriterMode] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sheetListVisible, setSheetListVisible] = useState(true);
+  const [inspectorVisible, setInspectorVisible] = useState(true);
   const [draggedSheetId, setDraggedSheetId] = useState<string | undefined>(undefined);
   const [dropTargetNotebook, setDropTargetNotebook] = useState<string | undefined>(undefined);
   const [moveError, setMoveError] = useState<string | undefined>(undefined);
   const autosaveRef = useRef<AutosaveController | undefined>(undefined);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const inspectorTabRefs = useRef<Record<InspectorTab, HTMLButtonElement | null>>({
+    Backlinks: null,
+    Outline: null,
+    Metadata: null
+  });
   const selected = sheets.find((sheet) => sheet.id === selectedId) ?? sheets[0];
   const selectedSpace = spaces.find((space) => space.id === activeSpace) ?? spaces[0];
 
@@ -89,20 +107,87 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       const commandKey = event.metaKey || event.ctrlKey;
-      if (commandKey && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setCommandOpen((open) => !open);
+      const key = event.key.toLowerCase();
+
+      if (event.key === "Escape") {
+        if (commandOpen) {
+          event.preventDefault();
+          setCommandOpen(false);
+          return;
+        }
+
+        if (focusMode || fullscreenMode) {
+          event.preventDefault();
+          setFocusMode(false);
+          setFullscreenMode(false);
+        }
       }
 
-      if (commandKey && event.key.toLowerCase() === "n") {
+      if (!commandKey) {
+        return;
+      }
+
+      if (event.altKey && /^[1-9]$/.test(event.key)) {
+        const nextSpace = spaces[Number(event.key) - 1];
+        if (nextSpace) {
+          event.preventDefault();
+          setActiveSpace(nextSpace.id);
+        }
+        return;
+      }
+
+      if (key === "k") {
+        event.preventDefault();
+        setCommandOpen((open) => !open);
+        return;
+      }
+
+      if (key === "n" && !event.shiftKey && !event.altKey) {
         event.preventDefault();
         createSheet();
+        return;
+      }
+
+      if (key === "f" && event.shiftKey) {
+        event.preventDefault();
+        setCommandOpen(false);
+        window.requestAnimationFrame(() => searchInputRef.current?.focus());
+        return;
+      }
+
+      if (key === "i" && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        setInspectorVisible((visible) => {
+          const nextVisible = !visible;
+          if (nextVisible) {
+            window.requestAnimationFrame(() => inspectorTabRefs.current[inspectorTab]?.focus());
+          }
+          return nextVisible;
+        });
+        return;
+      }
+
+      if (event.key === "." && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        setFocusMode((enabled) => !enabled);
+        return;
+      }
+
+      if (event.key === "\\" && event.altKey) {
+        event.preventDefault();
+        setSheetListVisible((visible) => !visible);
+        return;
+      }
+
+      if (event.key === "\\" && !event.altKey) {
+        event.preventDefault();
+        setSidebarVisible((visible) => !visible);
       }
     };
 
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [sheets]);
+  }, [commandOpen, focusMode, fullscreenMode, inspectorTab]);
 
   const filteredSheets = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -204,7 +289,10 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
     "slateApp",
     focusMode ? "focusMode" : "",
     typewriterMode ? "typewriterMode" : "",
-    fullscreenMode ? "fullscreenMode" : ""
+    fullscreenMode ? "fullscreenMode" : "",
+    sidebarVisible ? "" : "sidebarHidden",
+    sheetListVisible ? "" : "sheetListHidden",
+    inspectorVisible ? "" : "inspectorHidden"
   ]
     .filter(Boolean)
     .join(" ");
@@ -238,6 +326,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
             {spaces.map((space) => (
               <button
                 className={space.id === activeSpace ? "navRow selected" : "navRow"}
+                aria-current={space.id === activeSpace ? "true" : undefined}
                 key={space.id}
                 onClick={() => setActiveSpace(space.id)}
               >
@@ -296,7 +385,13 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
 
           <label className="searchBox">
             <Search size={16} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search sheets..." />
+            <input
+              aria-label="Search sheets"
+              ref={searchInputRef}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search sheets..."
+            />
           </label>
 
           <div className="sheetGroupLabel">
@@ -309,6 +404,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
               filteredSheets.map((sheet) => (
                 <button
                   className={`${sheet.id === selected.id ? "sheetRow active" : "sheetRow"}${sheet.id === draggedSheetId ? " dragging" : ""}`}
+                  aria-current={sheet.id === selected.id ? "true" : undefined}
                   data-testid={`sheet-row-${sheet.id}`}
                   draggable
                   key={sheet.id}
@@ -384,7 +480,14 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
               >
                 <Focus size={17} />
               </button>
-              <button aria-label="Toggle inspector" onClick={() => setInspectorTab("Backlinks")}>
+              <button
+                aria-label="Toggle inspector"
+                aria-pressed={inspectorVisible}
+                onClick={() => {
+                  setInspectorTab("Backlinks");
+                  setInspectorVisible((visible) => !visible);
+                }}
+              >
                 <PanelRight size={17} />
               </button>
               <button
@@ -428,25 +531,38 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           </div>
         </section>
 
-        <aside className="inspector" aria-label="Inspector">
+        <aside className="inspector" aria-label="Inspector" aria-hidden={!inspectorVisible}>
           <div className="inspectorHeader">
             <strong>Inspector</strong>
             <Pin size={17} />
           </div>
           <div className="tabs" role="tablist" aria-label="Inspector tabs">
-            {(["Backlinks", "Outline", "Metadata"] as const).map((tab) => (
+            {inspectorTabs.map((tab) => (
               <button
                 role="tab"
                 aria-selected={inspectorTab === tab}
+                aria-controls="inspector-panel"
                 className={inspectorTab === tab ? "active" : ""}
+                id={inspectorTabId(tab)}
                 key={tab}
+                ref={(element) => {
+                  inspectorTabRefs.current[tab] = element;
+                }}
+                tabIndex={inspectorTab === tab ? 0 : -1}
                 onClick={() => setInspectorTab(tab)}
+                onKeyDown={(event) => handleInspectorTabKeyDown(event, tab, setInspectorTab, inspectorTabRefs)}
               >
                 {tab}
               </button>
             ))}
           </div>
-          <InspectorPanel tab={inspectorTab} sheet={selected} outline={outline} />
+          <InspectorPanel
+            labelledBy={inspectorTabId(inspectorTab)}
+            panelId="inspector-panel"
+            tab={inspectorTab}
+            sheet={selected}
+            outline={outline}
+          />
         </aside>
       </section>
     </main>
@@ -559,17 +675,28 @@ function CommandPalette({ onClose, onCreate }: { onClose: () => void; onCreate: 
 }
 
 function InspectorPanel({
+  labelledBy,
+  panelId,
   tab,
   sheet,
   outline
 }: {
+  labelledBy: string;
+  panelId: string;
   tab: InspectorTab;
   sheet: SheetSeed;
   outline: string[];
 }) {
+  const panelProps = {
+    "aria-labelledby": labelledBy,
+    className: "inspectorBody",
+    id: panelId,
+    role: "tabpanel"
+  };
+
   if (tab === "Outline") {
     return (
-      <div className="inspectorBody">
+      <div {...panelProps}>
         {outline.length > 0 ? (
           outline.map((heading) => (
             <button className="outlineRow" key={heading}>
@@ -588,7 +715,7 @@ function InspectorPanel({
 
   if (tab === "Metadata") {
     return (
-      <div className="inspectorBody metadataGrid">
+      <div {...panelProps} className="inspectorBody metadataGrid">
         <span>Created</span>
         <strong>Apr 28, 2026</strong>
         <span>Updated</span>
@@ -602,7 +729,7 @@ function InspectorPanel({
   }
 
   return (
-    <div className="inspectorBody">
+    <div {...panelProps}>
       <span className="subtle">{sheet.backlinks.length} backlinks</span>
       {sheet.backlinks.length > 0 ? (
         sheet.backlinks.map((backlink) => (
@@ -639,6 +766,47 @@ function InspectorPanel({
       </div>
     </div>
   );
+}
+
+function handleInspectorTabKeyDown(
+  event: ReactKeyboardEvent<HTMLButtonElement>,
+  tab: InspectorTab,
+  setInspectorTab: Dispatch<SetStateAction<InspectorTab>>,
+  tabRefs: MutableRefObject<Record<InspectorTab, HTMLButtonElement | null>>
+): void {
+  let nextTab: InspectorTab | undefined;
+  const currentIndex = inspectorTabs.indexOf(tab);
+
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    nextTab = inspectorTabs[(currentIndex + 1) % inspectorTabs.length];
+  }
+
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    nextTab = inspectorTabs[(currentIndex - 1 + inspectorTabs.length) % inspectorTabs.length];
+  }
+
+  if (event.key === "Home") {
+    event.preventDefault();
+    nextTab = inspectorTabs[0];
+  }
+
+  if (event.key === "End") {
+    event.preventDefault();
+    nextTab = inspectorTabs[inspectorTabs.length - 1];
+  }
+
+  if (!nextTab) {
+    return;
+  }
+
+  setInspectorTab(nextTab);
+  window.requestAnimationFrame(() => tabRefs.current[nextTab]?.focus());
+}
+
+function inspectorTabId(tab: InspectorTab): string {
+  return `inspector-tab-${tab.toLowerCase()}`;
 }
 
 function extractOutline(markdown: string): string[] {

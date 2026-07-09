@@ -26,6 +26,17 @@ pnpm verify
 
 The verify gate runs TypeScript checks, ESLint, Vitest, Rust tests, builds the web and desktop shells, and runs Playwright smoke tests.
 
+## Keyboard
+- Command palette: `Ctrl+K` / `Cmd+K`
+- New sheet: `Ctrl+N` / `Cmd+N`
+- Focus sheet search: `Ctrl+Shift+F` / `Cmd+Shift+F`
+- Toggle inspector: `Ctrl+I` / `Cmd+I`
+- Focus mode: `Ctrl+.` / `Cmd+.`
+- Switch Spaces: `Ctrl+Alt+1..9` / `Cmd+Alt+1..9`
+- Toggle sidebar: `Ctrl+\` / `Cmd+\`
+- Toggle sheet list: `Ctrl+Alt+\` / `Cmd+Alt+\`
+- Close palette or exit focus/full-screen mode: `Esc`
+
 On this Windows host, dependency installation required Node to use the system certificate store:
 
 ```powershell

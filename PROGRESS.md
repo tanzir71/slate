@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 6 keyboard-only walkthrough.
+- Current task: Phase 7 BYO-folder reconcile model.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -26,6 +26,7 @@
 - 2026-07-10: Added editor wiki-link hit detection and Ctrl/Cmd-click navigation that resolves sheets by stable id first, then by title.
 - 2026-07-10: Added focus, typewriter, and full-screen editor modes with accessible toolbar toggles and rendered Playwright validation.
 - 2026-07-10: Added sheet search and inspector empty states with rendered Playwright validation.
+- 2026-07-10: Added a desktop keyboard-only Playwright walkthrough plus shortcuts for palette, new sheet, search, inspector, focus mode, pane toggles, and space switching.
 
 ## Phase Board
 
@@ -95,7 +96,7 @@
 - [x] Light theme and design tokens
 - [x] Focus, typewriter, and full-screen modes
 - [x] Empty states
-- [ ] Keyboard-only walkthrough
+- [x] Keyboard-only walkthrough
 - [x] Axe/a11y coverage
 - [x] Responsive desktop/mobile screenshots visually inspected
 

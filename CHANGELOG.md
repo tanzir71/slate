@@ -27,6 +27,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Ctrl/Cmd-click wiki-link navigation in the editor with stable-id-first sheet resolution.
 - Focus, typewriter, and full-screen editor modes with accessible toolbar toggles.
 - Empty states for sheet search and inspector backlinks/outline panels.
+- Keyboard shortcuts and a Playwright keyboard-only walkthrough for palette, search, inspector, focus mode, and space switching.
 - Tauri 2 desktop shell and debug build.
 - Rust authenticated encryption helpers with wrong-key failure tests.
 - Vitest, Playwright, ESLint, TypeScript, Cargo, and CI verify gate.
@@ -37,4 +38,4 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
 
 ### Known Gaps
-- Browser handle persistence, keyboard-only walkthrough, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.
+- Browser handle persistence, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.
