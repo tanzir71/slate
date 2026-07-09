@@ -23,6 +23,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Browser directory-handle Markdown file source for recursive web rebuilds.
 - Native Tauri Markdown file source commands and invoke wrapper for recursive desktop rebuilds.
 - Core coverage enforcement and broader domain tests for round-trip stability, filters, metadata fallbacks, GFM parsing, and goal variants.
+- Pure BYO-folder reconciliation model for accepting external edits, writing local edits, clean merges, and deterministic conflict-copy actions.
 - Disk-backed sheet moves that refresh the SQLite index, avoid destination overwrites, and can be triggered through notebook drag/drop in the UI.
 - Ctrl/Cmd-click wiki-link navigation in the editor with stable-id-first sheet resolution.
 - Focus, typewriter, and full-screen editor modes with accessible toolbar toggles.

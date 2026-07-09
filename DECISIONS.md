@@ -143,3 +143,11 @@ Context: Focus, typewriter, and full-screen modes are writing-surface preference
 Decision: Implement the modes as local `SlateApp` state toggled from icon toolbar buttons. CSS classes control the layout: focus mode hides navigation and dims inactive editor lines, typewriter mode changes editor vertical rhythm, and full-screen mode hides top chrome.
 
 Consequence: The writing modes are usable and testable without inventing a settings store prematurely. Persisting these preferences can be layered onto per-space settings later.
+
+## 2026-07-10 - Keep BYO-Folder Reconcile Decisions Pure
+
+Context: BYO-folder sync must work across desktop, web directory handles, and mobile/native filesystem adapters without clobbering Dropbox/iCloud/Git edits.
+
+Decision: Add `reconcileByoFolderFile` in `packages/sync` as a pure decision model over base, local, and external file contents. Runtime adapters can map its actions to disk writes, deletes, clean merged writes, or conflict-copy writes.
+
+Consequence: The no-data-loss policy is testable without filesystem coupling, and platform adapters can share identical conflict semantics while still owning their IO details.

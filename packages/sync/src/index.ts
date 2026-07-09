@@ -12,6 +12,53 @@ export interface OfflineMergeResult {
   conflicted: boolean;
 }
 
+export interface ByoFolderReconcileInput {
+  path: string;
+  baseContent: string | undefined;
+  localContent: string | undefined;
+  externalContent: string | undefined;
+  now?: Date;
+}
+
+export type ByoFolderReconcileAction =
+  | {
+      type: "noop";
+      path: string;
+    }
+  | {
+      type: "accept-external";
+      path: string;
+      content: string;
+    }
+  | {
+      type: "accept-external-delete";
+      path: string;
+    }
+  | {
+      type: "write-local";
+      path: string;
+      content: string;
+    }
+  | {
+      type: "delete-external";
+      path: string;
+    }
+  | {
+      type: "write-merged";
+      path: string;
+      content: string;
+      lostData: false;
+    }
+  | {
+      type: "write-conflict-copy";
+      path: string;
+      conflictPath: string;
+      content: string;
+      externalContent: string;
+      mergedContent: string;
+      lostData: false;
+    };
+
 export interface SyncEngineOptions {
   slateSyncEnabled: boolean;
 }
@@ -56,12 +103,103 @@ export function mergeOfflineEdits(input: OfflineMergeInput): OfflineMergeResult 
   };
 }
 
+export function reconcileByoFolderFile(input: ByoFolderReconcileInput): ByoFolderReconcileAction {
+  const { path, baseContent, localContent, externalContent } = input;
+
+  if (localContent === externalContent) {
+    return { type: "noop", path };
+  }
+
+  if (baseContent === undefined) {
+    if (localContent === undefined && externalContent !== undefined) {
+      return { type: "accept-external", path, content: externalContent };
+    }
+
+    if (localContent !== undefined && externalContent === undefined) {
+      return { type: "write-local", path, content: localContent };
+    }
+
+    return createByoConflictCopyAction(input, localContent ?? "", externalContent ?? "");
+  }
+
+  if (localContent === baseContent) {
+    if (externalContent === undefined) {
+      return { type: "accept-external-delete", path };
+    }
+
+    return { type: "accept-external", path, content: externalContent };
+  }
+
+  if (externalContent === baseContent) {
+    if (localContent === undefined) {
+      return { type: "delete-external", path };
+    }
+
+    return { type: "write-local", path, content: localContent };
+  }
+
+  if (localContent !== undefined && externalContent !== undefined) {
+    const merge = mergeOfflineEdits({ base: baseContent, left: localContent, right: externalContent });
+    if (!merge.conflicted) {
+      return {
+        type: "write-merged",
+        path,
+        content: merge.merged,
+        lostData: false
+      };
+    }
+
+    return createByoConflictCopyAction(input, localContent, externalContent, merge.merged);
+  }
+
+  if (localContent === undefined && externalContent !== undefined) {
+    return { type: "accept-external", path, content: externalContent };
+  }
+
+  return { type: "write-local", path, content: localContent ?? "" };
+}
+
 export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const doc = new Y.Doc();
   return {
     status: options.slateSyncEnabled ? "ready" : "disabled",
     remoteKind: "stub",
     documentId: doc.guid
+  };
+}
+
+export function createByoConflictPath(path: string, now: Date): string {
+  const normalized = path.replaceAll("\\", "/");
+  const slash = normalized.lastIndexOf("/");
+  const directory = slash >= 0 ? `${normalized.slice(0, slash)}/` : "";
+  const filename = slash >= 0 ? normalized.slice(slash + 1) : normalized;
+  const dot = filename.lastIndexOf(".");
+  const hasExtension = dot > 0;
+  const basename = hasExtension ? filename.slice(0, dot) : filename;
+  const extension = hasExtension ? filename.slice(dot) : "";
+  const stamp = now.toISOString().slice(0, 19).replace("T", " ").replaceAll(":", "-");
+
+  return `${directory}${basename} (conflicted copy ${stamp})${extension}`;
+}
+
+function createByoConflictCopyAction(
+  input: ByoFolderReconcileInput,
+  localContent: string,
+  externalContent: string,
+  mergedContent = mergeOfflineEdits({
+    base: input.baseContent ?? "",
+    left: localContent,
+    right: externalContent
+  }).merged
+): ByoFolderReconcileAction {
+  return {
+    type: "write-conflict-copy",
+    path: input.path,
+    conflictPath: createByoConflictPath(input.path, input.now ?? new Date()),
+    content: localContent,
+    externalContent,
+    mergedContent,
+    lostData: false
   };
 }
 

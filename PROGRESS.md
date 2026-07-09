@@ -1,8 +1,8 @@
 # Slate Progress
 
 ## Current Status
-- Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 7 BYO-folder reconcile model.
+- Current phase: Phase 8 - Export, Publish, and Release Hardening
+- Current task: Phase 8 export interfaces.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -27,6 +27,7 @@
 - 2026-07-10: Added focus, typewriter, and full-screen editor modes with accessible toolbar toggles and rendered Playwright validation.
 - 2026-07-10: Added sheet search and inspector empty states with rendered Playwright validation.
 - 2026-07-10: Added a desktop keyboard-only Playwright walkthrough plus shortcuts for palette, new sheet, search, inspector, focus mode, pane toggles, and space switching.
+- 2026-07-10: Added a pure BYO-folder reconcile model that accepts external edits, writes local edits, cleanly merges appends, and creates deterministic conflict-copy actions for divergent changes.
 
 ## Phase Board
 
@@ -103,7 +104,7 @@
 ### Phase 7 - Cross-Platform and Sync
 - [x] Web PWA build
 - [x] Mobile shell placeholder
-- [ ] BYO-folder reconcile model
+- [x] BYO-folder reconcile model
 - [x] CRDT/local merge tests
 - [x] Slate Sync interface behind a flag
 
