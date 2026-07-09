@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Continue expanding production depth from the verified scaffold.
+- Current task: Phase 2 storage/index production depth.
 - Gate: `pnpm verify` passes locally on 2026-07-09.
 
 ## Loop Notes
@@ -10,6 +10,7 @@
 - 2026-07-09: Subagent tools are present, but this environment requires explicit user authorization before spawning them, so implementation is inline.
 - 2026-07-09: Implemented a verified monorepo scaffold plus a thin product slice across core, storage, sync, editor, UI, web, desktop, mobile shell, Rust crypto, CI, and e2e.
 - 2026-07-09: Visual QA used an Image Gen concept and Playwright screenshots because the in-app browser backend reported `iab` unavailable.
+- 2026-07-10: Replaced the storage JSON cache with a real SQLite FTS5 index through Node 24 `node:sqlite`; added corruption auto-rebuild, FTS search, external-change reconciliation, and polling watch notifications.
 
 ## Phase Board
 
@@ -38,8 +39,10 @@
 - [x] Rebuildable index model
 - [x] Import existing folder as a Space
 - [x] Conflict-safe write helpers
-- [ ] Replace JSON cache implementation with the final SQLite/FTS adapter
-- [ ] Add file watcher and external-change reconcile loop
+- [x] Replace JSON cache implementation with SQLite/FTS for the Node/local adapter
+- [x] Add file watcher and external-change reconcile loop
+- [ ] Add Tauri plugin SQL adapter wiring for native desktop/mobile runtime
+- [ ] Add OPFS/wa-sqlite adapter wiring for web runtime
 
 ### Phase 3 - Editor MVP
 - [x] CodeMirror 6 host
@@ -92,5 +95,4 @@
 ## Blocked or Workaround Entries
 - `pnpm install` needed `NODE_OPTIONS=--use-system-ca` locally because the npm registry certificate chain was not trusted by Node.
 - Cargo needed revocation checking disabled on this Windows host; `.cargo/config.toml` sets `check-revoke = false`.
-- `packages/storage` writes a rebuildable JSON cache to `.slate/index.sqlite` as a development stand-in. The adapter API is ready for a real SQLite/FTS implementation.
 - Vite preview did not satisfy Playwright's readiness check in this shell, so e2e uses `scripts/serve-static.mjs` against the built web app.

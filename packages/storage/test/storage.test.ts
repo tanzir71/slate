@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -58,5 +58,76 @@ describe("local storage adapter", () => {
       "local change\n"
     );
   });
+
+  it("searches the SQLite FTS index by title, body text, and tags", async () => {
+    const root = await makeRoot();
+    const adapter = createLocalStorageAdapter(root);
+    await adapter.ensureSpace({ name: "Work" });
+    await adapter.writeSheet("Blog/launch.md", "---\ntitle: Launch Plan\ntags: [product]\n---\n# Launch\n\nShip calmly.\n");
+    await adapter.writeSheet("Research/interview.md", "# Interview\n\nA note about quiet writing #research/user\n");
+    await adapter.rebuildIndex();
+
+    await expect(adapter.searchSheets("launch")).resolves.toMatchObject([{ path: "Blog/launch.md" }]);
+    await expect(adapter.searchSheets("quiet")).resolves.toMatchObject([{ path: "Research/interview.md" }]);
+    await expect(adapter.searchSheets("#product")).resolves.toMatchObject([{ path: "Blog/launch.md" }]);
+  });
+
+  it("auto-rebuilds a corrupted SQLite index from Markdown files", async () => {
+    const root = await makeRoot();
+    const adapter = createLocalStorageAdapter(root);
+    await adapter.ensureSpace({ name: "Work" });
+    await adapter.writeSheet("note.md", "---\ntitle: Durable Note\n---\nBody\n");
+    await adapter.rebuildIndex();
+    await writeFile(join(root, ".slate/index.sqlite"), "not a sqlite database");
+
+    const entries = await adapter.readIndex();
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ path: "note.md", title: "Durable Note" });
+    await expect(adapter.searchSheets("durable")).resolves.toHaveLength(1);
+  });
+
+  it("reconciles external create, update, and delete changes into the index", async () => {
+    const root = await makeRoot();
+    const adapter = createLocalStorageAdapter(root);
+    await adapter.ensureSpace({ name: "Work" });
+    await adapter.writeSheet("old.md", "# Old\n\nThis will disappear.\n");
+    await adapter.writeSheet("changed.md", "# Changed\n\nInitial body.\n");
+    await adapter.rebuildIndex();
+
+    await unlink(join(root, "old.md"));
+    await writeFile(join(root, "changed.md"), "# Changed\n\nExternally edited body with espresso keyword.\n");
+    await mkdir(join(root, "Inbox"), { recursive: true });
+    await writeFile(join(root, "Inbox/new.md"), "# New\n\nFresh external note.\n");
+
+    const result = await adapter.reconcileExternalChanges();
+
+    expect(result.added).toEqual(["Inbox/new.md"]);
+    expect(result.updated).toEqual(["changed.md"]);
+    expect(result.deleted).toEqual(["old.md"]);
+    await expect(adapter.searchSheets("espresso")).resolves.toMatchObject([{ path: "changed.md" }]);
+  });
+
+  it("notifies within 500ms when external Markdown files change", async () => {
+    const root = await makeRoot();
+    const adapter = createLocalStorageAdapter(root);
+    await adapter.ensureSpace({ name: "Work" });
+    await adapter.rebuildIndex();
+
+    const changed = new Promise<string[]>((resolve) => {
+      const watcher = adapter.watchSpace((event) => {
+        watcher.close();
+        resolve(event.added);
+      }, { intervalMs: 50 });
+    });
+    await writeFile(join(root, "watched.md"), "# Watched\n\nExternal change.\n");
+
+    await expect(Promise.race([changed, timeoutAfter(500)])).resolves.toEqual(["watched.md"]);
+  });
 });
 
+function timeoutAfter(ms: number): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms);
+  });
+}

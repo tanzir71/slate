@@ -1,5 +1,7 @@
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, extname, join, relative, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
+import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { parseSheet, type SheetDocument } from "@slate/core";
 
 export interface SpaceMetadata {
@@ -19,6 +21,13 @@ export interface SheetIndexEntry {
   updatedAt: string | undefined;
 }
 
+export interface ReconcileResult {
+  added: string[];
+  updated: string[];
+  deleted: string[];
+  entries: SheetIndexEntry[];
+}
+
 export interface WriteSheetOptions {
   baseContent?: string;
   now?: Date;
@@ -29,10 +38,21 @@ export interface WriteSheetResult {
   path: string;
 }
 
+export interface WatchOptions {
+  intervalMs?: number;
+}
+
+export interface SpaceWatcher {
+  close(): void;
+}
+
 export interface LocalStorageAdapter {
   ensureSpace(metadata: SpaceMetadata): Promise<SpaceMetadata & { id: string }>;
   rebuildIndex(): Promise<SheetIndexEntry[]>;
   readIndex(): Promise<SheetIndexEntry[]>;
+  searchSheets(query: string): Promise<SheetIndexEntry[]>;
+  reconcileExternalChanges(): Promise<ReconcileResult>;
+  watchSpace(onChange: (event: ReconcileResult) => void, options?: WatchOptions): SpaceWatcher;
   writeSheet(path: string, content: string, options?: WriteSheetOptions): Promise<WriteSheetResult>;
   moveSheet(fromPath: string, toPath: string): Promise<void>;
   deleteSheet(path: string): Promise<void>;
@@ -40,9 +60,29 @@ export interface LocalStorageAdapter {
 
 const slateDir = ".slate";
 const indexFile = "index.sqlite";
+const indexSchema = `
+CREATE TABLE IF NOT EXISTS sheets (
+  id TEXT PRIMARY KEY,
+  path TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  tags_json TEXT NOT NULL,
+  links_json TEXT NOT NULL,
+  words INTEGER NOT NULL,
+  updated_at TEXT,
+  content_hash TEXT NOT NULL
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS sheets_fts USING fts5(
+  path UNINDEXED,
+  title,
+  body,
+  tags
+);
+`;
 
 export function createLocalStorageAdapter(root: string): LocalStorageAdapter {
   const absoluteRoot = resolve(root);
+  const sqlitePath = join(absoluteRoot, slateDir, indexFile);
 
   return {
     async ensureSpace(metadata) {
@@ -63,23 +103,147 @@ export function createLocalStorageAdapter(root: string): LocalStorageAdapter {
 
     async rebuildIndex() {
       await mkdir(join(absoluteRoot, slateDir), { recursive: true });
-      const markdownFiles = await listMarkdownFiles(absoluteRoot);
-      const entries = await Promise.all(
-        markdownFiles.map(async (absolutePath) => {
-          const relativePath = toWorkspacePath(relative(absoluteRoot, absolutePath));
-          const raw = await readFile(absolutePath, "utf8");
-          return sheetToIndexEntry(parseSheet(raw, relativePath));
-        })
-      );
-      const sorted = entries.sort((left, right) => left.path.localeCompare(right.path));
-      await writeFile(join(absoluteRoot, slateDir, indexFile), JSON.stringify(sorted, null, 2));
-      return sorted;
+      const rows = await readDiskRows(absoluteRoot);
+      const sorted = rows.sort((left, right) => left.entry.path.localeCompare(right.entry.path));
+      const database = openIndexDatabase(sqlitePath);
+      try {
+        database.exec("BEGIN IMMEDIATE");
+        database.exec("DELETE FROM sheets_fts");
+        database.exec("DELETE FROM sheets");
+
+        const insertSheet = database.prepare(`
+          INSERT INTO sheets (id, path, title, body, tags_json, links_json, words, updated_at, content_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const insertFts = database.prepare(`
+          INSERT INTO sheets_fts (path, title, body, tags)
+          VALUES (?, ?, ?, ?)
+        `);
+
+        for (const row of sorted) {
+          insertSheet.run(
+            row.entry.id,
+            row.entry.path,
+            row.entry.title,
+            row.body,
+            JSON.stringify(row.entry.tags),
+            JSON.stringify(row.entry.links),
+            row.entry.words,
+            row.entry.updatedAt ?? null,
+            row.contentHash
+          );
+          insertFts.run(row.entry.path, row.entry.title, row.body, row.entry.tags.join(" "));
+        }
+
+        database.exec("COMMIT");
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
+      } finally {
+        database.close();
+      }
+
+      return sorted.map((row) => row.entry);
     },
 
     async readIndex() {
-      const raw = await readFile(join(absoluteRoot, slateDir, indexFile), "utf8");
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.flatMap(readIndexEntry) : [];
+      try {
+        const database = openIndexDatabase(sqlitePath);
+        try {
+          return readIndexEntries(database);
+        } finally {
+          database.close();
+        }
+      } catch {
+        await removeIndexFiles(sqlitePath);
+        return this.rebuildIndex();
+      }
+    },
+
+    async searchSheets(query) {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        return this.readIndex();
+      }
+
+      try {
+        const database = openIndexDatabase(sqlitePath);
+        try {
+          return searchIndexEntries(database, trimmed);
+        } finally {
+          database.close();
+        }
+      } catch {
+        await removeIndexFiles(sqlitePath);
+        await this.rebuildIndex();
+        const database = openIndexDatabase(sqlitePath);
+        try {
+          return searchIndexEntries(database, trimmed);
+        } finally {
+          database.close();
+        }
+      }
+    },
+
+    async reconcileExternalChanges() {
+      const before = await readIndexedRowsOrRebuild(sqlitePath, () => this.rebuildIndex());
+      const disk = await readDiskRows(absoluteRoot);
+      const indexedByPath = new Map(before.map((row) => [row.entry.path, row]));
+      const diskByPath = new Map(disk.map((row) => [row.entry.path, row]));
+
+      const added = disk
+        .filter((row) => !indexedByPath.has(row.entry.path))
+        .map((row) => row.entry.path)
+        .sort();
+      const deleted = before
+        .filter((row) => !diskByPath.has(row.entry.path))
+        .map((row) => row.entry.path)
+        .sort();
+      const updated = disk
+        .filter((row) => {
+          const indexed = indexedByPath.get(row.entry.path);
+          return indexed !== undefined && indexed.contentHash !== row.contentHash;
+        })
+        .map((row) => row.entry.path)
+        .sort();
+
+      const entries = added.length > 0 || deleted.length > 0 || updated.length > 0 ? await this.rebuildIndex() : before.map((row) => row.entry);
+
+      return { added, updated, deleted, entries };
+    },
+
+    watchSpace(onChange, options = {}) {
+      const intervalMs = options.intervalMs ?? 250;
+      let closed = false;
+      let running = false;
+      const timer = setInterval(() => {
+        if (closed || running) {
+          return;
+        }
+
+        running = true;
+        void this.reconcileExternalChanges()
+          .then((event) => {
+            if (
+              !closed &&
+              (event.added.length > 0 || event.updated.length > 0 || event.deleted.length > 0)
+            ) {
+              onChange(event);
+            }
+          })
+          .finally(() => {
+            running = false;
+          });
+      }, intervalMs);
+
+      timer.unref?.();
+
+      return {
+        close() {
+          closed = true;
+          clearInterval(timer);
+        }
+      };
     },
 
     async writeSheet(path, content, options = {}) {
@@ -122,6 +286,12 @@ export function createConflictCopyName(filename: string, now: Date): string {
   return `${basename} (conflicted copy ${stamp})${extension}`;
 }
 
+interface IndexedRow {
+  entry: SheetIndexEntry;
+  body: string;
+  contentHash: string;
+}
+
 function sheetToIndexEntry(sheet: SheetDocument): SheetIndexEntry {
   return {
     id: sheet.id,
@@ -134,33 +304,136 @@ function sheetToIndexEntry(sheet: SheetDocument): SheetIndexEntry {
   };
 }
 
-function readIndexEntry(value: unknown): SheetIndexEntry[] {
-  if (!isRecord(value)) {
+async function readDiskRows(root: string): Promise<IndexedRow[]> {
+  const markdownFiles = await listMarkdownFiles(root);
+  return Promise.all(
+    markdownFiles.map(async (absolutePath) => {
+      const relativePath = toWorkspacePath(relative(root, absolutePath));
+      const raw = await readFile(absolutePath, "utf8");
+      const sheet = parseSheet(raw, relativePath);
+      return {
+        entry: sheetToIndexEntry(sheet),
+        body: sheet.body,
+        contentHash: hashContent(raw)
+      };
+    })
+  );
+}
+
+function openIndexDatabase(path: string): DatabaseSync {
+  let database: DatabaseSync | undefined;
+  try {
+    database = new DatabaseSync(path);
+    database.exec(indexSchema);
+    return database;
+  } catch (error) {
+    database?.close();
+    throw error;
+  }
+}
+
+function readIndexEntries(database: DatabaseSync): SheetIndexEntry[] {
+  return readIndexedRows(database).map((row) => row.entry);
+}
+
+function readIndexedRows(database: DatabaseSync): IndexedRow[] {
+  return database
+    .prepare(
+      `
+      SELECT id, path, title, body, tags_json, links_json, words, updated_at, content_hash
+      FROM sheets
+      ORDER BY path ASC
+    `
+    )
+    .all()
+    .flatMap(rowToIndexedRow);
+}
+
+async function readIndexedRowsOrRebuild(
+  sqlitePath: string,
+  rebuild: () => Promise<SheetIndexEntry[]>
+): Promise<IndexedRow[]> {
+  try {
+    const database = openIndexDatabase(sqlitePath);
+    try {
+      return readIndexedRows(database);
+    } finally {
+      database.close();
+    }
+  } catch {
+    await removeIndexFiles(sqlitePath);
+    await rebuild();
+    const database = openIndexDatabase(sqlitePath);
+    try {
+      return readIndexedRows(database);
+    } finally {
+      database.close();
+    }
+  }
+}
+
+function searchIndexEntries(database: DatabaseSync, query: string): SheetIndexEntry[] {
+  const ftsQuery = toFtsQuery(query);
+  return database
+    .prepare(
+      `
+      SELECT sheets.id, sheets.path, sheets.title, sheets.body, sheets.tags_json, sheets.links_json,
+             sheets.words, sheets.updated_at, sheets.content_hash
+      FROM sheets_fts
+      JOIN sheets ON sheets.path = sheets_fts.path
+      WHERE sheets_fts MATCH ?
+      ORDER BY bm25(sheets_fts), sheets.path ASC
+    `
+    )
+    .all(ftsQuery)
+    .flatMap(rowToIndexedRow)
+    .map((row) => row.entry);
+}
+
+function rowToIndexedRow(row: unknown): IndexedRow[] {
+  if (!isRecord(row)) {
     return [];
   }
 
-  const id = readString(value.id);
-  const path = readString(value.path);
-  const title = readString(value.title);
-  const tags = readStringArray(value.tags);
-  const links = readStringArray(value.links);
-  const words = typeof value.words === "number" ? value.words : undefined;
+  const id = readString(row.id);
+  const path = readString(row.path);
+  const title = readString(row.title);
+  const body = readString(row.body);
+  const tags = parseStringArray(row.tags_json);
+  const links = parseStringArray(row.links_json);
+  const words = typeof row.words === "number" ? row.words : undefined;
+  const contentHash = readString(row.content_hash);
 
-  if (!id || !path || !title || words === undefined) {
+  if (!id || !path || !title || body === undefined || words === undefined || !contentHash) {
     return [];
   }
 
   return [
     {
-      id,
-      path,
-      title,
-      tags,
-      links,
-      words,
-      updatedAt: readString(value.updatedAt)
+      entry: {
+        id,
+        path,
+        title,
+        tags,
+        links,
+        words,
+        updatedAt: readString(row.updated_at)
+      },
+      body,
+      contentHash
     }
   ];
+}
+
+function toFtsQuery(query: string): string {
+  const terms = query
+    .replaceAll("#", " ")
+    .split(/[^A-Za-z0-9_/.-]+/)
+    .map((term) => term.trim().replace(/^\/+|\/+$/g, ""))
+    .filter(Boolean)
+    .map((term) => `"${term.replaceAll('"', '""')}"`);
+
+  return terms.length > 0 ? terms.join(" ") : `"${query.replaceAll('"', '""')}"`;
 }
 
 async function listMarkdownFiles(root: string): Promise<string[]> {
@@ -198,8 +471,8 @@ function conflictCopyPath(path: string, now: Date): string {
 
 function safeJoin(root: string, path: string): string {
   const target = resolve(root, path);
-  const normalizedRoot = root.endsWith("\\") || root.endsWith("/") ? root : `${root}\\`;
-  if (target !== root && !target.startsWith(normalizedRoot)) {
+  const relativeTarget = relative(root, target);
+  if (relativeTarget.startsWith("..") || isAbsolute(relativeTarget)) {
     throw new Error(`Path escapes Slate space root: ${path}`);
   }
   return target;
@@ -221,10 +494,53 @@ function readString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function readStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.flatMap((item) => (typeof item === "string" ? [item] : [])) : [];
+function parseStringArray(value: unknown): string[] {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed.flatMap((item) => (typeof item === "string" ? [item] : [])) : [];
+  } catch {
+    return [];
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hashContent(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+async function removeIndexFiles(sqlitePath: string): Promise<void> {
+  for (const path of [sqlitePath, `${sqlitePath}-shm`, `${sqlitePath}-wal`]) {
+    await retryBusy(() => rm(path, { force: true }));
+  }
+}
+
+async function retryBusy(action: () => Promise<void>): Promise<void> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      await action();
+      return;
+    } catch (error) {
+      if (!isBusyError(error) || attempt === 7) {
+        throw error;
+      }
+      await wait(25 * (attempt + 1));
+    }
+  }
+}
+
+function isBusyError(error: unknown): boolean {
+  return isRecord(error) && (error.code === "EBUSY" || error.code === "EPERM");
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolveWait) => {
+    setTimeout(resolveWait, ms);
+  });
 }

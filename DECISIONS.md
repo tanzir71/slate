@@ -22,7 +22,15 @@ Context: The storage phase requires SQLite/FTS as a rebuildable cache, but bring
 
 Decision: Implement the storage adapter against files on disk and write a deterministic JSON cache to `.slate/index.sqlite` as a temporary stand-in.
 
-Consequence: The no-data-loss and rebuild semantics are tested now. Replacing the cache writer with SQLite/FTS is isolated to `packages/storage`.
+Consequence: The no-data-loss and rebuild semantics were tested early. This decision was superseded on 2026-07-10 by the Node SQLite FTS adapter below.
+
+## 2026-07-10 - Use Node SQLite for the Local Adapter
+
+Context: Node 24 in this workspace exposes `node:sqlite` with FTS5 support, allowing a real SQLite index without adding a native npm dependency or build scripts.
+
+Decision: Replace the JSON stand-in with a SQLite database at `.slate/index.sqlite`, backed by a `sheets` metadata table and `sheets_fts` FTS5 table.
+
+Consequence: Local storage now proves the core SQLite/FTS semantics: rebuild from Markdown files, search by title/body/tags, corrupted index auto-rebuild, and external-change reconcile. Tauri SQL and web OPFS adapters remain separate runtime wiring work.
 
 ## 2026-07-09 - Cargo Revocation Workaround
 
