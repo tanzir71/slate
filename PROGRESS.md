@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 2 native/web index operation integration.
+- Current task: Phase 2 runtime file scanner integration for native/web adapters.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -17,6 +17,7 @@
 - 2026-07-10: Wired the desktop app to a Tauri autosave writer backed by a Rust conflict-safe disk write helper; browser/mobile keep the draft fallback until their storage adapters land.
 - 2026-07-10: Added Tauri SQL plugin wiring, a default SQL capability, and a tested storage helper that opens the app-relative SQLite index and applies the shared FTS schema.
 - 2026-07-10: Added wa-sqlite dependency wiring and a tested web OPFS helper that registers the OPFS VFS, opens the Slate index, and applies the shared FTS schema.
+- 2026-07-10: Added shared async SQLite index read/search/replace operations and wired them into both Tauri SQL and web OPFS helpers.
 
 ## Phase Board
 
@@ -48,9 +49,10 @@
 - [x] Replace JSON cache implementation with SQLite/FTS for the Node/local adapter
 - [x] Add file watcher and external-change reconcile loop
 - [x] Add Tauri plugin SQL adapter wiring for native desktop/mobile runtime
-- [ ] Use the Tauri SQL helper for native index rebuild/search operations beyond schema bootstrap
+- [x] Use the Tauri SQL helper for native index read/search/replace operations beyond schema bootstrap
 - [x] Add OPFS/wa-sqlite adapter wiring for web runtime
-- [ ] Use the web OPFS helper for browser index rebuild/search operations beyond schema bootstrap
+- [x] Use the web OPFS helper for browser index read/search/replace operations beyond schema bootstrap
+- [ ] Connect runtime SQL operations to native/web file scanners for full rebuild-from-disk parity
 
 ### Phase 3 - Editor MVP
 - [x] CodeMirror 6 host

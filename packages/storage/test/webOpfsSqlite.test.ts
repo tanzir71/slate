@@ -73,4 +73,62 @@ describe("web OPFS wa-sqlite index wiring", () => {
 
     expect(openedPaths).toEqual(["spaces/work/index.sqlite"]);
   });
+
+  it("exposes shared read and search operations through wa-sqlite", async () => {
+    const parameterized: Array<{ statement: string; bindValues?: unknown[] }> = [];
+    const index = await loadWebOpfsSqliteIndex({
+      loadSqlite: async () => ({
+        vfs_register: () => undefined,
+        open_v2: async () => 7,
+        exec: async () => 0,
+        execWithParams: async (_db, statement, bindValues) => {
+          parameterized.push({ statement, bindValues });
+          return {
+            columns: [
+              "id",
+              "path",
+              "title",
+              "body",
+              "tags_json",
+              "links_json",
+              "words",
+              "updated_at",
+              "content_hash"
+            ],
+            rows: [
+              [
+                "sheet-1",
+                "Drafts/one.md",
+                "One",
+                "# One",
+                JSON.stringify(["draft"]),
+                JSON.stringify([]),
+                2,
+                null,
+                "hash-one"
+              ]
+            ]
+          };
+        },
+        close: async () => 0
+      }),
+      createVfs: () => ({ name: "opfs" })
+    });
+
+    await expect(index.readIndex()).resolves.toEqual([
+      {
+        id: "sheet-1",
+        path: "Drafts/one.md",
+        title: "One",
+        tags: ["draft"],
+        links: [],
+        words: 2,
+        updatedAt: undefined
+      }
+    ]);
+    await index.searchSheets("draft");
+
+    expect(parameterized.at(-1)?.statement).toContain("WHERE sheets_fts MATCH ?");
+    expect(parameterized.at(-1)?.bindValues).toEqual(['"draft"']);
+  });
 });

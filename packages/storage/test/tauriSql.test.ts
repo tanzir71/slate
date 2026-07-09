@@ -26,6 +26,47 @@ describe("Tauri SQL index wiring", () => {
     expect(executedStatements[1]).toContain("CREATE VIRTUAL TABLE IF NOT EXISTS sheets_fts USING fts5");
   });
 
+  it("exposes shared read and search operations over the native SQL database", async () => {
+    const selected: Array<{ statement: string; bindValues?: unknown[] }> = [];
+    const index = await loadTauriSqliteIndex({
+      loadDatabase: async () => ({
+        execute: async () => ({}),
+        select: async (statement, bindValues) => {
+          selected.push({ statement, bindValues });
+          return [
+            {
+              id: "sheet-1",
+              path: "Drafts/one.md",
+              title: "One",
+              body: "# One",
+              tags_json: JSON.stringify(["draft"]),
+              links_json: JSON.stringify([]),
+              words: 2,
+              updated_at: null,
+              content_hash: "hash-one"
+            }
+          ];
+        }
+      })
+    });
+
+    await expect(index.readIndex()).resolves.toEqual([
+      {
+        id: "sheet-1",
+        path: "Drafts/one.md",
+        title: "One",
+        tags: ["draft"],
+        links: [],
+        words: 2,
+        updatedAt: undefined
+      }
+    ]);
+    await index.searchSheets("draft");
+
+    expect(selected.at(-1)?.statement).toContain("WHERE sheets_fts MATCH ?");
+    expect(selected.at(-1)?.bindValues).toEqual(['"draft"']);
+  });
+
   it("allows callers to choose a different native SQLite database path", async () => {
     const loadedPaths: string[] = [];
 

@@ -1,4 +1,12 @@
 import { sqliteIndexSchemaStatements } from "./schema";
+import {
+  readSqliteIndexEntries,
+  replaceSqliteIndexRows,
+  searchSqliteIndexEntries,
+  type SqliteIndexExecutor,
+  type SqliteIndexRow
+} from "./sqliteIndexOperations";
+import type { SheetIndexEntry } from "./index";
 
 export const slateWebOpfsIndexPath = "slate/index.sqlite";
 export const sqliteOpenReadWriteCreate = 0x02 | 0x04;
@@ -12,6 +20,11 @@ export interface WaSqliteApi {
   vfs_register(vfs: WaSqliteVfs, asDefault: boolean): void;
   open_v2(path: string, flags?: number, vfsName?: string): Promise<number>;
   exec(db: number, statement: string): Promise<number>;
+  execWithParams(
+    db: number,
+    statement: string,
+    bindValues?: unknown[]
+  ): Promise<{ rows: unknown[][]; columns: string[] }>;
   close(db: number): Promise<number>;
 }
 
@@ -29,6 +42,9 @@ export interface WebOpfsSqliteIndex {
   sqlite3: WaSqliteApi;
   db: number;
   vfs: WaSqliteVfs;
+  readIndex(): Promise<SheetIndexEntry[]>;
+  searchSheets(query: string): Promise<SheetIndexEntry[]>;
+  replaceRows(rows: SqliteIndexRow[]): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -45,12 +61,16 @@ export async function loadWebOpfsSqliteIndex({
 
   const db = await sqlite3.open_v2(path, sqliteOpenReadWriteCreate, vfs.name);
   await ensureWebOpfsIndexSchema(sqlite3, db);
+  const executor = createWaSqliteExecutor(sqlite3, db);
 
   return {
     path,
     sqlite3,
     db,
     vfs,
+    readIndex: () => readSqliteIndexEntries(executor),
+    searchSheets: (query) => searchSqliteIndexEntries(executor, query),
+    replaceRows: (rows) => replaceSqliteIndexRows(executor, rows),
     async close() {
       await sqlite3.close(db);
       await vfs.close?.();
@@ -62,6 +82,31 @@ export async function ensureWebOpfsIndexSchema(sqlite3: WaSqliteApi, db: number)
   for (const statement of sqliteIndexSchemaStatements) {
     await sqlite3.exec(db, statement);
   }
+}
+
+function createWaSqliteExecutor(sqlite3: WaSqliteApi, db: number): SqliteIndexExecutor {
+  return {
+    async execute(statement, bindValues) {
+      if (bindValues && bindValues.length > 0) {
+        await sqlite3.execWithParams(db, statement, bindValues);
+        return 0;
+      }
+      return sqlite3.exec(db, statement);
+    },
+
+    async select<Row = Record<string, unknown>>(statement: string, bindValues?: unknown[]): Promise<Row[]> {
+      const result = await sqlite3.execWithParams(db, statement, bindValues);
+      return result.rows.map((row) => rowToRecord(result.columns, row)) as Row[];
+    }
+  };
+}
+
+function rowToRecord(columns: string[], row: unknown[]): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  columns.forEach((column, index) => {
+    record[column] = row[index];
+  });
+  return record;
 }
 
 export function isOpfsAvailable(): boolean {
