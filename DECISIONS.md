@@ -87,3 +87,11 @@ Context: Native Tauri SQL and web wa-sqlite expose different JavaScript database
 Decision: Add a small generic async SQL executor contract and shared index operations for reading entries, FTS search, and transactional replace-all writes. The Tauri and web helpers adapt their native APIs to that contract.
 
 Consequence: Native/web index behavior now shares one tested query layer. Runtime file scanning and Markdown parsing still need adapter-specific wiring before they reach full rebuild-from-disk parity.
+
+## 2026-07-10 - Bridge Runtime File Sources to SQLite Indexes
+
+Context: Native and web runtimes will discover Markdown files through different APIs, but parsing files into Slate index rows should remain identical.
+
+Decision: Add `@slate/storage/runtime`, which accepts an abstract Markdown file source and a runtime SQLite index, parses Markdown through `@slate/core`, and rebuilds the SQL index with deterministic ordering.
+
+Consequence: Concrete Tauri/web file source adapters can now plug into one shared rebuild path. The remaining work is implementing those file-source adapters against real native/web filesystem APIs.

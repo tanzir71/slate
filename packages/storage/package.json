@@ -14,6 +14,10 @@
     "./web-opfs": {
       "types": "./dist/webOpfsSqlite.d.ts",
       "import": "./dist/webOpfsSqlite.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtimeSqliteAdapter.d.ts",
+      "import": "./dist/runtimeSqliteAdapter.js"
     }
   },
   "scripts": {
