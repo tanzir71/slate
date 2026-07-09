@@ -17,10 +17,11 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Tauri 2 desktop shell and debug build.
 - Rust authenticated encryption helpers with wrong-key failure tests.
 - Vitest, Playwright, ESLint, TypeScript, Cargo, and CI verify gate.
+- Axe Playwright accessibility smoke coverage for the primary workspace.
 
 ### Changed
 - Playwright e2e serves the built web app through a small static Node server for deterministic readiness.
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
 
 ### Known Gaps
-- Tauri SQL adapter wiring, web OPFS adapter wiring, drag/drop disk moves, autosave-to-storage, export/publish adapters, axe, and performance budgets remain to be deepened from the scaffold.
+- Tauri SQL adapter wiring, web OPFS adapter wiring, drag/drop disk moves, autosave-to-storage, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.

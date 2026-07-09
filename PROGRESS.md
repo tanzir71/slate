@@ -12,6 +12,7 @@
 - 2026-07-09: Visual QA used an Image Gen concept and Playwright screenshots because the in-app browser backend reported `iab` unavailable.
 - 2026-07-10: Replaced the storage JSON cache with a real SQLite FTS5 index through Node 24 `node:sqlite`; added corruption auto-rebuild, FTS search, external-change reconciliation, and polling watch notifications.
 - 2026-07-10: Added live CodeMirror invisible-Markdown decorations for inactive lines and covered them with a jsdom editor mount test.
+- 2026-07-10: Added axe Playwright accessibility coverage for the primary workspace on desktop and mobile projects.
 
 ## Phase Board
 
@@ -76,7 +77,7 @@
 - [ ] Focus, typewriter, and full-screen modes
 - [ ] Empty states
 - [ ] Keyboard-only walkthrough
-- [ ] Axe/a11y coverage
+- [x] Axe/a11y coverage
 - [x] Responsive desktop/mobile screenshots visually inspected
 
 ### Phase 7 - Cross-Platform and Sync
