@@ -20,6 +20,7 @@
     "paths": {
       "@slate/core": ["packages/core/src/index.ts"],
       "@slate/export": ["packages/export/src/index.ts"],
+      "@slate/publish": ["packages/publish/src/index.ts"],
       "@slate/storage": ["packages/storage/src/index.ts"],
       "@slate/sync": ["packages/sync/src/index.ts"],
       "@slate/editor": ["packages/editor/src/index.ts"],

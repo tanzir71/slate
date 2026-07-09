@@ -59,6 +59,7 @@ apps/desktop/src-tauri/target/debug/slate-desktop.exe
 - `packages/storage`: file/index adapter interfaces and local implementation
 - `packages/sync`: sync interfaces and deterministic merge helpers
 - `packages/export`: export adapter interfaces and HTML artifact rendering
+- `packages/publish`: publish adapter interfaces and static publish contract
 - `packages/editor`: CodeMirror setup
 - `packages/ui`: React app shell
 - `packages/tokens`: design tokens

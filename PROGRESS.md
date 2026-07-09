@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 8 - Export, Publish, and Release Hardening
-- Current task: Phase 8 publish adapter interfaces.
+- Current task: Phase 8 performance budget hooks.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -29,6 +29,7 @@
 - 2026-07-10: Added a desktop keyboard-only Playwright walkthrough plus shortcuts for palette, new sheet, search, inspector, focus mode, pane toggles, and space switching.
 - 2026-07-10: Added a pure BYO-folder reconcile model that accepts external edits, writes local edits, cleanly merges appends, and creates deterministic conflict-copy actions for divergent changes.
 - 2026-07-10: Added `@slate/export` with export adapter interfaces, a registry, and a themeable HTML export adapter.
+- 2026-07-10: Added `@slate/publish` with publish adapter interfaces, a registry, and a deterministic static publish adapter.
 
 ## Phase Board
 
@@ -111,7 +112,7 @@
 
 ### Phase 8 - Export, Publish, and Release Hardening
 - [x] Export interfaces
-- [ ] Publish adapter interfaces
+- [x] Publish adapter interfaces
 - [x] E2EE crypto tests
 - [ ] Performance budget hooks
 - [ ] Release notes

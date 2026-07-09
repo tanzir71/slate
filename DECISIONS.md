@@ -159,3 +159,11 @@ Context: PDF, DOCX, HTML, and ePub export will need different rendering librarie
 Decision: Add `@slate/export` with an `ExportAdapter` contract and registry. The first concrete adapter renders sanitized, themeable HTML; PDF/DOCX/ePub can attach to the same registry later.
 
 Consequence: Export behavior is testable before heavier renderer dependencies arrive, and unsupported formats fail clearly instead of pretending to be implemented.
+
+## 2026-07-10 - Put Publish Behind Provider Adapters
+
+Context: WordPress, Ghost, static-site, and future publish targets need different credentials and HTTP APIs, but Slate should expose one publish action.
+
+Decision: Add `@slate/publish` with a `PublishAdapter` contract and registry. The first concrete adapter is a deterministic static target that proves the contract without external network calls.
+
+Consequence: Provider-specific integrations can be added behind a stable interface, and unsupported providers fail explicitly until real adapters are wired.
