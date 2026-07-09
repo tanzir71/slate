@@ -17,6 +17,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Debounced editor autosave controller with browser draft fallback and injectable storage writer.
 - Desktop Tauri autosave writer and conflict-safe Rust disk write helper.
 - Tauri SQL plugin wiring plus a storage helper that applies the shared SQLite/FTS schema through the native plugin binding.
+- wa-sqlite OPFS wiring plus a storage helper that opens the browser index and applies the shared SQLite/FTS schema.
 - Tauri 2 desktop shell and debug build.
 - Rust authenticated encryption helpers with wrong-key failure tests.
 - Vitest, Playwright, ESLint, TypeScript, Cargo, and CI verify gate.
@@ -27,4 +28,4 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
 
 ### Known Gaps
-- Native SQL index operations beyond schema bootstrap, web OPFS adapter wiring, drag/drop disk moves, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.
+- Native/web index operations beyond schema bootstrap, drag/drop disk moves, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.

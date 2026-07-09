@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 2 web OPFS/wa-sqlite adapter wiring.
+- Current task: Phase 2 native/web index operation integration.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -16,6 +16,7 @@
 - 2026-07-10: Added a debounced autosave controller, browser draft writer, and SlateApp wiring so editor changes schedule writes and flush before sheet switches/new-sheet actions.
 - 2026-07-10: Wired the desktop app to a Tauri autosave writer backed by a Rust conflict-safe disk write helper; browser/mobile keep the draft fallback until their storage adapters land.
 - 2026-07-10: Added Tauri SQL plugin wiring, a default SQL capability, and a tested storage helper that opens the app-relative SQLite index and applies the shared FTS schema.
+- 2026-07-10: Added wa-sqlite dependency wiring and a tested web OPFS helper that registers the OPFS VFS, opens the Slate index, and applies the shared FTS schema.
 
 ## Phase Board
 
@@ -48,7 +49,8 @@
 - [x] Add file watcher and external-change reconcile loop
 - [x] Add Tauri plugin SQL adapter wiring for native desktop/mobile runtime
 - [ ] Use the Tauri SQL helper for native index rebuild/search operations beyond schema bootstrap
-- [ ] Add OPFS/wa-sqlite adapter wiring for web runtime
+- [x] Add OPFS/wa-sqlite adapter wiring for web runtime
+- [ ] Use the web OPFS helper for browser index rebuild/search operations beyond schema bootstrap
 
 ### Phase 3 - Editor MVP
 - [x] CodeMirror 6 host

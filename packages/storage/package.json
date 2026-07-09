@@ -10,6 +10,10 @@
     "./tauri-sql": {
       "types": "./dist/tauriSql.d.ts",
       "import": "./dist/tauriSql.js"
+    },
+    "./web-opfs": {
+      "types": "./dist/webOpfsSqlite.d.ts",
+      "import": "./dist/webOpfsSqlite.js"
     }
   },
   "scripts": {
@@ -18,6 +22,7 @@
   },
   "dependencies": {
     "@slate/core": "workspace:*",
-    "@tauri-apps/plugin-sql": "^2.4.0"
+    "@tauri-apps/plugin-sql": "^2.4.0",
+    "wa-sqlite": "^1.0.0"
   }
 }
