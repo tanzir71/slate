@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 8 - Export, Publish, and Release Hardening
-- Current task: Phase 8 performance budget hooks.
+- Current task: Phase 8 release notes.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -30,6 +30,7 @@
 - 2026-07-10: Added a pure BYO-folder reconcile model that accepts external edits, writes local edits, cleanly merges appends, and creates deterministic conflict-copy actions for divergent changes.
 - 2026-07-10: Added `@slate/export` with export adapter interfaces, a registry, and a themeable HTML export adapter.
 - 2026-07-10: Added `@slate/publish` with publish adapter interfaces, a registry, and a deterministic static publish adapter.
+- 2026-07-10: Added `pnpm perf` to the verify gate with budgets for opening a 50k-word sheet, typing HUD stats, and SQLite FTS search over 10k sheets.
 
 ## Phase Board
 
@@ -114,7 +115,7 @@
 - [x] Export interfaces
 - [x] Publish adapter interfaces
 - [x] E2EE crypto tests
-- [ ] Performance budget hooks
+- [x] Performance budget hooks
 - [ ] Release notes
 
 ## Blocked or Workaround Entries

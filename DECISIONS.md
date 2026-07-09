@@ -167,3 +167,11 @@ Context: WordPress, Ghost, static-site, and future publish targets need differen
 Decision: Add `@slate/publish` with a `PublishAdapter` contract and registry. The first concrete adapter is a deterministic static target that proves the contract without external network calls.
 
 Consequence: Provider-specific integrations can be added behind a stable interface, and unsupported providers fail explicitly until real adapters are wired.
+
+## 2026-07-10 - Keep Perf Budgets Deterministic in Verify
+
+Context: The handoff requires cold/open/search/typing performance gates, but device-level cold start and full UI latency are noisy in a local agent loop.
+
+Decision: Add `pnpm perf` as a deterministic Node script after the build step. It measures pure large-sheet parsing, typing HUD stat calculation, and SQLite FTS search over 10k synthetic rows.
+
+Consequence: The verify gate now has a real performance tripwire without adding flaky browser timing assertions. Deeper device/browser telemetry can layer on top later.

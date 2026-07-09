@@ -6,6 +6,7 @@
 - Dev web: `pnpm dev:web`
 - Verify gate: `pnpm verify`
 - Unit tests: `pnpm test`
+- Performance budgets: `pnpm perf`
 - E2E: `pnpm e2e`
 - Rust tests: `cargo test --manifest-path crates/slate-core/Cargo.toml`
 
@@ -32,4 +33,3 @@
 - React UI: `packages/ui`
 - Design tokens: `packages/tokens`
 - Rust core: `crates/slate-core`
-

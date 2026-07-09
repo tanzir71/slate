@@ -24,7 +24,13 @@ pnpm dev:desktop
 pnpm verify
 ```
 
-The verify gate runs TypeScript checks, ESLint, Vitest, Rust tests, builds the web and desktop shells, and runs Playwright smoke tests.
+The verify gate runs TypeScript checks, ESLint, Vitest, Rust tests, builds the web and desktop shells, checks performance budgets, and runs Playwright smoke tests.
+
+```bash
+pnpm perf
+```
+
+The performance hook checks the 50k-word open path, typing HUD stats on a large sheet, and SQLite FTS search over 10k synthetic sheets.
 
 ## Keyboard
 - Command palette: `Ctrl+K` / `Cmd+K`

@@ -24,6 +24,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Native Tauri Markdown file source commands and invoke wrapper for recursive desktop rebuilds.
 - Export adapter interfaces, registry, and a themeable HTML export adapter in `@slate/export`.
 - Publish adapter interfaces, registry, and a deterministic static publish adapter in `@slate/publish`.
+- Performance budget script wired into `pnpm verify` for large-sheet open, typing HUD, and SQLite FTS search timings.
 - Core coverage enforcement and broader domain tests for round-trip stability, filters, metadata fallbacks, GFM parsing, and goal variants.
 - Pure BYO-folder reconciliation model for accepting external edits, writing local edits, clean merges, and deterministic conflict-copy actions.
 - Disk-backed sheet moves that refresh the SQLite index, avoid destination overwrites, and can be triggered through notebook drag/drop in the UI.
@@ -41,4 +42,4 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
 
 ### Known Gaps
-- Browser handle persistence, export/publish adapters, deeper axe coverage, and performance budgets remain to be deepened from the scaffold.
+- Browser handle persistence, export/publish adapters, and deeper axe coverage remain to be deepened from the scaffold.
