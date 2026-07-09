@@ -2,7 +2,7 @@
 
 ## Current Status
 - Current phase: Phase 1+ vertical slice complete
-- Current task: Phase 1 property/coverage hardening.
+- Current task: Phase 4 drag/drop and disk-backed move operations.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -21,6 +21,7 @@
 - 2026-07-10: Added a runtime SQLite adapter that rebuilds the shared index from an abstract Markdown file source, so native/web file sources can plug into one parser/indexing path.
 - 2026-07-10: Added a concrete browser directory-handle Markdown file source that recursively lists `.md` files, ignores `.slate`, and prevents path traversal.
 - 2026-07-10: Added concrete native Markdown file-source commands and a Tauri invoke wrapper, giving desktop rebuilds the same abstract scanner contract as web.
+- 2026-07-10: Enforced the core coverage gate in `pnpm test` and broadened core tests for canonical Markdown round-trips, filter edge cases, fallback metadata, GFM parsing, and goal variants.
 
 ## Phase Board
 
@@ -41,7 +42,7 @@
 - [x] Smart filter evaluator
 - [x] Word, character, reading-time, and goal calculations
 - [x] Stable id handling and rename-safe link resolution
-- [ ] Broaden property tests and coverage thresholds to the final quality bar
+- [x] Broaden property tests and coverage thresholds to the final quality bar
 
 ### Phase 2 - Storage and Index
 - [x] Storage adapter interface

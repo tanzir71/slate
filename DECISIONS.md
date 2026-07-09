@@ -111,3 +111,11 @@ Context: Native rebuilds need a concrete Markdown file scanner, but shared stora
 Decision: Add root-safe Rust helpers for listing and reading Markdown files under the default Space, expose them as `list_markdown_files` and `read_markdown_file` Tauri commands, and publish an injectable `@slate/storage/tauri-file-source` wrapper over `invoke`.
 
 Consequence: Desktop rebuilds can now use the same `RuntimeMarkdownFileSource` contract as web directory handles. The app still needs a UI integration point to trigger full native rebuilds from this source.
+
+## 2026-07-10 - Enforce Core Coverage in the Unit Gate
+
+Context: The handoff requires `packages/core` at or above 90% line coverage, but the existing verify gate ran Vitest without coverage thresholds.
+
+Decision: Run Vitest with V8 coverage in `pnpm test`, scope the enforced include set to `packages/core/src/**/*.ts`, and set global thresholds at 90% lines/statements/functions with a 75% branch floor.
+
+Consequence: The Phase 1 core quality bar is now machine-enforced without forcing the scaffolded UI/storage packages to meet the final overall 75% threshold before their remaining behavior lands.

@@ -22,6 +22,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Runtime SQLite adapter that rebuilds the shared index from an abstract Markdown file source.
 - Browser directory-handle Markdown file source for recursive web rebuilds.
 - Native Tauri Markdown file source commands and invoke wrapper for recursive desktop rebuilds.
+- Core coverage enforcement and broader domain tests for round-trip stability, filters, metadata fallbacks, GFM parsing, and goal variants.
 - Tauri 2 desktop shell and debug build.
 - Rust authenticated encryption helpers with wrong-key failure tests.
 - Vitest, Playwright, ESLint, TypeScript, Cargo, and CI verify gate.

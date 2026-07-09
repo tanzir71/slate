@@ -19,7 +19,14 @@ export default defineConfig({
     include: ["packages/*/test/**/*.test.ts", "packages/*/src/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html"]
+      reporter: ["text", "html"],
+      include: ["packages/core/src/**/*.ts"],
+      thresholds: {
+        lines: 90,
+        statements: 90,
+        functions: 90,
+        branches: 75
+      }
     }
   }
 });

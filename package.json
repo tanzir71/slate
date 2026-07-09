@@ -9,7 +9,7 @@
     "dev:desktop": "pnpm --filter @slate/desktop dev",
     "typecheck": "pnpm -r --if-present typecheck && cargo check --manifest-path crates/slate-core/Cargo.toml",
     "lint": "eslint . --max-warnings 0 && cargo clippy --manifest-path crates/slate-core/Cargo.toml -- -D warnings",
-    "test": "vitest run && cargo test --manifest-path crates/slate-core/Cargo.toml",
+    "test": "vitest run --coverage && cargo test --manifest-path crates/slate-core/Cargo.toml",
     "e2e": "playwright test",
     "build": "pnpm -r --if-present build && pnpm --filter @slate/desktop tauri:build",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm e2e",
