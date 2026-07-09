@@ -305,41 +305,51 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           </div>
 
           <div className="sheetRows">
-            {filteredSheets.map((sheet) => (
-              <button
-                className={`${sheet.id === selected.id ? "sheetRow active" : "sheetRow"}${sheet.id === draggedSheetId ? " dragging" : ""}`}
-                data-testid={`sheet-row-${sheet.id}`}
-                draggable
-                key={sheet.id}
-                onDragEnd={() => {
-                  setDraggedSheetId(undefined);
-                  setDropTargetNotebook(undefined);
-                }}
-                onDragStart={(event) => {
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setData("text/plain", sheet.id);
-                  setDraggedSheetId(sheet.id);
-                }}
-                onClick={() => {
-                  void autosaveRef.current?.flush();
-                  setSelectedId(sheet.id);
-                }}
-              >
-                <span className="sheetTitleLine">
-                  <strong>{sheet.title}</strong>
-                  <StatusDot status={sheet.status} />
-                </span>
-                <span className="sheetPreview">{sheet.preview}</span>
-                <span className="tagLine">{sheet.tags.map((tag) => `#${tag}`).join("   ")}</span>
-                <span className="progressLine">
-                  <span>{sheet.status}</span>
-                  <span className="miniProgress">
-                    <span style={{ width: `${sheet.progress}%` }} />
+            {filteredSheets.length > 0 ? (
+              filteredSheets.map((sheet) => (
+                <button
+                  className={`${sheet.id === selected.id ? "sheetRow active" : "sheetRow"}${sheet.id === draggedSheetId ? " dragging" : ""}`}
+                  data-testid={`sheet-row-${sheet.id}`}
+                  draggable
+                  key={sheet.id}
+                  onDragEnd={() => {
+                    setDraggedSheetId(undefined);
+                    setDropTargetNotebook(undefined);
+                  }}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", sheet.id);
+                    setDraggedSheetId(sheet.id);
+                  }}
+                  onClick={() => {
+                    void autosaveRef.current?.flush();
+                    setSelectedId(sheet.id);
+                  }}
+                >
+                  <span className="sheetTitleLine">
+                    <strong>{sheet.title}</strong>
+                    <StatusDot status={sheet.status} />
                   </span>
-                  <span>{sheet.progress}%</span>
-                </span>
-              </button>
-            ))}
+                  <span className="sheetPreview">{sheet.preview}</span>
+                  <span className="tagLine">{sheet.tags.map((tag) => `#${tag}`).join("   ")}</span>
+                  <span className="progressLine">
+                    <span>{sheet.status}</span>
+                    <span className="miniProgress">
+                      <span style={{ width: `${sheet.progress}%` }} />
+                    </span>
+                    <span>{sheet.progress}%</span>
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="emptyState sheetEmptyState" role="status">
+                <Search size={20} />
+                <strong>No sheets match</strong>
+                <button aria-label="Clear search" onClick={() => setQuery("")}>
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="listFooter">
@@ -560,11 +570,18 @@ function InspectorPanel({
   if (tab === "Outline") {
     return (
       <div className="inspectorBody">
-        {outline.map((heading) => (
-          <button className="outlineRow" key={heading}>
-            {heading}
-          </button>
-        ))}
+        {outline.length > 0 ? (
+          outline.map((heading) => (
+            <button className="outlineRow" key={heading}>
+              {heading}
+            </button>
+          ))
+        ) : (
+          <div className="emptyState inspectorEmptyState" role="status">
+            <ListTree size={18} />
+            <strong>No headings yet</strong>
+          </div>
+        )}
       </div>
     );
   }
@@ -587,13 +604,20 @@ function InspectorPanel({
   return (
     <div className="inspectorBody">
       <span className="subtle">{sheet.backlinks.length} backlinks</span>
-      {sheet.backlinks.map((backlink) => (
-        <button className="backlinkRow" key={backlink}>
-          <strong>{backlink}</strong>
-          <span>...This plan connects to {sheet.title.toLowerCase()} and related launch work...</span>
-          <Link2 size={15} />
-        </button>
-      ))}
+      {sheet.backlinks.length > 0 ? (
+        sheet.backlinks.map((backlink) => (
+          <button className="backlinkRow" key={backlink}>
+            <strong>{backlink}</strong>
+            <span>...This plan connects to {sheet.title.toLowerCase()} and related launch work...</span>
+            <Link2 size={15} />
+          </button>
+        ))
+      ) : (
+        <div className="emptyState inspectorEmptyState" role="status">
+          <Link2 size={18} />
+          <strong>No backlinks yet</strong>
+        </div>
+      )}
       <div className="goalBox">
         <span>
           <StatusDot status={sheet.status} />

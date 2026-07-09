@@ -269,6 +269,44 @@ button {
   overflow: auto;
 }
 
+.emptyState {
+  display: grid;
+  gap: 9px;
+  justify-items: center;
+  color: var(--slate-muted);
+  text-align: center;
+}
+
+.emptyState svg {
+  color: #7f8b9b;
+}
+
+.emptyState strong {
+  color: #354154;
+  font-weight: 680;
+}
+
+.emptyState button {
+  min-width: 74px;
+  min-height: 32px;
+  border: 1px solid var(--slate-border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.sheetEmptyState {
+  min-height: 184px;
+  align-content: center;
+  border-top: 1px solid var(--slate-border);
+  padding: 24px 18px;
+}
+
+.inspectorEmptyState {
+  justify-items: start;
+  padding: 6px 0 10px;
+  text-align: left;
+}
+
 .sheetRow {
   position: relative;
   display: grid;
