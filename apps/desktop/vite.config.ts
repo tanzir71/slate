@@ -1,0 +1,26 @@
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
+
+const fromRoot = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
+
+export default defineConfig({
+  plugins: [react()],
+  clearScreen: false,
+  server: {
+    strictPort: true,
+    host: "127.0.0.1",
+    port: 1420
+  },
+  resolve: {
+    alias: {
+      "@slate/core": fromRoot("../../packages/core/src/index.ts"),
+      "@slate/editor": fromRoot("../../packages/editor/src/index.ts"),
+      "@slate/storage": fromRoot("../../packages/storage/src/index.ts"),
+      "@slate/sync": fromRoot("../../packages/sync/src/index.ts"),
+      "@slate/tokens": fromRoot("../../packages/tokens/src/index.ts"),
+      "@slate/ui": fromRoot("../../packages/ui/src/index.ts")
+    }
+  }
+});
+

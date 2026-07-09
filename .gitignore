@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+artifacts/
+.turbo/
+.vite/
+target/
+*.log
+.DS_Store
+.env
+.env.*
+.worktrees/
+worktrees/

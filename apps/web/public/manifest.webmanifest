@@ -1,0 +1,11 @@
+{
+  "name": "Slate",
+  "short_name": "Slate",
+  "description": "A local-first Markdown workspace.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#ffffff",
+  "icons": []
+}
+
