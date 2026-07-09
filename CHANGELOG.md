@@ -25,6 +25,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Export adapter interfaces, registry, and a themeable HTML export adapter in `@slate/export`.
 - Publish adapter interfaces, registry, and a deterministic static publish adapter in `@slate/publish`.
 - Performance budget script wired into `pnpm verify` for large-sheet open, typing HUD, and SQLite FTS search timings.
+- Release notes for the 0.1.0 handoff build.
 - Core coverage enforcement and broader domain tests for round-trip stability, filters, metadata fallbacks, GFM parsing, and goal variants.
 - Pure BYO-folder reconciliation model for accepting external edits, writing local edits, clean merges, and deterministic conflict-copy actions.
 - Disk-backed sheet moves that refresh the SQLite index, avoid destination overwrites, and can be triggered through notebook drag/drop in the UI.

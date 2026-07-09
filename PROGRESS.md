@@ -1,8 +1,8 @@
 # Slate Progress
 
 ## Current Status
-- Current phase: Phase 8 - Export, Publish, and Release Hardening
-- Current task: Phase 8 release notes.
+- Current phase: Complete
+- Current task: Handoff phase board complete.
 - Gate: `pnpm verify` passes locally on 2026-07-10.
 
 ## Loop Notes
@@ -31,6 +31,7 @@
 - 2026-07-10: Added `@slate/export` with export adapter interfaces, a registry, and a themeable HTML export adapter.
 - 2026-07-10: Added `@slate/publish` with publish adapter interfaces, a registry, and a deterministic static publish adapter.
 - 2026-07-10: Added `pnpm perf` to the verify gate with budgets for opening a 50k-word sheet, typing HUD stats, and SQLite FTS search over 10k sheets.
+- 2026-07-10: Added release notes summarizing the shipped handoff build, verification evidence, operational notes, and remaining deepening areas.
 
 ## Phase Board
 
@@ -116,7 +117,7 @@
 - [x] Publish adapter interfaces
 - [x] E2EE crypto tests
 - [x] Performance budget hooks
-- [ ] Release notes
+- [x] Release notes
 
 ## Blocked or Workaround Entries
 - `pnpm install` needed `NODE_OPTIONS=--use-system-ca` locally because the npm registry certificate chain was not trusted by Node.
