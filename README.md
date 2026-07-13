@@ -1,5 +1,7 @@
 # Slate
 
+**Website:** https://slate-local-workspace.vercel.app/ · **Live demo:** https://slate-local-workspace.vercel.app/demo/
+
 A local-first Markdown editor and knowledge workspace inspired by Ulysses, Bear, Evernote Spaces, and Obsidian.
 
 ## Prerequisites

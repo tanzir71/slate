@@ -2,9 +2,11 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 
-const fromRoot = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
+const fromRoot = (path: string): string =>
+  fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: {
@@ -15,7 +17,7 @@ export default defineConfig({
       "@slate/storage": fromRoot("../../packages/storage/src/index.ts"),
       "@slate/sync": fromRoot("../../packages/sync/src/index.ts"),
       "@slate/tokens": fromRoot("../../packages/tokens/src/index.ts"),
-      "@slate/ui": fromRoot("../../packages/ui/src/index.ts")
-    }
-  }
+      "@slate/ui": fromRoot("../../packages/ui/src/index.ts"),
+    },
+  },
 });

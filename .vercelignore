@@ -1,0 +1,10 @@
+node_modules
+coverage
+artifacts
+playwright-report
+test-results
+apps/desktop/src-tauri/target
+**/target
+**/dist
+site-dist
+*.log

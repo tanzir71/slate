@@ -1,0 +1,30 @@
+# Slate
+
+Slate is a free, open-source, local-first Markdown editor and knowledge workspace. It combines a calm writing interface with Spaces, nested notebooks, sheets, tags, backlinks, writing goals, search, and keyboard-driven workflows.
+
+## Links
+
+- Product site: https://slate-local-workspace.vercel.app/
+- Live seeded PWA demo: https://slate-local-workspace.vercel.app/demo/
+- Source: https://github.com/tanzir71/slate
+
+## Data model
+
+- A Space is a top-level context backed by a root folder.
+- A Notebook is a folder inside a Space and may be nested.
+- A Sheet is one plain `.md` file.
+- SQLite FTS is a rebuildable search cache. Markdown files remain authoritative.
+
+## Run locally
+
+1. Install Node.js 24+, pnpm 10+, and Rust stable for desktop builds.
+2. Run `pnpm install`.
+3. Run `pnpm dev:web` for the PWA or `pnpm dev:desktop` for Tauri.
+4. Run `pnpm verify` for typecheck, lint, unit/Rust tests, builds, performance gates, and Playwright.
+
+## Honest scope
+
+- The public demo uses seeded browser state and does not access local files.
+- Mobile is a placeholder track, not a finished release.
+- Slate Sync and publishing are adapter interfaces; no hosted sync or publishing service ships here.
+- BYO-folder reconciliation is implemented as conflict-safe tested primitives.

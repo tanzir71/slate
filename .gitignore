@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 playwright-report/
+site-dist/
 test-results/
 artifacts/
 .turbo/
@@ -13,3 +14,5 @@ target/
 .env.*
 .worktrees/
 worktrees/
+
+.vercel

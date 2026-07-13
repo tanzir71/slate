@@ -1,11 +1,15 @@
 # Slate Progress
 
 ## Current Status
+
 - Current phase: Complete
-- Current task: Handoff phase board complete.
-- Gate: `pnpm verify` passes locally on 2026-07-10.
+- Current task: Product website and same-instance PWA demo rollout complete.
+- Gate: `pnpm verify` plus `pnpm build:site` pass on 2026-07-13: strict typecheck, lint/clippy, 57 TypeScript tests, 8 Rust tests, all builds, performance budgets, 7 runnable E2E flows (1 intentional mobile keyboard skip), and landing/PWA checks.
 
 ## Loop Notes
+
+- 2026-07-13: Added a static product site and build pipeline that serves the real seeded web PWA at `/demo/`, with relative assets so the same output works on Vercel and GitHub Pages.
+- 2026-07-13: Verified landing-to-editor interaction, search, shortcuts, console/network cleanliness, desktop/mobile layout, security headers, and the live deployment at `https://slate-local-workspace.vercel.app/`.
 - 2026-07-09: Workspace contained only `SLATE_CODEX_HANDOFF.md`. Initialized Git in place because no existing repository or branch was available.
 - 2026-07-09: Subagent tools are present, but this environment requires explicit user authorization before spawning them, so implementation is inline.
 - 2026-07-09: Implemented a verified monorepo scaffold plus a thin product slice across core, storage, sync, editor, UI, web, desktop, mobile shell, Rust crypto, CI, and e2e.
@@ -36,6 +40,7 @@
 ## Phase Board
 
 ### Phase 0 - Foundation and Guardrails
+
 - [x] pnpm workspace scaffold
 - [x] React/Vite web app
 - [x] Tauri desktop shell
@@ -45,6 +50,7 @@
 - [x] `pnpm verify` exits 0
 
 ### Phase 1 - Domain Core
+
 - [x] Pure TypeScript models
 - [x] Markdown/frontmatter parser
 - [x] Tag extraction
@@ -55,6 +61,7 @@
 - [x] Broaden property tests and coverage thresholds to the final quality bar
 
 ### Phase 2 - Storage and Index
+
 - [x] Storage adapter interface
 - [x] Local file-backed implementation
 - [x] Rebuildable index model
@@ -71,6 +78,7 @@
 - [x] Implement concrete native file source adapter for full rebuild-from-disk parity
 
 ### Phase 3 - Editor MVP
+
 - [x] CodeMirror 6 host
 - [x] CommonMark/GFM setup
 - [x] Invisible Markdown marker range helper
@@ -81,6 +89,7 @@
 - [x] Apply invisible Markdown decorations in the live editor view
 
 ### Phase 4 - Organization UI
+
 - [x] Three-pane app shell
 - [x] Space switcher
 - [x] Nested notebook tree
@@ -90,6 +99,7 @@
 - [x] Drag/drop and disk-backed move operations
 
 ### Phase 5 - Power Features
+
 - [x] Smart filter UI skeleton
 - [x] Wiki-link navigation
 - [x] Inspector with backlinks and outline
@@ -98,6 +108,7 @@
 - [x] Global search UI skeleton
 
 ### Phase 6 - Design Polish and Accessibility
+
 - [x] Light theme and design tokens
 - [x] Focus, typewriter, and full-screen modes
 - [x] Empty states
@@ -106,6 +117,7 @@
 - [x] Responsive desktop/mobile screenshots visually inspected
 
 ### Phase 7 - Cross-Platform and Sync
+
 - [x] Web PWA build
 - [x] Mobile shell placeholder
 - [x] BYO-folder reconcile model
@@ -113,6 +125,7 @@
 - [x] Slate Sync interface behind a flag
 
 ### Phase 8 - Export, Publish, and Release Hardening
+
 - [x] Export interfaces
 - [x] Publish adapter interfaces
 - [x] E2EE crypto tests
@@ -120,6 +133,7 @@
 - [x] Release notes
 
 ## Blocked or Workaround Entries
+
 - `pnpm install` needed `NODE_OPTIONS=--use-system-ca` locally because the npm registry certificate chain was not trusted by Node.
 - Cargo needed revocation checking disabled on this Windows host; `.cargo/config.toml` sets `check-revoke = false`.
 - Vite preview did not satisfy Playwright's readiness check in this shell, so e2e uses `scripts/serve-static.mjs` against the built web app.

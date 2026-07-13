@@ -10,10 +10,11 @@ export default [
       "coverage/**",
       "**/coverage/**",
       "playwright-report/**",
+      "site-dist/**",
       "test-results/**",
       "target/**",
-      "apps/desktop/src-tauri/target/**"
-    ]
+      "apps/desktop/src-tauri/target/**",
+    ],
   },
   js.configs.recommended,
   {
@@ -25,9 +26,9 @@ export default [
         Buffer: "readonly",
         console: "readonly",
         process: "readonly",
-        URL: "readonly"
-      }
-    }
+        URL: "readonly",
+      },
+    },
   },
   ...tseslint.configs.recommended,
   {
@@ -36,7 +37,7 @@ export default [
       parser: tseslint.parser,
       parserOptions: {
         ecmaVersion: "latest",
-        sourceType: "module"
+        sourceType: "module",
       },
       globals: {
         Buffer: "readonly",
@@ -49,19 +50,19 @@ export default [
         process: "readonly",
         setTimeout: "readonly",
         URL: "readonly",
-        window: "readonly"
-      }
+        window: "readonly",
+      },
     },
     plugins: {
-      "@typescript-eslint": tseslint.plugin
+      "@typescript-eslint": tseslint.plugin,
     },
     rules: {
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
-        { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/no-explicit-any": "error"
-    }
-  }
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
 ];
