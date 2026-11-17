@@ -10,7 +10,7 @@ await mkdir(resolve(root, "artifacts"), { recursive: true });
 const server = createStaticFileServer(resolve(root, "site-dist"), "/slate");
 await new Promise((done) => server.listen(0, "127.0.0.1", done));
 try {
-  const args = [resolve(root, "node_modules/lighthouse/cli/index.js"), `http://127.0.0.1:${server.address().port}/slate/`, "--chrome-flags=--headless --no-sandbox --disable-dev-shm-usage", "--only-categories=performance,accessibility,best-practices,seo", "--output=json", `--output-path=${output}`, "--quiet"];
+  const args = [resolve(root, "node_modules/lighthouse/cli/index.js"), `http://127.0.0.1:${server.address().port}/slate/`, "--chrome-flags=--headless --no-sandbox --disable-dev-shm-usage --disable-gpu", "--only-categories=performance,accessibility,best-practices,seo", "--output=json", "--save-assets", `--output-path=${output}`, "--quiet"];
   await new Promise((done, reject) => {
     const child = spawn(process.execPath, args, { cwd: root, stdio: "inherit", env: { ...process.env, CHROME_PATH: chromium.executablePath() } });
     child.on("error", reject);

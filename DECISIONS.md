@@ -209,3 +209,9 @@ The production site inlines minified landing CSS, critical font bytes, shared SV
 ## 2026-11-17 - Read current and waiting release notes separately
 
 Current release notes use the precached `whats-new.json` with normal fetch cache mode so they remain available offline, including in Firefox (a reproduced `no-store` request fails offline there). A waiting update uses a query and `no-store` to read the incoming version without being served the active worker's older JSON. Opening notes is read-only; Reload remains an explicit action after the workspace flush. The About surface uses a native dialog for focus containment and restores focus to its invoker when closed.
+
+## 2026-11-17 - Prioritize the editor and isolate CI browser cases
+
+Start the rebuildable SQLite cache after the editor's first frame, rather than opening/writing an empty index during first-run file operations. Files and recovery writes keep priority; the worker still builds a real OPFS FTS cache and receives subsequent saved changes. An empty Space does not need a worker.
+
+CI uses one Playwright worker, following [Playwright's CI recommendation](https://playwright.dev/docs/ci#workers), after Windows traces showed cold profiles stalling while three unrelated contexts initialized storage/cache concurrently. All browser projects, assertions, budgets and the concurrent two-tab ownership test remain enabled. Local runs default to three workers. Lighthouse uses software headless rendering with the same default mobile simulation and retains raw traces; Mac runner performance remains under investigation until the new evidence passes.

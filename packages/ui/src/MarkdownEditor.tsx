@@ -13,13 +13,15 @@ interface MarkdownEditorProps {
   onNavigateWikiLink?: (link: WikiLinkHit) => void;
   readOnly?: boolean;
   documentKey?: string;
+  onReady?: () => void;
 }
 
-export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onNavigateWikiLinkRef = useRef(onNavigateWikiLink);
+  const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   useEffect(() => {
     onNavigateWikiLinkRef.current = onNavigateWikiLink;
   }, [onNavigateWikiLink]);
+  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -87,6 +90,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
     });
 
     viewRef.current = view;
+    const readyFrame = requestAnimationFrame(() => onReadyRef.current?.());
     const scroll = () => {
       if (preferenceKey) {
         try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: view.state.selection.main.head, scroll: view.scrollDOM.scrollTop })); } catch { /* View preferences are optional. */ }
@@ -95,6 +99,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
     view.requestMeasure({ read: () => position.scroll, write(scrollTop) { view.scrollDOM.scrollTop = scrollTop; } });
     view.scrollDOM.addEventListener("scroll", scroll);
     return () => {
+      cancelAnimationFrame(readyFrame);
       view.scrollDOM.removeEventListener("scroll", scroll);
       view.destroy();
       viewRef.current = null;

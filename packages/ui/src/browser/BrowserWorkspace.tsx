@@ -33,6 +33,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [usage, setUsage] = useState("");
   const [matches, setMatches] = useState<string[] | undefined>();
   const [indexWarning, setIndexWarning] = useState("");
+  const [editorReady, setEditorReady] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLInputElement>(null);
@@ -61,7 +62,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   useEffect(() => {
     const record = state.record;
     let active = true;
-    if (record.id !== "sample" && createIndex) {
+    if (record.id !== "sample" && createIndex && editorReady) {
       const cache = createIndex(record.id);
       index.current = cache;
       let indexed = store.api.getState().sheets;
@@ -75,7 +76,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       return () => { active = false; unsubscribe(); cache.close(); index.current = undefined; };
     }
     return undefined;
-  }, [store, createIndex, state.record]);
+  }, [store, createIndex, state.record, editorReady]);
 
   useEffect(() => {
     const generation = ++queryGeneration.current;
@@ -231,7 +232,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
           <button title="Move sheet" aria-label="Move sheet" disabled={!selected || !state.owned} onClick={() => { setAction("move"); setActionValue(notebookFor(state.selectedPath)); }}><Folder size={16} /></button>
           <button title="Move to trash" aria-label="Delete sheet" disabled={!selected || !state.owned} onClick={() => setAction("trash")}><Trash2 size={16} /></button>
         </div></div>
-        {selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onChange={(content) => {
+        {selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onReady={() => setEditorReady(true)} onChange={(content) => {
           store.edit(content);
         }} onNavigateWikiLink={(link) => {
           const target = documents.find((sheet) => sheet.id === link.targetId || sheet.title.toLowerCase() === link.target.toLowerCase());

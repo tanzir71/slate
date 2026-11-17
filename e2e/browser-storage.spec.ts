@@ -114,8 +114,10 @@ test("writes selected-folder files and reconnects the saved handle", async ({ pa
   await expect(page.locator(".cm-content")).toContainText("Saved in my folder.");
 });
 
-test("builds an OPFS SQLite search cache in a worker without cross-origin isolation", async ({ page }) => {
+test("starts an OPFS SQLite cache after the editor is ready and searches real FTS", async ({ page }) => {
   await openLibrary(page);
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  expect(page.workers().filter((worker) => worker.url().includes("index.worker"))).toHaveLength(0);
   await createSheet(page, "# Searchable\n\nAn unusual aardvark.");
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(false);
   await expect.poll(() => page.evaluate(async () => {

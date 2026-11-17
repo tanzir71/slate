@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   fullyParallel: true,
-  workers: 3,
+  workers: process.env.CI ? 1 : 3,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:4175/slate/app/",

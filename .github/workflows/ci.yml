@@ -42,7 +42,7 @@ jobs:
         with:
           name: verification-${{ matrix.os }}
           path: |
-            artifacts/lighthouse-landing.json
+            artifacts/lighthouse-landing*.json
             test-results/
             playwright-report/
           retention-days: 7
