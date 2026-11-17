@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary, readCurrentSheet, showSheets, workspaceAction } from "./helpers";
+import { createSheet, openLibrary, readCurrentSheet, replaceEditorText, showSheets, workspaceAction } from "./helpers";
 import { readFile } from "node:fs/promises";
 
 test("runs under the Pages subpath with CSP and no third-party requests", async ({ page }) => {
@@ -78,14 +78,14 @@ test("recovers the writer's latest failed save when another tab takes over", asy
   await page.evaluate(() => {
     FileSystemFileHandle.prototype.createWritable = async () => { throw new DOMException("Test write permission revoked", "NotAllowedError"); };
   });
-  await page.locator(".cm-content").fill("Early recovery draft.");
+  await replaceEditorText(page, "Early recovery draft.");
   await expect(page.getByRole("alert")).toContainText("Test write permission revoked");
   const reader = await context.newPage();
   await reader.goto("./");
   await expect(reader.locator(".cm-content")).toContainText("Early recovery draft.");
   await expect(reader.locator(".cm-content")).toHaveAttribute("contenteditable", "false");
   const previousJournal = await page.evaluate(() => localStorage.getItem(`slate.recovery-v2.${decodeURIComponent(location.hash.split("/")[2]!)}`));
-  await page.locator(".cm-content").fill("Latest words before the writer disappeared.");
+  await replaceEditorText(page, "Latest words before the writer disappeared.");
   await expect.poll(() => page.evaluate(() => localStorage.getItem(`slate.recovery-v2.${decodeURIComponent(location.hash.split("/")[2]!)}`))).not.toBe(previousJournal);
   await page.close();
   await reader.getByRole("button", { name: "Use here", exact: true }).click();
@@ -103,7 +103,7 @@ test("keeps drafts from an older open app separate from the new recovery journal
   });
   const newer = "# New app\n\nKeep these newer words.";
   const older = "# Earlier app\n\nKeep these earlier words.";
-  await page.locator(".cm-content").fill(newer);
+  await replaceEditorText(page, newer);
   await expect(page.getByRole("alert")).toContainText("Test write permission revoked");
   const reader = await context.newPage();
   await reader.goto("./");

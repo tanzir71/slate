@@ -19,6 +19,16 @@ export async function createSheet(page: Page, text = "# My writing\n\nWords wort
   return editor;
 }
 
+export async function replaceEditorText(page: Page, text: string) {
+  const editor = page.locator(".cm-content");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText(text);
+  // These recovery fixtures have a heading only on line one; reveal its source marker.
+  await page.keyboard.press("ControlOrMeta+Home");
+  await expect.poll(async () => (await editor.locator(".cm-line").allTextContents()).join("\n")).toBe(text);
+}
+
 export async function showSheets(page: Page) {
   await expect(page.locator(".workspaceHeader")).toBeVisible();
   if (!await page.getByRole("complementary", { name: "Sheets", exact: true }).isVisible()) await page.getByRole("button", { name: "Show sheets", exact: true }).click();
