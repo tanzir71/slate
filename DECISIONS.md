@@ -210,6 +210,8 @@ The production site inlines minified landing CSS, critical font bytes, shared SV
 
 Current release notes use the precached `whats-new.json` with normal fetch cache mode so they remain available offline, including in Firefox (a reproduced `no-store` request fails offline there). A waiting update uses a query and `no-store` to read the incoming version without being served the active worker's older JSON. Opening notes is read-only; Reload remains an explicit action after the workspace flush. The About surface uses a native dialog for focus containment and restores focus to its invoker when closed.
 
+The header/palette About action always reviews the running release. Only the waiting-update toast's What's new action reviews the incoming release. A Windows Firefox trace exposed the incorrect coupling: a waiting update switched ordinary About to a `no-store` request and broke it offline. The two dialog modes now remain independent; no additional cache mechanism is needed.
+
 ## 2026-11-17 - Preserve unsupported Markdown encodings
 
 Browser Markdown editing accepts UTF-8. Replacement decoding could silently change legacy file bytes on save, so decoding is strict. Unsupported files stay visible but read-only; raw downloads and zip exports preserve them. A recovered pending draft is written into a separate UTF-8 conflict copy, preserving both the original bytes and the user's words.

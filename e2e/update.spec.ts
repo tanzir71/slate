@@ -36,6 +36,12 @@ test("a deployed service-worker update waits for Reload and flushes typing first
     const reload = page.getByRole("button", { name: "Reload", exact: true });
     await expect(reload).toBeVisible();
     await expect(page.locator(".browserSlate > .notice")).toContainText("Slate 0.2.1 is ready");
+    await context.setOffline(true);
+    await page.getByRole("button", { name: "About Slate", exact: true }).click();
+    const currentDialog = page.getByRole("dialog", { name: "About Slate" });
+    await expect(currentDialog.getByRole("heading", { name: "What’s new in Slate 0.2.0", exact: true })).toBeVisible();
+    await currentDialog.getByRole("button", { name: "Close", exact: true }).click();
+    await context.setOffline(false);
     await page.getByRole("button", { name: "What’s new", exact: true }).click();
     const releaseDialog = page.getByRole("dialog", { name: "About Slate" });
     await expect(releaseDialog.getByRole("heading", { name: "What’s new in Slate 0.2.1", exact: true })).toBeVisible();
