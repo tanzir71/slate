@@ -2,9 +2,14 @@ import { cp, mkdir, rm, writeFile, readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { transformWithEsbuild } from "vite";
+import { assertReleaseMetadata } from "./release-metadata.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const output = resolve(root, "site-dist");
+const manifest = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
+const appManifest = JSON.parse(await readFile(resolve(root, "apps/web/package.json"), "utf8"));
+const releaseNotes = JSON.parse(await readFile(resolve(root, "apps/web/public/whats-new.json"), "utf8"));
+assertReleaseMetadata({ version: manifest.version, appVersion: appManifest.version, notesVersion: releaseNotes.version }, process.env.GITHUB_REF_TYPE === "tag" ? process.env.GITHUB_REF_NAME : undefined);
 const pnpmScript = process.env.npm_execpath;
 if (!pnpmScript)
   throw new Error("pnpm entrypoint was not provided by the package manager");
@@ -66,7 +71,6 @@ await writeFile(resolve(output, "index.html"), landing.replace(/<link\b(?=[^>]*\
 await cp(resolve(root, "apps/web/dist"), resolve(output, "app"), {
   recursive: true,
 });
-const manifest = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
 const git = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
 await writeFile(resolve(output, "release.json"), `${JSON.stringify({ version: process.env.GITHUB_REF_TYPE === "tag" ? process.env.GITHUB_REF_NAME.replace(/^v/, "") : manifest.version, commit: git.status === 0 ? git.stdout.trim() : null, landing: "./", app: "./app/" }, null, 2)}\n`);
 await writeFile(

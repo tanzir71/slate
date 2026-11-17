@@ -1,9 +1,12 @@
 {
   "name": "@slate/storage",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "exports": {
-    "./browser-import": { "types": "./dist/browserImport.d.ts", "import": "./dist/browserImport.js" },
+    "./browser-import": {
+      "types": "./dist/browserImport.d.ts",
+      "import": "./dist/browserImport.js"
+    },
     "./browser-files": {
       "types": "./dist/browserFiles.d.ts",
       "import": "./dist/browserFiles.js"

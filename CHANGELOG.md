@@ -6,11 +6,28 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-17
+
 ### Added
 - Redesigned paper-and-graphite landing page with local fonts, real product screenshots, responsive navigation, and a direct browser-app launch.
 - Persistent browser Folder/library Spaces, conflict-safe autosave and recovery, local worker FTS search, multi-tab ownership, and byte-preserving zip import/export.
 - Offline PWA caching with an explicit save-before-reload update flow, install icons and confirmation-based launch shortcuts.
 - Tag/release-driven GitHub Pages publication with three-browser checks, landing performance budgets and a live save/reopen smoke check.
+- Offline release notes, incoming-update previews, browser capability information and author credit in About Slate.
+- Installable manifest, local brand assets, confirmed Capture/Today/New sheet actions and Markdown file handling.
+
+### Changed
+- Restores the last sheet, caret, scroll position and remembered inspector visibility; starts with the command palette closed.
+- Uses browser-safe shortcuts, real notebook/tag navigation, and basic Markdown formatting with one-step undo.
+- Prioritizes the editor before opening its rebuildable search cache.
+
+### Known limitations
+- Folder editing requires a supporting Chromium browser. Other modern browsers use the private library and local import/export.
+- Themes, creation tools, Tidy, desktop hardening, automation, history/export formats and opt-in Sync remain in later handover milestones.
+
+## [0.1.0] - Handoff baseline
+
+### Added
 - Initial handoff-driven pnpm monorepo with web, desktop, mobile, UI, editor, core, storage, sync, tokens, and Rust crates.
 - Pure core Markdown parsing, tags, wiki-links, backlinks, smart filters, stats, and goal progress.
 - Local storage adapter with rebuildable index cache and conflict-copy writes.
@@ -45,6 +62,3 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 ### Changed
 - Playwright e2e serves the built web app through a small static Node server for deterministic readiness.
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
-
-### Known Gaps
-- The remaining Slate 2.0 handover milestones (themes, creation tools, Tidy, desktop hardening, automation, history/export and opt-in Sync) are tracked in `PROGRESS.md`.

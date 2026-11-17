@@ -1,13 +1,16 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { VitePWA } from "vite-plugin-pwa";
 
 const fromRoot = (path: string): string =>
   fileURLToPath(new URL(path, import.meta.url));
+const appVersion = (JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string }).version;
 
 export default defineConfig({
   base: "./",
+  define: { __SLATE_VERSION__: JSON.stringify(appVersion) },
   plugins: [react(), VitePWA({
     registerType: "prompt",
     injectRegister: false,

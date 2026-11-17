@@ -60,5 +60,10 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "Slate $RELEASE_TAG"
+            notes_file="RELEASE_NOTES_${RELEASE_TAG}.md"
+            if [ -f "$notes_file" ]; then
+              gh release create "$RELEASE_TAG" --verify-tag --notes-file "$notes_file" --title "Slate $RELEASE_TAG"
+            else
+              gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "Slate $RELEASE_TAG"
+            fi
           fi

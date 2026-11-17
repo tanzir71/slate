@@ -7,6 +7,7 @@ test("About shows release notes, capabilities and author credit with keyboard di
   const release = JSON.parse(await readFile("site-dist/app/whats-new.json", "utf8")) as { version: string };
   const releaseHeading = `What’s new in Slate ${release.version}`;
   await page.goto("./");
+  await expect(page.locator(".welcomeBrand small")).toHaveText(`Web · v${release.version}`);
   const about = page.getByRole("button", { name: "About Slate", exact: true });
   await about.click();
   const dialog = page.getByRole("dialog", { name: "About Slate" });

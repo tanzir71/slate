@@ -22,7 +22,7 @@ function App() {
     }, onNeedReload: () => undefined });
     return () => { active = false; };
   }, []);
-  return <BrowserApp createIndex={createBrowserIndex} updateReady={updateReady} updateVersion={updateVersion} onReload={reloadWaitingWorker} />;
+  return <BrowserApp version={__SLATE_VERSION__} createIndex={createBrowserIndex} updateReady={updateReady} updateVersion={updateVersion} onReload={reloadWaitingWorker} />;
 }
 
 async function waitingVersion(): Promise<string | undefined> {
