@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { transformWithEsbuild } from "vite";
 import { assertReleaseMetadata } from "./release-metadata.mjs";
+import { renderDesktopPreviewCTA } from "./desktop-artifacts.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const output = resolve(root, "site-dist");
@@ -45,7 +46,7 @@ for (const [filename, loader] of [["landing.css", "css"], ["landing.js", "js"]])
   const result = await transformWithEsbuild(source, filename, { loader, minify: true });
   await writeFile(resolve(output, filename), result.code);
 }
-const landing = await readFile(resolve(output, "index.html"), "utf8");
+const landing = renderDesktopPreviewCTA(await readFile(resolve(output, "index.html"), "utf8"), manifest.version);
 let landingCss = await readFile(resolve(output, "landing.css"), "utf8");
 for (const font of ["geist", "newsreader", "geist-mono"]) {
   const bytes = await readFile(resolve(output, "assets/fonts", `${font}.woff2`));

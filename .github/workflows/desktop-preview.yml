@@ -1,0 +1,126 @@
+name: Build unsigned desktop previews
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/desktop-preview.yml
+      - apps/desktop/src-tauri/tauri.preview.conf.json
+      - scripts/build-desktop-preview.mjs
+      - scripts/desktop-artifacts.mjs
+
+permissions: { contents: read }
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+          - os: ubuntu-22.04
+            platform: linux-x64
+          - os: macos-latest
+            platform: macos-universal
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.14.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          shared-key: desktop-preview-${{ matrix.platform }}
+      - name: Linux packaging prerequisites (Ubuntu 22.04 compatibility floor)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf libfuse2 xvfb
+      - name: Install both macOS Rust targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: pnpm install --frozen-lockfile
+      - name: Build release-mode unsigned installer or application bundle
+        id: preview
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: pnpm build:desktop-preview
+      - name: Install and launch the unsigned Windows package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PREVIEW_DIRECTORY: ${{ steps.preview.outputs.artifact_directory }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installers = @(Get-ChildItem -LiteralPath $env:PREVIEW_DIRECTORY -Filter '*.exe')
+          if ($installers.Count -ne 1) { throw 'Expected one Windows installer' }
+          $installer = $installers[0]
+          if ((Get-AuthenticodeSignature -LiteralPath $installer.FullName).Status -ne 'NotSigned') { throw 'Preview must be unsigned' }
+          $installPath = Join-Path $env:RUNNER_TEMP 'slate-preview-smoke'
+          $setup = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installPath") -WindowStyle Hidden -PassThru
+          $null = $setup.Handle
+          if (-not $setup.WaitForExit(120000)) { $setup.Kill(); throw 'Preview installer timed out' }
+          if ($setup.ExitCode -ne 0) { throw "Preview installer exited $($setup.ExitCode)" }
+          $binary = Join-Path $installPath 'slate-desktop.exe'
+          if (-not (Test-Path -LiteralPath $binary)) { throw 'Installed application is missing' }
+          $app = Start-Process -FilePath $binary -WindowStyle Hidden -PassThru
+          try {
+            if ($app.WaitForExit(8000)) { throw "Installed preview exited early: $($app.ExitCode)" }
+            Write-Output 'Installed preview remained running for the startup smoke.'
+          } finally {
+            if (-not $app.HasExited) { $app.Kill(); $app.WaitForExit() }
+          }
+      - name: Extract and launch the Linux AppImage
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          PREVIEW_DIRECTORY: ${{ steps.preview.outputs.artifact_directory }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+        run: |
+          shopt -s nullglob
+          packages=("$PREVIEW_DIRECTORY"/*.AppImage)
+          test "${#packages[@]}" = 1
+          chmod +x "${packages[0]}"
+          set +e
+          xvfb-run -a timeout 10s "${packages[0]}" > "$RUNNER_TEMP/slate-preview-smoke.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/slate-preview-smoke.log"
+          test "$status" = 124
+      - name: Extract and launch the universal macOS app
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          PREVIEW_DIRECTORY: ${{ steps.preview.outputs.artifact_directory }}
+        run: |
+          shopt -s nullglob
+          packages=("$PREVIEW_DIRECTORY"/*.app.zip)
+          test "${#packages[@]}" = 1
+          ditto -xk "${packages[0]}" "$RUNNER_TEMP/slate-preview-smoke"
+          binary="$RUNNER_TEMP/slate-preview-smoke/Slate Preview.app/Contents/MacOS/slate-desktop"
+          test -x "$binary"
+          "$binary" > "$RUNNER_TEMP/slate-preview-smoke.log" 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          sleep 8
+          if ! kill -0 "$app_pid" 2>/dev/null; then
+            cat "$RUNNER_TEMP/slate-preview-smoke.log"
+            exit 1
+          fi
+          echo 'Extracted universal preview remained running for the startup smoke.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-preview-${{ matrix.platform }}
+          path: ${{ steps.preview.outputs.artifact_directory }}/*
+          if-no-files-found: error
+          retention-days: 14

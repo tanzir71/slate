@@ -8,7 +8,37 @@ on:
 permissions: { contents: read, pages: write, id-token: write }
 concurrency: { group: pages, cancel-in-progress: true }
 jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      previews: ${{ steps.release.outputs.previews }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Resolve release version and immutable commit
+        id: release
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFile } from 'node:fs/promises';
+          import { execFileSync } from 'node:child_process';
+          import { hasDesktopPreviews, readDesktopVersion } from './scripts/desktop-artifacts.mjs';
+          const version = await readDesktopVersion(process.cwd(), process.env.GITHUB_REF_TYPE === 'tag' ? process.env.GITHUB_REF_NAME : undefined);
+          const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+          await appendFile(process.env.GITHUB_OUTPUT, `previews=${hasDesktopPreviews(version)}\ncommit=${commit}\n`);
+          JS
+  desktop-previews:
+    needs: metadata
+    if: needs.metadata.outputs.previews == 'true'
+    uses: ./.github/workflows/desktop-preview.yml
+    with:
+      ref: ${{ needs.metadata.outputs.commit }}
   deploy:
+    needs: [metadata, desktop-previews]
+    if: ${{ !cancelled() && needs.metadata.result == 'success' && (needs.desktop-previews.result == 'success' || needs.desktop-previews.result == 'skipped') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -16,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || github.ref }}
+          ref: ${{ needs.metadata.outputs.commit }}
       - uses: pnpm/action-setup@v4
         with: { version: 10.14.0 }
       - uses: actions/setup-node@v4
@@ -49,23 +79,26 @@ jobs:
           SLATE_SMOKE_URL: ${{ steps.deployment.outputs.page_url }}app/
         run: node scripts/smoke-site.mjs
   release:
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
-    needs: deploy
+    if: ${{ !cancelled() && needs.deploy.result == 'success' && startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || github.event_name == 'release') }}
+    needs: [metadata, deploy]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Create release notes after the site is verified
+        with:
+          ref: ${{ needs.metadata.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Download the three verified desktop packages
+        if: needs.metadata.outputs.previews == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-preview-*
+          path: artifacts/release-desktop
+          merge-multiple: true
+      - name: Publish release and desktop packages after the site is verified
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            notes_file="RELEASE_NOTES_${RELEASE_TAG}.md"
-            if [ -f "$notes_file" ]; then
-              gh release create "$RELEASE_TAG" --verify-tag --notes-file "$notes_file" --title "Slate $RELEASE_TAG"
-            else
-              gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "Slate $RELEASE_TAG"
-            fi
-          fi
+        run: node scripts/publish-release.mjs

@@ -1,5 +1,7 @@
 # Slate
 
+The browser app and landing page ship together on each release. From v0.3, release automation also builds [unsigned desktop previews](docs/desktop-preview.md) for Windows x64, Linux x64 and macOS Intel/Apple Silicon, with checksums and source-commit manifests.
+
 **Website:** [tanzir71.github.io/slate](https://tanzir71.github.io/slate/) · **Browser app:** [Open Slate](https://tanzir71.github.io/slate/app/) · [Sample Space](https://tanzir71.github.io/slate/app/?sample=1)
 
 > A local-first Markdown editor and knowledge workspace — the calm of Ulysses/Bear with the ownership of Obsidian, on web and desktop.

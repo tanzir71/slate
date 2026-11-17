@@ -16,6 +16,7 @@
     "visual": "node scripts/visual-test.mjs",
     "build": "pnpm -r --if-present build && pnpm --filter @slate/desktop tauri:build",
     "build:site": "node scripts/build-site.mjs && node scripts/verify-site.mjs",
+    "build:desktop-preview": "node scripts/build-desktop-preview.mjs",
     "shots": "node scripts/shots.mjs",
     "perf:site": "node scripts/perf-site.mjs",
     "perf": "node scripts/perf-budgets.mjs",
