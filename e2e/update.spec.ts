@@ -2,7 +2,7 @@ import { expect, test } from "./fixtures";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
-import { createSheet, openLibrary } from "./helpers";
+import { createSheet, openLibrary, workspaceAction } from "./helpers";
 
 test("a deployed service-worker update waits for Reload and flushes typing first", async ({ createContext }) => {
   const root = resolve("site-dist");
@@ -37,7 +37,7 @@ test("a deployed service-worker update waits for Reload and flushes typing first
     await expect(reload).toBeVisible();
     await expect(page.locator(".browserSlate > .notice")).toContainText("Slate 0.2.1 is ready");
     await context.setOffline(true);
-    await page.getByRole("button", { name: "About Slate", exact: true }).click();
+    await workspaceAction(page, "About Slate");
     const currentDialog = page.getByRole("dialog", { name: "About Slate" });
     await expect(currentDialog.getByRole("heading", { name: "What’s new in Slate 0.2.0", exact: true })).toBeVisible();
     await currentDialog.getByRole("button", { name: "Close", exact: true }).click();

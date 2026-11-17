@@ -261,3 +261,12 @@ F-10a uses Lezer's Markdown/GFM tree plus small highlight/wiki/tag extensions. O
 Missing wiki targets are created through the existing serialized, conflict-safe file adapter. Link navigation/creation is serialized too, preserving source bytes, resolving existing titles or stable IDs first and using portable filenames. A lazily loaded helper imports only the needed parser export, keeping the initial shell small. Rich widgets and view-mode UI remain in their planned later milestone.
 
 macOS CI's shortcut labels use the same Option glyph as the running app. Safari's toolbar traversal test uses Option-Tab with the default macOS navigation setting, following [Apple's keyboard reference](https://support.apple.com/guide/safari/keyboard-shortcuts-and-gestures-cpsh003/mac); no keyboard checks are skipped. The shortcuts invoker receives explicit focus before its dialog opens so Safari restores focus consistently too.
+
+
+## 2026-11-18 - File-backed workspace preferences and bounded sheet rendering (F-90–93)
+
+Context: The redesigned sidebar and list need pinned files, collapsed notebooks and density settings that travel with a Space. Large lists must keep keyboard navigation usable without mounting every row.
+
+Decision: Store versioned preferences in `.slate/view.json`, preserve unknown fields, serialize updates and use the same optimistic conflict-copy save path as notes. Invalid configuration leaves notes available and the original configuration untouched. Move operations update pinned paths after the file has moved safely. Render fixed-height rows with viewport overscan above 80 entries; Arrow Up/Down, Home and End reach unmounted rows. Bulk move/trash runs through existing safe file operations sequentially and retains unfinished selections after a failure.
+
+Consequence: SQLite remains a rebuildable cache. Preference files are included in exports, and a damaged preference file cannot overwrite notes. Cursor positions use a separate external store so caret movement only updates the status bar. The shared titlebar explicitly disables native window controls in the browser. Future view modes, history and Tidy controls arrive with their working features in later milestones.

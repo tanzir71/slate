@@ -1,6 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { chooseAppearance, createSheet, openLibrary, showSheets } from "./helpers";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 const raw =
@@ -56,9 +56,7 @@ test("live preview renders basic Markdown, toggles tasks with one undo and prese
   await page.keyboard.press(`${modifier}+End`);
   await expect(page.locator(".cm-slate-heading-1")).toHaveText("Heading");
   expect(await readCurrent(page)).toBe(raw);
-  await page
-    .getByRole("combobox", { name: "Appearance", exact: true })
-    .selectOption("dark");
+  await chooseAppearance(page, "dark");
   const results = await new AxeBuilder({ page })
     .include(".browserEditor")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -75,6 +73,7 @@ test("an unresolved wiki link creates its target once and later follows the exis
   await page.locator(".cm-slate-unresolved-link").click();
   await expect(page.locator(".documentToolbar > span")).toHaveText("New idea");
   await expect(page).toHaveURL(/New%20idea\.md$/);
+  await showSheets(page);
   await page.getByRole("button", { name: /^Source See/ }).click();
   await expect(page.locator(".cm-slate-wiki-link")).toHaveText("alias");
   await expect(page.locator(".cm-slate-wiki-link")).not.toHaveClass(

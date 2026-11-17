@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { createSheet, openLibrary, workspaceAction } from "./helpers";
 import { slateCommands } from "../packages/core/src/commands";
 import { AxeBuilder } from "@axe-core/playwright";
 
@@ -62,9 +62,7 @@ test("registry labels, shortcut search, palette formatting and focus restoration
   await openLibrary(page);
   const editor = await createSheet(page, "words");
   await page.keyboard.press(`${modifier}+a`);
-  await page
-    .getByRole("button", { name: "Keyboard shortcuts", exact: true })
-    .click();
+  const shortcutsInvoker = await workspaceAction(page, "Keyboard shortcuts");
   const sheet = page.getByRole("dialog", {
     name: "Keyboard shortcuts",
     exact: true,
@@ -86,7 +84,7 @@ test("registry labels, shortcut search, palette formatting and focus restoration
   await expect(sheet.locator(".shortcutRow")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "Keyboard shortcuts", exact: true }),
+    shortcutsInvoker,
   ).toBeFocused();
   await page.keyboard.press(`${modifier}+/`);
   await expect(sheet).toBeVisible();
@@ -133,9 +131,7 @@ test("Space keymaps update editor bindings and labels, with complete fallback on
   await expect(editor).toHaveText("**words**");
   await page.keyboard.press(`${modifier}+z`);
   await expect(editor).toHaveText("words");
-  await page
-    .getByRole("button", { name: "Keyboard shortcuts", exact: true })
-    .click();
+  await workspaceAction(page, "Keyboard shortcuts");
   const row = page.locator(".shortcutRow").filter({ hasText: /^Bold/ });
   await expect(row.locator("kbd")).toContainText("⇧ B");
   await page.keyboard.press("Escape");

@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { createSheet, openLibrary, showSheets } from "./helpers";
 
 async function caretPosition(page: Page) {
   return page.evaluate(() => {
@@ -20,6 +20,7 @@ test("opening the app root restores the chosen sheet rather than the first file"
   await createSheet(page, "# First file\n\nReturn here tomorrow.");
   const first = new URL(page.url()).hash;
   await createSheet(page, "# Second file\n\nAnother thought.");
+  await showSheets(page);
   await page.getByRole("button", { name: /^First file Return here tomorrow/ }).click();
   await expect(page.locator(".cm-content")).toContainText("Return here tomorrow.");
   await page.goto("./");

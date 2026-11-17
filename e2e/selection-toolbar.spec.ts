@@ -1,6 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { chooseAppearance, createSheet, openLibrary } from "./helpers";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
@@ -59,9 +59,7 @@ test("selection toolbar is keyboard reachable, accessible in Dark and hidden for
 }) => {
   await openLibrary(page);
   const editor = await createSheet(page, "words");
-  await page
-    .getByRole("combobox", { name: "Appearance", exact: true })
-    .selectOption("dark");
+  await chooseAppearance(page, "dark");
   await editor.focus();
   await page.keyboard.press(`${modifier}+a`);
   const toolbar = page.getByRole("toolbar", { name: "Selection formatting" });

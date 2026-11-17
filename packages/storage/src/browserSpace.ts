@@ -33,7 +33,7 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
     return target;
   }
   async function writeConflict(path: string, content: string): Promise<BrowserWriteResult> {
-    const conflictPath = path.replace(/\.md$/i, ` (conflicted copy ${new Date().toISOString().replaceAll(/[:.]/g, "-")}).md`);
+    const conflictPath = path.replace(/(\.[^/.]+)?$/, ` (conflicted copy ${new Date().toISOString().replaceAll(/[:.]/g, "-")})$1`);
     return { path: await writeNew(conflictPath, encodeText(content)), content, conflict: true };
   }
   return {

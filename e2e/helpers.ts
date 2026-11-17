@@ -16,3 +16,32 @@ export async function createSheet(page: Page, text = "# My writing\n\nWords wort
   await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved$/ })).toBeVisible({ timeout: 15_000 });
   return editor;
 }
+
+export async function showSheets(page: Page) {
+  await expect(page.locator(".workspaceHeader")).toBeVisible();
+  if (!await page.getByRole("complementary", { name: "Sheets", exact: true }).isVisible()) await page.getByRole("button", { name: "Show sheets", exact: true }).click();
+}
+
+export async function workspaceAction(page: Page, name: string) {
+  await expect(page.locator(".workspaceHeader")).toBeVisible();
+  const direct = page.locator(".workspaceHeaderTools > button").filter({ has: page.locator("svg") }).and(page.getByRole("button", { name, exact: true }));
+  if (await direct.isVisible()) { await direct.click(); return direct; }
+  const menu = page.getByRole("button", { name: "Sheet actions", exact: true });
+  if (!await page.locator(".sheetActionsMenu").evaluate((element) => element.hasAttribute("open"))) await menu.click();
+  await page.locator(".sheetActionsItems").getByRole("button", { name, exact: true }).click();
+  return menu;
+}
+
+export async function appearanceControl(page: Page) {
+  await expect(page.locator(".workspaceHeader")).toBeVisible();
+  const direct = page.locator(".workspaceHeaderTools > .appearanceControl select");
+  if (await direct.isVisible()) return direct;
+  const menu = page.getByRole("button", { name: "Sheet actions", exact: true });
+  if (!await page.locator(".sheetActionsMenu").evaluate((element) => element.hasAttribute("open"))) await menu.click();
+  return page.locator(".mobileAppearance").getByRole("combobox", { name: "Appearance", exact: true });
+}
+
+export async function chooseAppearance(page: Page, preference: "light" | "dark" | "system") {
+  await (await appearanceControl(page)).selectOption(preference);
+  if (await page.locator(".sheetActionsMenu[open]").count()) await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
+}

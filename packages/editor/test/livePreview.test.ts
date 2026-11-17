@@ -1,6 +1,7 @@
 import { EditorState, Compartment, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
+import { forceParsing } from "@codemirror/language";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   createSlateMarkdownExtensions,
@@ -27,6 +28,7 @@ function editor(text: string, readOnly = false) {
     }),
   });
   mounted.push(view);
+  expect(forceParsing(view, view.state.doc.length, 1000)).toBe(true);
   return view;
 }
 afterEach(() => {

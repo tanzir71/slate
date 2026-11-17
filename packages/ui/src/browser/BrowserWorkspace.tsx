@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { Folder, Hash, Inbox, Plus, Search, PanelRight, ArrowLeft, Download, Upload, Trash2, Pencil, BookOpen, Info } from "lucide-react";
+import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X } from "lucide-react";
 import { matchCommand, parseSheet, resolveCommandKeymap } from "@slate/core";
 import { safeBrowserPath, type BrowserDirectoryHandle } from "@slate/storage/browser-files";
 import { addBrowserImportEntry, collectBrowserDrop, type BrowserImportFile } from "@slate/storage/browser-import";
@@ -9,8 +9,14 @@ import type { BrowserAppProps } from "./BrowserApp";
 import { LaunchActions } from "./LaunchActions";
 import { AppearanceControl, type useAppearance } from "../appearance";
 import { BrandMark } from "../BrandMark";
-import { commandShortcut, keyboardInput, readKeymap, shortcutOS, type MarkdownEditorHandle } from "../commands";
+import { commandShortcut, createCursorStore, keyboardInput, readKeymap, shortcutOS, type MarkdownEditorHandle } from "../commands";
 import { CommandDialog } from "./CommandDialog";
+import { WorkspaceTitleBar } from "./WorkspaceTitleBar";
+import { WorkspaceStatusBar } from "./WorkspaceStatusBar";
+import { WorkspaceDialog } from "./WorkspaceDialog";
+import { NotebookTree } from "./NotebookTree";
+import { SheetList } from "./SheetList";
+import { matchesWorkspaceFilter } from "./workspaceFilter";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 interface FolderObserver {
@@ -39,6 +45,13 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   });
   const [palette, setPalette] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
+  const [pane, setPane] = useState<"navigation" | "sheets" | "editor">(() => state.selectedPath ? "editor" : "sheets");
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sheetsVisible, setSheetsVisible] = useState(true);
+  const [collapsed, setCollapsed] = useState(() => new Set(state.preferences.collapsedNotebooks));
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionPaths, setActionPaths] = useState<string[]>([]);
+  const cursor = useMemo(createCursorStore, []);
   const os = shortcutOS();
   const [keymap, setKeymap] = useState(() => resolveCommandKeymap({ os, surface: "web" }));
   const [action, setAction] = useState<"rename" | "move" | "trash" | "notebook" | undefined>();
@@ -62,10 +75,23 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const notebooks = [...new Set([...state.sheets.map((sheet) => notebookFor(sheet.path)).filter(Boolean), ...extraNotebooks])].sort();
   const tags = [...new Set(documents.flatMap((sheet) => sheet.tags.map((tag) => tag.path)))].sort();
   const visible = documents.filter((sheet) => {
-    const inNotebook = !filter || (filter.startsWith("#") ? sheet.tags.some((tag) => tag.path === filter.slice(1)) : sheet.path.startsWith(`${filter}/`));
+    const inNotebook = matchesWorkspaceFilter(sheet, filter, state.preferences.pinned);
     const textMatch = !query || (matches ? matches.includes(sheet.path) : `${sheet.title} ${sheet.raw}`.toLowerCase().includes(query.toLowerCase()));
     return inNotebook && textMatch;
   });
+  const pinnedCount = documents.filter((sheet) => state.preferences.pinned.includes(sheet.path)).length;
+  const listTitle = ({ "@pinned": "Pinned", "@drafts": "Drafts in progress", "@goals": "Goal in progress", "@recent": "Edited recently" } as Record<string, string>)[filter] ?? (filter.startsWith("#") ? filter : filter.split("/").at(-1) || "All sheets");
+
+  function selectFilter(value: string) { setFilter(value); setPane("sheets"); setSheetsVisible(true); }
+  function toggleNavigation() {
+    if (window.matchMedia("(max-width: 899px)").matches) setPane((current) => current === "navigation" ? state.selectedPath ? "editor" : "sheets" : "navigation");
+    else setSidebarVisible((value) => !value);
+  }
+  function toggleSheets() {
+    if (window.matchMedia("(max-width: 699px)").matches) setPane((current) => current === "sheets" && state.selectedPath ? "editor" : "sheets");
+    else setSheetsVisible((value) => !value);
+  }
+  function focusSearch() { setPane("sheets"); setSheetsVisible(true); requestAnimationFrame(() => search.current?.focus()); }
 
   function run(work: () => Promise<unknown>) {
     void work().catch((error: unknown) => store.api.setState({ error: error instanceof Error ? error.message : "The operation failed. Your files were kept." }));
@@ -77,14 +103,19 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (id.startsWith("format.")) { if (state.owned) editorHandle.current?.runFormat(id); return; }
     const actions: Record<string, () => void> = {
       "app.palette": () => setPalette((open) => !open),
-      "sheet.new": () => { if (state.owned) run(() => store.create(filter && !filter.startsWith("#") ? filter : "Inbox")); },
-      "sheet.search": () => search.current?.focus(),
+      "sheet.new": () => { if (state.owned) run(() => store.create(filter && !/^[#@]/.test(filter) ? filter : "Inbox")); },
+      "sheet.search": focusSearch,
+      "sheet.today": () => run(async () => { await store.openToday(); setFilter("Daily"); setPane("editor"); }),
+      "sheet.pin": () => { if (state.selectedPath && state.owned) run(() => store.togglePinned(state.selectedPath)); },
+      "view.sidebar": toggleNavigation,
+      "view.sheets": toggleSheets,
+      "view.density": () => { if (state.owned) run(() => store.setDensity(state.preferences.density === "compact" ? "comfortable" : "compact")); },
       "sheet.save": () => run(store.flush),
       "space.export": () => run(exportZip),
       "space.switch": () => run(onSwitchSpace),
       "view.inspector": () => setInspector((open) => !open),
       "app.shortcuts": () => setShortcuts(true),
-      "app.about": () => { aboutButton.current?.focus(); onAbout(); },
+      "app.about": onAbout,
       "appearance.light": () => appearance.change("light"),
       "appearance.dark": () => appearance.change("dark"),
       "appearance.system": () => appearance.change("system")
@@ -195,6 +226,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
 
   useEffect(() => {
     if (state.selectedPath) {
+      setPane("editor");
       history.replaceState(null, "", `#/space/${encodeURIComponent(state.record.id)}/sheet/${encodeURIComponent(state.selectedPath)}`);
       try { localStorage.setItem(`slate.last-sheet.${state.record.id}`, state.selectedPath); } catch { /* View preferences are optional. */ }
     }
@@ -203,7 +235,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      if (event.key === "Escape") { setPalette(false); setShortcuts(false); setAction(undefined); return; }
+      if (event.key === "Escape") { setPalette(false); setShortcuts(false); if (!actionBusy) setAction(undefined); return; }
       if (palette || shortcuts || action) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false });
@@ -245,13 +277,19 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
 
   async function performAction() {
     const path = state.selectedPath;
-    if (action === "trash") await store.trash(path);
+    if (action === "trash" || action === "move") {
+      const paths = actionPaths.length ? actionPaths : [path];
+      for (const source of paths) {
+        if (action === "trash") await store.trash(source);
+        else await store.move(source, safeBrowserPath(`${actionValue}/${source.split("/").pop()!}`));
+        setActionPaths((current) => current.filter((entry) => entry !== source));
+      }
+    }
     else if (action === "rename") {
       const filename = actionValue.replace(/\.md$/i, "").trim();
       if (!filename || /[/\\]/.test(filename)) throw new Error("Choose a filename without slashes.");
       await store.move(path, `${notebookFor(path) ? `${notebookFor(path)}/` : ""}${filename}.md`);
-    } else if (action === "move") await store.move(path, safeBrowserPath(`${actionValue}/${path.split("/").pop()!}`));
-    else if (action === "notebook") {
+    } else if (action === "notebook") {
       const name = safeBrowserPath(actionValue.trim());
       setExtraNotebooks((current) => [...current, name]);
       setFilter(name);
@@ -262,6 +300,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
 
   const outline = (document?.body ?? "").split("\n").filter((line) => /^#{1,6} /.test(line));
   const backlinks = documents.filter((sheet) => sheet.path !== selected?.path && sheet.links.some((link) => link.targetId === document?.id || link.target === document?.title));
+  const pinned = state.preferences.pinned.includes(state.selectedPath);
 
   return <main className="browserWorkspace" onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
     onDrop={(event) => { if (event.dataTransfer.files.length || event.dataTransfer.items.length) {
@@ -269,62 +308,71 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
-    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={17} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}>?</button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title={`Inspector (${shortcut("view.inspector")})`} aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
+    <WorkspaceTitleBar windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
+      onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={focusSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
+      controls={<><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
+      menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
+      actions={[
+        { label: pinned ? "Unpin sheet" : "Pin sheet", disabled: !selected || !state.owned, run: () => dispatchCommand("sheet.pin") },
+        { label: "Rename sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setAction("rename"); setActionValue(selected?.path.split("/").pop()?.replace(/\.md$/i, "") ?? ""); } },
+        { label: "Move sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setActionPaths([state.selectedPath]); setAction("move"); setActionValue(notebookFor(state.selectedPath)); } },
+        { label: "Delete sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setActionPaths([state.selectedPath]); setAction("trash"); } },
+        { label: "Import files", disabled: !state.owned, run: () => input.current?.click() },
+        { label: "Import folder", disabled: !state.owned, run: () => folderInput.current?.click() },
+        { label: "Export .zip", run: () => dispatchCommand("space.export") },
+        { label: "Keyboard shortcuts", run: () => dispatchCommand("app.shortcuts") },
+        { label: "About Slate", run: () => dispatchCommand("app.about") }
+      ]} />
     {!!keymap.issues.length && <div className="notice" role="status">Default shortcuts are active. .slate/keymap.json: {keymap.issues.map((issue) => `${issue.commandId ? `${issue.commandId}: ` : ""}${issue.message}`).join(" ")}</div>}
     {state.record.id === "sample" && <div className="notice">Sample — nothing is saved <button onClick={() => run(onKeepSample)}>Keep these sheets</button></div>}
     {!state.owned && <div className="notice" role="status">Slate is open in another tab <button onClick={() => run(onTakeover)}>Use here</button></div>}
     {state.error && <div className="errorNotice" role="alert">{state.error}<button onClick={() => run(store.flush)}>Retry saving</button></div>}
     {state.notice && <div className="notice" role="status">{state.notice}<button aria-label="Dismiss notice" onClick={() => store.api.setState({ notice: "" })}>×</button></div>}
-    <div className={`browserPanes ${inspector ? "withInspector" : ""}`}>
+    <div className={`browserPanes ${inspector ? "withInspector" : ""} ${sidebarVisible ? "" : "withoutSidebar"} ${sheetsVisible ? "" : "withoutSheets"}`} data-pane={pane}>
       <aside className="browserSidebar" aria-label="Workspace navigation">
-        <div className="spaceHeading"><BrandMark /><strong>{state.record.name}</strong></div>
-        <button className={!filter ? "navItem selected" : "navItem"} onClick={() => setFilter("")}><BookOpen size={16} />All sheets<span>{state.sheets.length}</span></button>
-        <button className={filter === "Inbox" ? "navItem selected" : "navItem"} onClick={() => setFilter("Inbox")}><Inbox size={16} />Inbox</button>
-        <div className="sectionTitle">Notebooks<button aria-label="New notebook" disabled={!state.owned} onClick={() => { setAction("notebook"); setActionValue(""); }}><Plus size={15} /></button></div>
-        {notebooks.map((notebook) => <button key={notebook} className={filter === notebook ? "navItem selected" : "navItem"} onClick={() => setFilter(notebook)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
-          const path = event.dataTransfer.getData("slate/sheet-path");
-          if (path) { event.preventDefault(); run(() => store.move(path, `${notebook}/${path.split("/").pop()!}`)); }
-        }}><Folder size={16} /><span>{notebook}</span></button>)}
+        <div className="spaceHeading"><button className="spaceSwitcher" title="Switch Space" onClick={() => run(onSwitchSpace)}><span className="spaceAvatar"><BrandMark size={17} /></span><strong>{state.record.name}</strong><ChevronDown size={13} /></button><button title={`Search sheets (${shortcut("sheet.search")})`} aria-label="Search workspace" onClick={focusSearch}><Search size={16} /></button></div>
+        <button className={!filter ? "navItem selected" : "navItem"} onClick={() => selectFilter("")}><BookOpen size={16} />All sheets<span>{state.sheets.length}</span></button>
+        <button className={filter === "Inbox" ? "navItem selected" : "navItem"} onClick={() => selectFilter("Inbox")}><Inbox size={16} />Inbox<span>{documents.filter((sheet) => sheet.path.startsWith("Inbox/")).length}</span></button>
+        <button className={filter === "Daily" ? "navItem selected" : "navItem"} title={`Today (${shortcut("sheet.today")})`} onClick={() => dispatchCommand("sheet.today")} disabled={!state.owned}><CalendarDays size={16} />Today</button>
+        <button className={filter === "@pinned" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@pinned")}><Pin size={16} />Pinned<span>{pinnedCount}</span></button>
+        <div className="sectionTitle">Notebooks<button title="New notebook" aria-label="New notebook" disabled={!state.owned} onClick={(event) => { event.currentTarget.focus(); setAction("notebook"); setActionValue(""); }}><Plus size={14} /></button></div>
+        <NotebookTree paths={notebooks} sheetPaths={state.sheets.map((sheet) => sheet.path)} selected={filter} collapsed={collapsed} onSelect={selectFilter} onToggle={(path) => { if (state.owned) run(async () => { await store.toggleNotebook(path); setCollapsed(new Set(store.api.getState().preferences.collapsedNotebooks)); }); else setCollapsed((current) => { const next = new Set(current); if (next.has(path)) next.delete(path); else next.add(path); return next; }); }} onMove={(path, notebook) => run(() => store.move(path, `${notebook}/${path.split("/").pop()!}`))} />
+        <div className="sectionTitle">Smart filters</div>
+        <button className={filter === "@drafts" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@drafts")}><FileText size={16} />Drafts in progress</button>
+        <button className={filter === "@goals" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@goals")}><Gauge size={16} />Goal in progress</button>
+        <button className={filter === "@recent" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@recent")}><Filter size={16} />Edited recently</button>
         <div className="sectionTitle">Tags</div>
-        {tags.length ? tags.map((tag) => <button key={tag} className="navItem" onClick={() => setFilter(`#${tag}`)}><Hash size={15} />{tag}</button>) : <p className="quiet">Add #tags in your writing.</p>}
-        <div className="storageFooter">{state.record.id === "sample" ? "Sample" : state.record.tier === "folder" ? `Folder: ${state.record.name}` : `Browser library · ${usage}`}<br /><span>{indexWarning}</span></div>
+        {tags.length ? tags.map((tag) => <button key={tag} className={filter === `#${tag}` ? "navItem selected" : "navItem"} onClick={() => selectFilter(`#${tag}`)}><Hash size={15} /><span className="navLabel">{tag}</span><small>{documents.filter((sheet) => sheet.tags.some((entry) => entry.path === tag || entry.path.startsWith(`${tag}/`))).length}</small></button>) : <p className="quiet">Add #tags in your writing.</p>}
+        <div className="storageFooter"><HardDrive size={14} /><span>{state.record.id === "sample" ? "Sample" : state.record.tier === "folder" ? `Folder: ${state.record.name}` : `Browser library · ${usage}`}<small>{indexWarning}</small></span></div>
       </aside>
       <aside className="browserSheetList" aria-label="Sheets">
-        <div className="listHeading"><strong>{filter || "All sheets"}</strong><button title={`New sheet (${shortcut("sheet.new")})`} aria-label="New Sheet" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}><Plus size={18} /></button></div>
-        <label className="browserSearch"><Search size={15} /><input ref={search} aria-label="Search sheets" placeholder="Search sheets…" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <div className="browserSheetRows">{visible.map((sheet) => <button className={`browserSheetRow ${sheet.path === state.selectedPath ? "active" : ""}`} key={sheet.path} aria-current={sheet.path === state.selectedPath ? "true" : undefined} draggable={state.owned}
-          onDragStart={(event) => event.dataTransfer.setData("slate/sheet-path", sheet.path)} onClick={() => run(() => store.select(sheet.path))}>
-          <strong>{sheet.title || "Untitled"}</strong><span>{sheet.body.replace(/^#+\s.*$/gm, "").trim().slice(0, 115) || "Start writing…"}</span><small>{notebookFor(sheet.path)}</small>
-        </button>)}</div>
+        <div className="listHeading"><strong>{listTitle}</strong><small>{visible.length}</small><label className="densityControl"><span className="visuallyHidden">Sheet density</span><select aria-label="Sheet density" value={state.preferences.density} disabled={!state.owned} onChange={(event) => run(() => store.setDensity(event.target.value as "comfortable" | "compact"))}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label><button title={`New sheet (${shortcut("sheet.new")})`} aria-label="New Sheet" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}><Plus size={17} /></button></div>
+        <label className="browserSearch"><Search size={15} /><input ref={search} aria-label="Search sheets" placeholder={filter ? `Filter ${listTitle}…` : "Search sheets…"} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} readOnlyPaths={new Set(state.sheets.filter((sheet) => sheet.unsupportedEncoding).map((sheet) => sheet.path))} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} />
         {!visible.length && <div className="browserEmpty"><strong>{query ? "No sheets match" : "A little room to think"}</strong><p>{query ? "Try another search." : "Create your first sheet or import your notes."}</p></div>}
         <div className="listFoot">{visible.length} sheets</div>
       </aside>
       <section className="browserEditor" aria-label="Editor">
-        <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span><div>
-          <button title="Rename sheet" aria-label="Rename sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => { setAction("rename"); setActionValue(selected?.path.split("/").pop()?.replace(/\.md$/i, "") ?? ""); }}><Pencil size={16} /></button>
-          <button title="Move sheet" aria-label="Move sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => { setAction("move"); setActionValue(notebookFor(state.selectedPath)); }}><Folder size={16} /></button>
-          <button title="Move to trash" aria-label="Delete sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => setAction("trash")}><Trash2 size={16} /></button>
-        </div></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} keymap={keymap} knownWikiTargets={wikiTargets} onHandle={(handle) => { editorHandle.current = handle; }} onReady={() => setEditorReady(true)} onChange={(content) => {
+        <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span></div>
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} knownWikiTargets={wikiTargets} onHandle={(handle) => { editorHandle.current = handle; }} onReady={() => setEditorReady(true)} onChange={(content) => {
           store.edit(content);
         }} onNavigateWikiLink={(link) => {
           run(() => store.followWikiLink(link));
         }} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
       </section>
-      {inspector && <aside className="browserInspector" aria-label="Inspector"><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}<h2>File</h2><p>{selected?.path}</p></aside>}
+      {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>
-    <footer className="workspaceStatus"><span role="status">{selected?.unsupportedEncoding ? "Read-only" : state.saveState}</span><span>{selected?.unsupportedEncoding ? "—" : document?.stats.words ?? 0} words</span><span>{selected?.unsupportedEncoding ? "—" : document?.stats.readingTimeMinutes ?? 0} min read</span><span>Markdown</span><div />
-      <input ref={input} type="file" aria-label="Import files" multiple accept=".md,.zip" className="visuallyHidden" onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
-      <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
-      <button disabled={!state.owned} onClick={() => input.current?.click()}><Upload size={14} />Import</button><button disabled={!state.owned} onClick={() => folderInput.current?.click()}>Import folder</button><button onClick={() => run(exportZip)}><Download size={14} />Export .zip</button>
-    </footer>
+    <input ref={input} type="file" aria-label="Import files" multiple accept=".md,.zip" className="visuallyHidden" onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
+    <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
+    <WorkspaceStatusBar saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.flush)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
     <LaunchActions key={state.record.id} store={store} />
     {(palette || shortcuts) && <CommandDialog kind={shortcuts ? "shortcuts" : "palette"} keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} onClose={() => { setPalette(false); setShortcuts(false); }} onCommand={(id) => { setPalette(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
-    {action && <div className="modalBackdrop"><form className="browserDialog" role="dialog" aria-modal="true" aria-label={`${action} sheet`} onSubmit={(event) => { event.preventDefault(); run(performAction); }}>
-      <h2>{action === "trash" ? "Move this sheet to trash?" : action === "notebook" ? "New notebook" : action === "rename" ? "Rename sheet" : "Move to notebook"}</h2>
-      {action === "trash" ? <p>A copy stays in .slate/trash and is included in your Space export.</p> : <label>{action === "rename" ? "File name" : "Notebook path"}<input autoFocus value={actionValue} onChange={(event) => setActionValue(event.target.value)} required /></label>}
-      <div className="dialogActions"><button type="button" onClick={() => setAction(undefined)}>Cancel</button><button type="submit" className="primaryButton">{action === "trash" ? "Move to trash" : "Save"}</button></div>
-    </form></div>}
+    {action && <WorkspaceDialog title={action === "trash" ? "Move this sheet to trash?" : action === "notebook" ? "New notebook" : action === "rename" ? "Rename sheet" : "Move sheet"} busy={actionBusy} onClose={() => setAction(undefined)}><form onSubmit={(event) => { event.preventDefault(); store.api.setState({ error: "" }); setActionBusy(true); run(async () => { try { await performAction(); } finally { setActionBusy(false); } }); }}>
+      {actionPaths.length > 1 && (action === "move" || action === "trash") && <p>{actionPaths.length} selected sheets</p>}
+      {state.error && <p role="alert">{state.error}</p>}
+      {action === "trash" ? <p>A copy stays in .slate/trash and is included in your Space export.</p> : <label>{action === "rename" ? "File name" : "Notebook path"}<input autoFocus value={actionValue} disabled={actionBusy} onChange={(event) => setActionValue(event.target.value)} required /></label>}
+      <div className="dialogActions"><button type="button" disabled={actionBusy} onClick={() => setAction(undefined)}>Cancel</button><button type="submit" className="primaryButton" disabled={actionBusy}>{actionBusy ? "Saving…" : action === "trash" ? "Move to trash" : "Save"}</button></div>
+    </form></WorkspaceDialog>}
   </main>;
 }
 

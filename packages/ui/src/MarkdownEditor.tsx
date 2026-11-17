@@ -10,7 +10,7 @@ import {
   type WikiLinkHit
 } from "@slate/editor";
 import type { ResolvedKeymap } from "@slate/core";
-import type { MarkdownEditorHandle } from "./commands";
+import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
 
@@ -35,9 +35,10 @@ interface MarkdownEditorProps {
   keymap?: ResolvedKeymap;
   onHandle?: (handle: MarkdownEditorHandle | undefined) => void;
   knownWikiTargets?: ReadonlySet<string>;
+  onCursorChange?: (cursor: EditorCursor) => void;
 }
 
-export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -52,6 +53,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   const selectionGeometry = useRef<ToolbarRect | undefined>(undefined);
   const wikiLinks = useRef(new Compartment());
   const previousWikiTargets = useRef(knownWikiTargets);
+  const onCursorRef = useRef(onCursorChange);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -62,6 +64,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   }, [onNavigateWikiLink]);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { onHandleRef.current = onHandle; }, [onHandle]);
+  useEffect(() => { onCursorRef.current = onCursorChange; }, [onCursorChange]);
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -126,6 +129,10 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
             }
           }),
           EditorView.updateListener.of((update) => {
+            if (update.selectionSet || update.docChanged) {
+              const line = update.state.doc.lineAt(update.state.selection.main.head);
+              onCursorRef.current?.({ line: line.number, column: update.state.selection.main.head - line.from + 1, lines: update.state.doc.lines });
+            }
             if (update.docChanged && update.transactions.some((transaction) => transaction.docChanged && !transaction.annotation(externalValue))) {
               onChangeRef.current(update.state.doc.toString());
             }
@@ -142,8 +149,11 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
       runFormat(id) { const applied = runFormattingCommand(view, id); if (applied) view.focus(); return applied; },
       focus() { view.focus(); },
       hasFocus() { return view.hasFocus; },
-      hasSelection() { return !view.state.selection.main.empty; }
+      hasSelection() { return !view.state.selection.main.empty; },
+      goToLine(number) { const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Math.trunc(number)))); view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true }); view.focus(); }
     });
+    const initialLine = view.state.doc.lineAt(view.state.selection.main.head);
+    onCursorRef.current?.({ line: initialLine.number, column: view.state.selection.main.head - initialLine.from + 1, lines: view.state.doc.lines });
     const readyFrame = requestAnimationFrame(() => onReadyRef.current?.());
     const scroll = () => {
       if (preferenceKey) {

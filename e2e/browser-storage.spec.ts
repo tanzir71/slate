@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { createSheet, openLibrary, showSheets, workspaceAction } from "./helpers";
 import { readFile } from "node:fs/promises";
 
 test("runs under the Pages subpath with CSP and no third-party requests", async ({ page }) => {
@@ -98,7 +98,7 @@ test("exports and reimports a Space without changing Markdown bytes", async ({ p
   await openLibrary(page);
   await createSheet(page, "# বাংলা\n\nMy words, my files.\n");
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export .zip" }).click();
+  await workspaceAction(page, "Export .zip");
   const path = await (await download).path();
   expect(path).toBeTruthy();
   await page.getByLabel("Import files", { exact: true }).setInputFiles({ name: "Writing.zip", mimeType: "application/zip", buffer: await readFile(path!) });
@@ -118,16 +118,23 @@ test("keeps unsupported Markdown read-only and downloads its original bytes", as
   await openLibrary(page);
   const original = Buffer.from([0xff, 0xfe, 0x41, 0, 0x42, 0]);
   await page.getByLabel("Import files", { exact: true }).setInputFiles({ name: "Legacy.md", mimeType: "text/markdown", buffer: original });
+  await showSheets(page);
   await page.locator(".browserSheetRow").filter({ hasText: "Legacy" }).click();
   await expect(page.getByRole("heading", { name: "This file needs UTF-8." })).toBeVisible();
   await expect(page.locator(".cm-content")).toHaveCount(0);
+  await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
   for (const name of ["Rename sheet", "Move sheet", "Delete sheet"]) await expect(page.getByRole("button", { name, exact: true })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  const menu = page.locator(".sheetActionsMenu");
+  if (await menu.evaluate((element) => element.hasAttribute("open"))) await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
   await expect(page.locator(".workspaceStatus [role=status]")).toHaveText("Read-only");
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download original" }).click();
   const download = await downloaded;
   expect(download.suggestedFilename()).toBe("Legacy.md");
   expect(await readFile((await download.path())!)).toEqual(original);
+  await showSheets(page);
+  await expect(page.getByRole("button", { name: "Select sheets", exact: true })).toBeDisabled();
   await createSheet(page, "My new UTF-8 words.");
   await expect(page.locator(".cm-content")).toContainText("My new UTF-8 words.");
 });
@@ -189,6 +196,7 @@ test("starts an OPFS SQLite cache after the editor is ready and searches real FT
   })).toBeGreaterThan(0);
   await expect(page.getByText("Search cache unavailable. Searching files directly.")).toBeHidden();
   // Reversed tokens match FTS but cannot pass the direct-file substring fallback.
+  await showSheets(page);
   await page.getByRole("textbox", { name: "Search sheets" }).fill("aardvark unusual");
   await expect(page.getByRole("button", { name: /Searchable.*unusual aardvark/ })).toBeVisible();
 });
