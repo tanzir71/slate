@@ -151,7 +151,10 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }, [store, state.record.id]);
 
   useEffect(() => {
-    if (state.selectedPath) history.replaceState(null, "", `#/space/${encodeURIComponent(state.record.id)}/sheet/${encodeURIComponent(state.selectedPath)}`);
+    if (state.selectedPath) {
+      history.replaceState(null, "", `#/space/${encodeURIComponent(state.record.id)}/sheet/${encodeURIComponent(state.selectedPath)}`);
+      try { localStorage.setItem(`slate.last-sheet.${state.record.id}`, state.selectedPath); } catch { /* View preferences are optional. */ }
+    }
   }, [state.record.id, state.selectedPath]);
 
   useEffect(() => {

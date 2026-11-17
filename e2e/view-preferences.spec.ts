@@ -15,6 +15,18 @@ async function caretPosition(page: Page) {
   });
 }
 
+test("opening the app root restores the chosen sheet rather than the first file", async ({ page }) => {
+  await openLibrary(page);
+  await createSheet(page, "# First file\n\nReturn here tomorrow.");
+  const first = new URL(page.url()).hash;
+  await createSheet(page, "# Second file\n\nAnother thought.");
+  await page.getByRole("button", { name: /^First file Return here tomorrow/ }).click();
+  await expect(page.locator(".cm-content")).toContainText("Return here tomorrow.");
+  await page.goto("./");
+  await expect(page.locator(".cm-content")).toContainText("Return here tomorrow.");
+  expect(new URL(page.url()).hash).toBe(first);
+});
+
 test("reopen restores the selected sheet, caret, scroll and inspector preference", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openLibrary(page);
@@ -31,7 +43,11 @@ test("reopen restores the selected sheet, caret, scroll and inspector preference
   expect(caret?.offset).toBeGreaterThan(0);
   const scroller = page.locator(".cm-scroller");
   await scroller.evaluate(async (element) => {
+    await document.fonts.ready;
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
     element.scrollTop = 350;
+    await new Promise(requestAnimationFrame);
     await new Promise(requestAnimationFrame);
   });
   const scroll = await scroller.evaluate((element) => element.scrollTop);
@@ -41,7 +57,7 @@ test("reopen restores the selected sheet, caret, scroll and inspector preference
   await expect(inspector).toBeVisible();
   await expect(editor).toBeVisible();
   try {
-    await expect.poll(() => scroller.evaluate((element) => Math.abs(element.scrollTop - 350))).toBeLessThanOrEqual(28);
+    await expect.poll(() => scroller.evaluate((element, expectedScroll) => Math.abs(element.scrollTop - expectedScroll), scroll)).toBeLessThanOrEqual(28);
   } finally {
     const after = await page.evaluate(() => ({ positions: Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith("slate.editor."))), scroll: document.querySelector(".cm-scroller")?.scrollTop }));
     console.log(`View restore (${testInfo.project.name}): ${JSON.stringify({ before, after })}`);
