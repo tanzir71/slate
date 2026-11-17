@@ -20,6 +20,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.8",
     "@lezer/highlight": "^1.2.1",
+    "@lezer/markdown": "1.7.1",
     "@slate/core": "workspace:*"
   }
 }

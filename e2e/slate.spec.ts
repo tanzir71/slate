@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { createSheet, openLibrary, showSheets } from "./helpers";
 
 test("creates a persistent browser sheet with palette and inspector closed", async ({ page }) => {
   await openLibrary(page);
@@ -15,6 +15,7 @@ test("filters sheets by search text", async ({ page }) => {
   await openLibrary(page);
   await createSheet(page, "# Research\n\nA unique research note.");
   await page.getByRole("button", { name: "New Sheet", exact: true }).first().click();
+  await showSheets(page);
   await page.getByRole("textbox", { name: "Search sheets" }).fill("unique");
   await expect(page.getByRole("button", { name: /Research.*unique research/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Untitled.*Start writing/ })).toBeHidden();

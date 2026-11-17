@@ -1,0 +1,6 @@
+.selectionToolbar { position: fixed; z-index: 9; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; inline-size: max-content; max-inline-size: calc(100vw - 16px); padding: 4px; color: var(--text-secondary); background: var(--bg-raised); border: 1px solid var(--border-default); border-radius: 8px; box-shadow: 0 3px 12px #0002; font: 12px/1.4 Geist, Arial, sans-serif; }
+.selectionToolbar button { display: inline-flex; align-items: center; justify-content: center; inline-size: 28px; block-size: 28px; min-block-size: 28px; padding: 5px; border: 0; border-radius: 4px; }
+.selectionToolbar button:hover, .selectionToolbar select:hover { color: var(--accent-default); background: var(--accent-soft); }
+.selectionToolbar button:focus-visible, .selectionToolbar select:focus-visible { outline: 2px solid var(--accent-default); outline-offset: 1px; }
+.selectionToolbarDivider { inline-size: 1px; block-size: 18px; margin-inline: 5px; background: var(--border-default); }
+.selectionToolbar select { inline-size: 91px; max-inline-size: 100%; padding: 5px; border: 0; border-radius: 4px; color: inherit; background: transparent; font: inherit; cursor: pointer; }

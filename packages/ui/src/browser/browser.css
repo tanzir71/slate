@@ -5,11 +5,11 @@ button, input { font: inherit; }
 button { cursor: pointer; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 7px 10px; }
 button:hover { background: var(--border-subtle); }
 button:disabled { opacity: .5; cursor: default; }
-button:focus-visible, input:focus-visible, .storageCard:focus-within { outline: 2px solid var(--accent-default); outline-offset: 3px; }
+button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible, .storageCard:focus-within { outline: 2px solid var(--accent-default); outline-offset: 3px; }
 .primaryButton { display: inline-flex; gap: 8px; align-items: center; background: var(--accent-default); color: var(--text-on-accent); border: 1px solid var(--accent-default); padding: 9px 13px; }
 .primaryButton:hover { background: var(--accent-hover); }
 .browserSlate { min-block-size: 100dvh; font-size: 13px; }
-.welcomeHeader { block-size: 42px; border-block-end: 1px solid var(--border-subtle); background: var(--bg-app); display: flex; align-items: center; justify-content: space-between; padding-inline: 20px; }
+.welcomeHeader { block-size: 40px; border-block-end: 1px solid var(--border-subtle); background: var(--bg-app); display: flex; align-items: center; justify-content: space-between; padding-inline: 20px; }
 .welcomeHeader button { display: flex; gap: 7px; color: var(--accent-default); }
 .welcomeHeaderActions { display: flex; align-items: center; gap: 10px; }
 .onboarding { max-inline-size: 880px; margin: 60px auto 110px; }
@@ -19,7 +19,7 @@ button:focus-visible, input:focus-visible, .storageCard:focus-within { outline: 
 .onboarding h1 { font: 500 40px/1.25 Newsreader, Georgia, serif; letter-spacing: -1px; margin: 25px 0 16px; }
 .welcomeDescription { color: var(--text-secondary); line-height: 1.6; max-inline-size: 760px; margin-block-end: 24px; }
 .storageCards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; border: 0; padding: 0; margin: 0; }
-.storageCard { position: relative; cursor: pointer; display: flex; flex-direction: column; gap: 13px; border: 1px solid var(--border-default); border-radius: 12px; padding: 18px; min-block-size: 200px; }
+.storageCard { position: relative; cursor: pointer; display: flex; flex-direction: column; gap: 13px; border: 1px solid var(--border-default); border-radius: 12px; padding: 18px; min-block-size: 190px; }
 .storageCard.chosen { border-color: var(--accent-default); box-shadow: inset 0 0 0 .5px var(--accent-default); background: var(--accent-soft); }
 .storageCard.unavailable { opacity: .6; cursor: default; }
 .storageCard input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; }
@@ -47,54 +47,122 @@ button:focus-visible, input:focus-visible, .storageCard:focus-within { outline: 
 .browserWorkspace { display: flex; flex-direction: column; block-size: 100dvh; overflow: hidden; }
 .browserSlate:has(.browserWorkspace) { display: flex; flex-direction: column; block-size: 100dvh; overflow: hidden; }
 .browserSlate > .browserWorkspace { flex: 1; min-block-size: 0; block-size: auto; }
-.workspaceHeader { display: flex; gap: 20px; align-items: center; block-size: 40px; flex-shrink: 0; border-block-end: 1px solid var(--border-default); background: var(--bg-app); padding-inline: 12px; }
-.workspaceHeader button { display: flex; align-items: center; gap: 10px; }
-.headerBreadcrumb { color: var(--text-tertiary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.browserPanes { display: grid; grid-template-columns: 248px 300px minmax(0, 1fr); flex: 1; min-block-size: 0; }
-.browserPanes.withInspector { grid-template-columns: 248px 300px minmax(0, 1fr) 280px; }
+
+.workspaceHeader { display: flex; align-items: center; gap: 6px; block-size: 40px; flex-shrink: 0; border-block-end: 1px solid var(--border-default); background: var(--bg-app); padding-inline: 8px; font-size: 12px; }
+.workspaceHeader button, .workspaceHeader summary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-inline-size: 28px; block-size: 28px; padding: 4px 6px; }
+.browserWorkspace svg { stroke-width: 1.75; flex-shrink: 0; }
+.headerBreadcrumb { display: flex; align-items: center; flex: 1; min-inline-size: 0; color: var(--text-secondary); overflow: hidden; white-space: nowrap; }
+.headerBreadcrumb > span { display: inline-flex; align-items: center; min-inline-size: 0; }
+.headerBreadcrumb button { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; max-inline-size: 150px; }
+.breadcrumbSlash { color: var(--text-tertiary); margin-inline: 5px; }
+.breadcrumbFile { color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; max-inline-size: 240px; }
+.workspaceHeaderTools { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.workspaceHeader .appearanceControl select { padding: 3px; font-size: 11px; }
+.liveModeLabel { background: var(--bg-canvas); border: 1px solid var(--border-subtle); border-radius: 5px; padding: 3px 10px; margin-inline: 6px; color: var(--text-primary); }
+.sheetActionsMenu { position: relative; }
+.sheetActionsMenu summary { cursor: pointer; border-radius: 5px; list-style: none; }
+.sheetActionsMenu summary::-webkit-details-marker { display: none; }
+.sheetActionsMenu summary:hover, .sheetActionsMenu[open] summary { background: var(--bg-hover); }
+.sheetActionsItems { position: absolute; z-index: 15; inset-block-start: calc(100% + 5px); inset-inline-end: 0; inline-size: 190px; padding: 5px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-raised); box-shadow: 0 8px 30px #0002; }
+.sheetActionsItems button { justify-content: flex-start; inline-size: 100%; block-size: 32px; padding-inline: 10px; text-align: start; }
+.nativeWindowControls { display: flex; border-inline-start: 1px solid var(--border-default); margin-inline-start: 4px; padding-inline-start: 6px; }
+.browserPanes { position: relative; display: grid; --sidebar-size: 248px; --list-size: 300px; --inspector-size: 0px; grid-template-columns: var(--sidebar-size) var(--list-size) minmax(0, 1fr) var(--inspector-size); flex: 1; min-block-size: 0; }
+.browserPanes.withInspector { --inspector-size: 280px; }
+.browserPanes.withoutSidebar { --sidebar-size: 0px; }
+.browserPanes.withoutSheets { --list-size: 0px; }
+.browserPanes > aside, .browserPanes > section { grid-row: 1; }
+.browserSidebar { grid-column: 1; }
+.browserSheetList { grid-column: 2; }
+.browserEditor { grid-column: 3; }
+.browserInspector { grid-column: 4; }
+.withoutSidebar .browserSidebar, .withoutSheets .browserSheetList { display: none; }
 .browserSidebar, .browserSheetList { background: var(--bg-app); border-inline-end: 1px solid var(--border-default); min-block-size: 0; overflow: auto; }
-.browserSidebar { display: flex; flex-direction: column; padding: 16px 12px 10px; }
-.spaceHeading { display: flex; align-items: center; gap: 10px; padding: 0 8px 25px; }
-.spaceHeading strong { font-size: 15px; }
-.navItem { display: flex; gap: 10px; align-items: center; min-block-size: 34px; text-align: start; flex-shrink: 0; }
-.navItem svg { flex-shrink: 0; color: var(--icon-default); }
-.navItem span { overflow: hidden; text-overflow: ellipsis; }
-.navItem.selected { background: var(--bg-hover); }
-.navItem > span:last-child:not(:first-child) { margin-inline-start: auto; }
-.sectionTitle { display: flex; align-items: center; justify-content: space-between; color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; margin: 22px 8px 7px; }
+.browserSidebar { display: flex; flex-direction: column; padding: 8px; }
+.spaceHeading { display: flex; align-items: center; gap: 3px; min-block-size: 46px; margin-block-end: 8px; }
+.spaceSwitcher { display: flex; align-items: center; gap: 8px; flex: 1; min-inline-size: 0; padding: 5px; text-align: start; }
+.spaceSwitcher strong { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spaceAvatar { display: inline-flex; align-items: center; justify-content: center; inline-size: 24px; block-size: 24px; flex-shrink: 0; border-radius: 6px; color: var(--text-on-accent); background: var(--accent-default); }
+.navItem { display: flex; gap: 10px; align-items: center; min-block-size: 31px; padding: 6px 9px; text-align: start; flex-shrink: 0; }
+.navItem svg { color: var(--icon-default); }
+.navItem .navLabel { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navItem > span:not(.navLabel), .navItem > small { margin-inline-start: auto; font-size: 11px; color: var(--text-tertiary); }
+.navItem.selected, .notebookBranch.selected { background: var(--accent-soft); }
+.navItem.selected > span:not(.navLabel), .navItem.selected > small, .notebookBranch.selected small { color: var(--text-secondary); }
+.sectionTitle { display: flex; align-items: center; justify-content: space-between; color: var(--text-tertiary); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: .03em; margin: 18px 9px 6px; }
 .sectionTitle button { padding: 2px; }
+.notebookTree, .notebookTree ul { margin: 0; padding: 0; list-style: none; }
+.notebookBranch { display: flex; align-items: center; min-block-size: 30px; border-radius: 6px; }
+.notebookDisclosure { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 14px; inline-size: 14px; block-size: 28px; padding: 0; }
+.notebookLabel { display: flex; align-items: center; gap: 8px; flex: 1; min-inline-size: 0; padding: 6px 8px 6px 1px; text-align: start; }
+.notebookLabel > span { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notebookLabel svg { color: var(--icon-default); }
+.notebookLabel small { color: var(--text-tertiary); font-size: 11px; }
 .quiet { color: var(--text-tertiary); line-height: 1.5; font-size: 12px; padding-inline: 8px; }
-.storageFooter { color: var(--text-tertiary); font-size: 11px; padding: 20px 8px 0; margin-block-start: auto; line-height: 1.7; }
+.storageFooter { display: flex; align-items: flex-start; gap: 8px; color: var(--text-tertiary); font-size: 11px; padding: 16px 8px 4px; margin-block-start: auto; line-height: 1.5; }
+.storageFooter svg { margin-block-start: 1px; }
+.storageFooter small { display: block; line-height: 1.5; }
+.storageFooter small:empty { display: none; }
 .browserSheetList { display: flex; flex-direction: column; background: var(--bg-panel); }
-.listHeading { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px 8px; }
-.browserSearch { display: flex; align-items: center; gap: 7px; margin: 4px 14px 16px; padding: 7px 8px; background: var(--bg-canvas); border: 1px solid var(--border-default); border-radius: 6px; color: var(--text-tertiary); }
+.listHeading { display: flex; align-items: center; gap: 7px; min-block-size: 45px; padding: 8px 10px 5px 16px; }
+.listHeading > strong { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.listHeading > small { font-size: 11px; color: var(--text-tertiary); }
+.listHeading > button { padding: 4px; }
+.densityControl { margin-inline-start: auto; }
+.densityControl select { max-inline-size: 84px; font: 10px/1.4 var(--font-ui); border: 1px solid var(--border-default); border-radius: 5px; color: var(--text-secondary); background: var(--bg-panel); padding: 4px 2px; }
+.browserSearch { display: flex; align-items: center; gap: 7px; margin: 4px 8px 14px; padding: 7px 9px; background: var(--bg-subtle); border: 1px solid var(--border-default); border-radius: 6px; color: var(--text-tertiary); }
 .browserSearch input { min-inline-size: 0; inline-size: 100%; border: 0; background: transparent; }
-.browserSheetRows { flex: 1; overflow: auto; padding: 0 7px; }
-.browserSheetRow { inline-size: 100%; padding: 14px 12px; display: flex; flex-direction: column; gap: 7px; text-align: start; border-block-end: 1px solid var(--border-subtle); border-radius: 6px; }
+.browserSheetRows { flex: 1; min-block-size: 0; overflow: auto; padding: 0 8px; }
+.sheetRowContainer { display: flex; align-items: center; }
+.sheetRowContainer .browserSheetRow { flex: 1; min-inline-size: 0; }
+.sheetSelectionControls { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 6px; font-size: 11px; }
+.sheetSelectionControls button { padding: 4px; font-size: 11px; color: var(--text-secondary); }
+.sheetSelectionControls label { display: flex; gap: 4px; align-items: center; }
+.sheetSelectionControls input, .sheetCheck input { accent-color: var(--accent-default); }
+.sheetCheck { display: flex; align-items: center; justify-content: center; inline-size: 30px; align-self: stretch; }
+.browserSheetRow { inline-size: 100%; block-size: 84px; padding: 9px 12px; margin-block: 2px; display: flex; flex-direction: column; gap: 5px; text-align: start; border: 0; border-radius: 7px; }
 .browserSheetRow.active { background: var(--accent-soft); }
-.browserSheetRow strong { font-size: 13px; font-weight: 600; }
-.browserSheetRow span { color: var(--text-secondary); line-height: 1.5; font-size: 12px; max-block-size: 36px; overflow: hidden; }
-.browserSheetRow small { color: var(--text-tertiary); font-size: 10px; }
-.browserSheetRow.active small { color: var(--text-secondary); }
-.listFoot { padding: 10px 16px; color: var(--text-tertiary); border-block-start: 1px solid var(--border-default); font-size: 11px; }
+.sheetRowTitle { display: flex; align-items: center; gap: 7px; inline-size: 100%; min-block-size: 18px; }
+.sheetRowTitle strong { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
+.sheetRowTitle svg { color: var(--text-secondary); }
+.sheetRowTitle time { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+.browserSheetRow.active time { color: var(--text-secondary); }
+.sheetRowPreview { color: var(--text-secondary); line-height: 1.5; font-size: 12px; display: block; inline-size: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sheetRowMeta { display: flex; align-items: center; gap: 6px; inline-size: 100%; min-block-size: 18px; overflow: hidden; }
+.sheetRowMeta small { color: var(--text-tertiary); font-size: 11px; }
+.browserSheetRow.active .sheetRowMeta small { color: var(--text-secondary); }
+.sheetRowTag { color: var(--text-secondary); background: var(--bg-subtle); padding: 1px 5px; border-radius: 4px; font-size: 11px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-inline-size: 135px; }
+.goalRing { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.goalRing > span { font: 11px/1.4 var(--font-mono); color: var(--text-secondary); }
+.goalRing circle { fill: none; stroke-width: 2; }
+.goalRingTrack { stroke: var(--border-strong); }
+.goalRingProgress { stroke: var(--accent-default); stroke-linecap: round; transform: rotate(-90deg); transform-origin: center; }
+.goalRing.complete .goalRingProgress { stroke: var(--status-success); }
+.browserSheetRows[data-density="compact"] .sheetRowPreview { display: none; }
+.browserSheetRows[data-density="compact"] .browserSheetRow { block-size: 57px; padding-block: 8px; }
+.listFoot { padding: 8px 16px; color: var(--text-tertiary); border-block-start: 1px solid var(--border-default); font-size: 11px; }
 .browserEditor { display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; background: var(--bg-canvas); }
-.documentToolbar { display: flex; align-items: center; justify-content: space-between; min-block-size: 54px; padding: 10px 24px; color: var(--text-secondary); flex-shrink: 0; }
+.documentToolbar { display: flex; align-items: center; min-block-size: 32px; padding: 8px max(32px, calc((100% - 680px) / 2)); color: var(--text-tertiary); flex-shrink: 0; font-size: 11px; }
 .documentToolbar > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.documentToolbar > div { display: flex; }
 .browserEditor .editorHost { flex: 1; min-block-size: 0; overflow: hidden; padding: 0; }
 .browserEditor .cm-editor { block-size: 100%; }
 .browserEditor .cm-scroller { overflow: auto; }
-.browserEditor .cm-content { padding: 40px max(32px, calc((100% - 680px) / 2)) 120px; min-block-size: 100%; }
+.browserEditor .cm-content { padding: 24px max(32px, calc((100% - 680px) / 2)) 100px; min-block-size: 100%; }
 .browserEditor .cm-focused { outline: none; }
+.browserEditor .cm-activeLine { background: transparent; }
 .browserEmpty { padding: 28px; color: var(--text-secondary); line-height: 1.6; }
 .editorEmpty { margin: auto; text-align: center; }
 .editorEmpty h1 { color: var(--text-primary); font: 500 34px Newsreader, Georgia, serif; }
 .browserInspector { border-inline-start: 1px solid var(--border-default); background: var(--bg-panel); padding: 20px; overflow: auto; font-size: 12px; }
 .browserInspector h2 { font-size: 12px; margin: 15px 0; }
 .browserInspector p { overflow-wrap: anywhere; }
-.workspaceStatus { display: flex; align-items: center; gap: 18px; block-size: 32px; flex-shrink: 0; background: var(--bg-app); border-block-start: 1px solid var(--border-default); padding-inline: 15px; font-size: 11px; color: var(--text-secondary); }
-.workspaceStatus > div { flex: 1; }
-.workspaceStatus button { padding: 4px; display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.inspectorClose { float: right; }
+.browserInspector progress { inline-size: 100%; accent-color: var(--accent-default); }
+.mobileAppearance { display: none; }
+.workspaceStatus { display: flex; align-items: center; gap: 12px; min-block-size: 28px; flex-shrink: 0; background: var(--bg-app); border-block-start: 1px solid var(--border-default); padding-inline: 10px; font-size: 11px; color: var(--text-secondary); }
+.workspaceStatus .statusSpacer { flex: 1; }
+.workspaceStatus button { display: inline-flex; align-items: center; gap: 6px; min-block-size: 24px; padding: 3px 4px; font-size: 11px; white-space: nowrap; }
+.saveDot { inline-size: 6px; block-size: 6px; border-radius: 50%; background: var(--status-warning); }
+.saveDot.saved { background: var(--status-success); }
 .modalBackdrop { position: fixed; inset: 0; background: #1d1c1a40; z-index: 10; display: flex; align-items: flex-start; justify-content: center; padding: 18vh 20px 20px; }
 .browserDialog { inline-size: min(520px, 100%); background: var(--bg-canvas); border-radius: 12px; border: 1px solid var(--border-default); padding: 24px; box-shadow: 0 16px 60px #1d1c1a26; }
 .browserDialog h2 { font-size: 18px; margin-block: 0 20px; }
@@ -138,30 +206,71 @@ kbd { font-size: 11px; color: var(--text-tertiary); }
 .commandEmpty { padding: 24px; color: var(--text-secondary); }
 @media (max-width: 850px) { .shortcutColumns { grid-template-columns: 1fr 1fr; gap: 24px; } }
 @media (max-width: 560px) { .shortcutColumns { grid-template-columns: 1fr; } .shortcutProfile { display: none; } }
-@media (max-width: 1100px) {
-  .onboarding { margin-inline: 28px; }
-  .browserPanes, .browserPanes.withInspector { grid-template-columns: 190px 240px minmax(0, 1fr); }
-  .browserInspector { position: absolute; inset-block: 40px 32px; inset-inline-end: 0; inline-size: 280px; box-shadow: -10px 0 25px #1d1c1a12; }
-  .welcomeFooter > div { gap: 14px; }
+@media (max-width: 1279px) {
+  .browserPanes { --sidebar-size: 220px; --list-size: 280px; }
+  .browserPanes.withInspector { --inspector-size: 0px; }
+  .browserInspector { position: absolute; z-index: 8; inset-block: 0; inset-inline-end: 0; inline-size: 280px; box-shadow: -10px 0 25px #0002; }
+  .onboarding { margin-inline: max(28px, calc((100% - 880px) / 2)); }
 }
-@media (max-width: 720px) {
-  .onboarding { margin: 30px 20px 100px; }
-  .onboarding h1 { font-size: 32px; }
+@media (max-width: 1099px) { .browserPanes { --sidebar-size: 190px; --list-size: 260px; } .welcomeFooter > div { gap: 14px; } .liveModeLabel { display: none; } }
+@media (max-width: 899px) {
+  .browserPanes { --sidebar-size: 0px; --list-size: 240px; }
+  .browserSidebar { display: none; }
+  .browserPanes[data-pane="navigation"] .browserSidebar { display: flex; position: absolute; z-index: 9; inset-block: 0; inset-inline-start: 0; inline-size: 248px; box-shadow: 10px 0 25px #0002; }
+  .workspaceHeaderTools .appearanceControl { display: none; }
+  .mobileAppearance, .workspaceHeaderTools .mobileAppearance .appearanceControl { display: flex; }
+  .mobileAppearance { padding: 8px; border-block-start: 1px solid var(--border-default); }
+  .breadcrumbFile { max-inline-size: 180px; }
+  .workspaceStatus { gap: 7px; }
+}
+@media (max-width: 699px) {
+  .onboarding { margin: 30px 20px 150px; }
+  .onboarding h1 { font-size: 34px; }
   .storageCards { grid-template-columns: 1fr; }
   .storageCard { min-block-size: auto; gap: 10px; padding: 16px; }
-  .welcomeFooter { padding: 12px 20px; }
-  .welcomeFooter > div { flex-direction: column; gap: 3px; }
+  .welcomeFooter { padding: 10px 16px; gap: 12px; }
+  .welcomeFooter > div { display: grid; grid-template-columns: 1fr; gap: 3px; font-size: 11px; }
   .welcomeFooter span:nth-child(n+3) { display: none; }
-  .browserPanes, .browserPanes.withInspector { grid-template-columns: 150px minmax(0, 1fr); }
-  .browserSidebar { display: none; }
-  .browserSheetRow { padding: 12px 7px; }
-  .browserSearch { margin-inline: 6px; }
-  .browserEditor .cm-content { padding: 24px 16px 80px; }
-  .documentToolbar { padding: 7px; flex-wrap: wrap; }
-  .documentToolbar > span { display: none; }
-  .workspaceStatus { gap: 9px; padding-inline: 6px; flex-wrap: wrap; block-size: auto; min-block-size: 44px; }
-  .workspaceStatus > span:nth-of-type(3), .workspaceStatus > span:nth-of-type(4) { display: none; }
-  button { min-block-size: 36px; }
-  .notice { flex-wrap: wrap; gap: 6px; }
+  .welcomeHeaderActions { gap: 2px; }
+  .welcomeHeaderActions > button { font-size: 0; gap: 0; }
+  .welcomeHeaderActions > button svg { inline-size: 17px; }
+  .workspaceHeader { block-size: 44px; padding-inline: 4px; gap: 1px; }
+  .workspaceHeaderTools { gap: 1px; }
+  .workspaceHeaderTools > button[aria-label="Export .zip"], .workspaceHeaderTools > button[aria-label="About Slate"], .workspaceHeaderTools > button[aria-label="Keyboard shortcuts"] { display: none; }
+  .headerBreadcrumb { font-size: 11px; }
+  .headerBreadcrumb > button { display: none; }
+  .headerBreadcrumb > span { display: none; }
+  .headerBreadcrumb > span:last-child { display: inline-flex; }
+  .headerBreadcrumb .breadcrumbSlash { display: none; }
+  .browserPanes { display: block; }
+  .browserSidebar, .browserSheetList, .browserEditor { display: none; block-size: 100%; }
+  .browserPanes[data-pane="navigation"] .browserSidebar { display: flex; position: static; inline-size: 100%; box-shadow: none; }
+  .browserPanes[data-pane="sheets"] .browserSheetList { display: flex; }
+  .browserPanes[data-pane="editor"] .browserEditor { display: flex; }
+  .browserInspector { inline-size: min(320px, 100%); }
+  .browserEditor .cm-content { padding: 20px 22px 80px; }
+  .documentToolbar { padding-inline: 22px; }
+  .workspaceStatus { gap: 7px; padding-inline: 6px; min-block-size: 44px; }
+  .fileFormatControl, .readingTimeControl { display: none !important; }
+  .workspaceStatus:has(.goalStatusControl) > button[aria-label="Writing statistics"] { display: none; }
+  .notice { flex-wrap: wrap; gap: 6px; padding: 5px 10px; font-size: 11px; }
+}
+@media (pointer: coarse) {
+  .browserSlate button, .browserSlate summary, .browserSlate select { min-block-size: 44px; }
+  .workspaceHeader { min-block-size: 48px; }
+  .workspaceHeader button, .workspaceHeader summary { min-inline-size: 44px; }
+  .notebookDisclosure { flex-basis: 44px; inline-size: 44px; }
+  .sheetCheck, .sheetSelectionControls label { min-inline-size: 44px; min-block-size: 44px; }
+  .browserSlate .selectionToolbar button { min-block-size: 44px; inline-size: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.workspaceDialog { inline-size: min(520px, calc(100% - 32px)); max-block-size: 85dvh; overflow: auto; padding: 24px; border: 1px solid var(--border-default); border-radius: 12px; color: var(--text-primary); background: var(--bg-canvas); box-shadow: 0 16px 60px #0003; font: 13px/1.6 var(--font-ui); }
+.workspaceDialog::backdrop { background: #1d1c1a55; }
+.workspaceDialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block-end: 20px; }
+.workspaceDialog h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.workspaceDialog label { display: flex; flex-direction: column; gap: 8px; }
+.workspaceDialog input { inline-size: 100%; padding: 9px 10px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-primary); background: var(--bg-canvas); }
+.workspaceInfoGrid { display: grid; grid-template-columns: auto 1fr; gap: 12px 24px; }
+.workspaceInfoGrid dt { color: var(--text-secondary); }
+.workspaceInfoGrid dd { margin: 0; overflow-wrap: anywhere; }

@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { openLibrary } from "./helpers";
+import { openLibrary, showSheets } from "./helpers";
 
 test("Today uses the local calendar date and reopens existing words unchanged", async ({ createContext, baseURL }) => {
   const context = await createContext({ timezoneId: "Asia/Dhaka", ...(baseURL ? { baseURL } : {}) });
@@ -11,7 +11,7 @@ test("Today uses the local calendar date and reopens existing words unchanged", 
   await expect(dialog).toBeVisible();
   await expect(page.locator(".browserSheetRow")).toHaveCount(0);
   await dialog.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.locator(".headerBreadcrumb")).toHaveText("Daily/2026-11-18.md");
+  await expect(page.locator('.headerBreadcrumb [aria-current="page"]')).toHaveText("2026-11-18.md");
   const editor = page.locator(".cm-content");
   await editor.click();
   await page.keyboard.press("ControlOrMeta+a");
@@ -21,7 +21,7 @@ test("Today uses the local calendar date and reopens existing words unchanged", 
   await page.goto("./?action=today");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.locator(".headerBreadcrumb")).toHaveText("Daily/2026-11-18.md");
+  await expect(page.locator('.headerBreadcrumb [aria-current="page"]')).toHaveText("2026-11-18.md");
   await expect.poll(() => editor.innerText()).toBe(original);
   await expect(page.locator(".browserSheetRow")).toHaveCount(1);
 });
@@ -60,5 +60,7 @@ test("opening a Markdown file asks before import and preserves its bytes", async
   await openLibrary(page);
   await expect(page.getByRole("heading", { name: "Import opened Markdown files?" })).toBeVisible();
   await page.getByRole("dialog", { name: "Open in Slate" }).getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Open in Slate" })).toBeHidden();
+  await showSheets(page);
   await expect(page.getByRole("button", { name: /Opened.*My file/ })).toBeVisible();
 });

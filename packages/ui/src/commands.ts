@@ -63,4 +63,20 @@ export interface MarkdownEditorHandle {
   focus(): void;
   hasFocus(): boolean;
   hasSelection(): boolean;
+  goToLine(line: number): void;
+}
+
+export interface EditorCursor { line: number; column: number; lines: number }
+export function createCursorStore() {
+  let cursor: EditorCursor = { line: 1, column: 1, lines: 1 };
+  const listeners = new Set<() => void>();
+  return {
+    getSnapshot: () => cursor,
+    subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    update(next: EditorCursor) {
+      if (cursor.line === next.line && cursor.column === next.column && cursor.lines === next.lines) return;
+      cursor = next;
+      for (const listener of listeners) listener();
+    }
+  };
 }

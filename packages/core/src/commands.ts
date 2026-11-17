@@ -27,6 +27,11 @@ const format = (
 
 /** Only implemented actions belong here; every consumer uses these same IDs. */
 export const slateCommands: readonly CommandDefinition[] = [
+  { id: "sheet.today", label: "Open Today’s note", group: "Workspace", shortcut: "Mod+Shift+d" },
+  { id: "sheet.pin", label: "Toggle pinned sheet", group: "Workspace", context: "editor" },
+  { id: "view.sidebar", label: "Toggle navigation", group: "View", shortcut: "Mod+\\" },
+  { id: "view.sheets", label: "Toggle sheet list", group: "View", shortcut: "Mod+Alt+\\" },
+  { id: "view.density", label: "Toggle sheet density", group: "View" },
   {
     id: "app.palette",
     label: "Command palette",

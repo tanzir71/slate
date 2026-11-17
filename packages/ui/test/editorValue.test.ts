@@ -72,3 +72,26 @@ it("flushes the latest view position on pagehide before queued scroll events", a
     localStorage.removeItem(key);
   }
 });
+
+
+it("reports cursor movements and goes to a clamped line without changing writing", async () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const changed = vi.fn();
+  const cursor = vi.fn();
+  let handle: import("../src/commands").MarkdownEditorHandle | undefined;
+  try {
+    await act(async () => { root.render(createElement(MarkdownEditor, { value: "Alpha\nBeta\nGamma", onChange: changed, onCursorChange: cursor, onHandle: (value) => { handle = value; } })); });
+    handle!.goToLine(2);
+    expect(cursor).toHaveBeenLastCalledWith({ line: 2, column: 1, lines: 3 });
+    handle!.goToLine(999);
+    expect(cursor).toHaveBeenLastCalledWith({ line: 3, column: 1, lines: 3 });
+    handle!.goToLine(-4);
+    expect(cursor).toHaveBeenLastCalledWith({ line: 1, column: 1, lines: 3 });
+    expect(changed).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

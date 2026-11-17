@@ -1,15 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   createSlateMarkdownExtensions,
   createFormattingBindings,
   runFormattingCommand,
-  findWikiLinkAtPosition,
+  findEditorWikiLink,
+  knownWikiTargets as wikiTargets,
   type WikiLinkHit
 } from "@slate/editor";
 import type { ResolvedKeymap } from "@slate/core";
-import type { MarkdownEditorHandle } from "./commands";
+import type { EditorCursor, MarkdownEditorHandle } from "./commands";
+import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
+import { SelectionToolbar } from "./SelectionToolbar";
 
 const externalValue = Annotation.define<boolean>();
 
@@ -31,9 +34,11 @@ interface MarkdownEditorProps {
   onReady?: () => void;
   keymap?: ResolvedKeymap;
   onHandle?: (handle: MarkdownEditorHandle | undefined) => void;
+  knownWikiTargets?: ReadonlySet<string>;
+  onCursorChange?: (cursor: EditorCursor) => void;
 }
 
-export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -42,6 +47,13 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   const editable = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
+  const [dismissedSelection, setDismissedSelection] = useState<ToolbarRect>();
+  const selectionGeometry = useRef<ToolbarRect | undefined>(undefined);
+  const wikiLinks = useRef(new Compartment());
+  const previousWikiTargets = useRef(knownWikiTargets);
+  const onCursorRef = useRef(onCursorChange);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -52,6 +64,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   }, [onNavigateWikiLink]);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { onHandleRef.current = onHandle; }, [onHandle]);
+  useEffect(() => { onCursorRef.current = onCursorChange; }, [onCursorChange]);
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -77,19 +90,35 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
           ...createSlateMarkdownExtensions({ formattingKeys: false }),
           formattingKeys.current.of(createFormattingBindings(keymap)),
+          wikiLinks.current.of(wikiTargets.of(knownWikiTargets ?? new Set())),
+          observeEditorSelection((rect) => { selectionGeometry.current = rect; setSelectionRect(rect); }, () => toolbarRef.current),
           EditorView.domEventHandlers({
+            keydown(event) {
+              if (event.key !== "Escape" || !selectionGeometry.current) return false;
+              setDismissedSelection(selectionGeometry.current);
+              event.preventDefault();
+              return true;
+            },
             mousedown(event, view) {
+              if (event.button !== 0 || event.altKey || event.shiftKey) return false;
               const navigate = onNavigateWikiLinkRef.current;
-              if (!navigate || !(event.metaKey || event.ctrlKey)) {
-                return false;
+              const target = event.target instanceof Element ? event.target : undefined;
+              if (event.metaKey || event.ctrlKey) {
+                const href = target?.closest<HTMLElement>("[data-slate-href]")?.dataset.slateHref;
+                if (href && /^(https?:|mailto:)/i.test(href)) {
+                  event.preventDefault();
+                  window.open(href, "_blank", "noopener,noreferrer");
+                  return true;
+                }
               }
+              if (!navigate || (!(event.metaKey || event.ctrlKey) && !target?.closest(".cm-slate-unresolved-link"))) return false;
 
               const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
               if (position === null) {
                 return false;
               }
 
-              const link = findWikiLinkAtPosition(view.state.doc.toString(), position);
+              const link = findEditorWikiLink(view, position);
               if (!link) {
                 return false;
               }
@@ -100,6 +129,10 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
             }
           }),
           EditorView.updateListener.of((update) => {
+            if (update.selectionSet || update.docChanged) {
+              const line = update.state.doc.lineAt(update.state.selection.main.head);
+              onCursorRef.current?.({ line: line.number, column: update.state.selection.main.head - line.from + 1, lines: update.state.doc.lines });
+            }
             if (update.docChanged && update.transactions.some((transaction) => transaction.docChanged && !transaction.annotation(externalValue))) {
               onChangeRef.current(update.state.doc.toString());
             }
@@ -116,8 +149,11 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
       runFormat(id) { const applied = runFormattingCommand(view, id); if (applied) view.focus(); return applied; },
       focus() { view.focus(); },
       hasFocus() { return view.hasFocus; },
-      hasSelection() { return !view.state.selection.main.empty; }
+      hasSelection() { return !view.state.selection.main.empty; },
+      goToLine(number) { const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Math.trunc(number)))); view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true }); view.focus(); }
     });
+    const initialLine = view.state.doc.lineAt(view.state.selection.main.head);
+    onCursorRef.current?.({ line: initialLine.number, column: view.state.selection.main.head - initialLine.from + 1, lines: view.state.doc.lines });
     const readyFrame = requestAnimationFrame(() => onReadyRef.current?.());
     const scroll = () => {
       if (preferenceKey) {
@@ -147,6 +183,13 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   }, [keymap]);
 
   useEffect(() => {
+    const previous = previousWikiTargets.current;
+    previousWikiTargets.current = knownWikiTargets;
+    if (previous === knownWikiTargets || previous?.size === knownWikiTargets?.size && [...(previous ?? [])].every((target) => knownWikiTargets?.has(target))) return;
+    viewRef.current?.dispatch({ effects: wikiLinks.current.reconfigure(wikiTargets.of(knownWikiTargets ?? new Set())) });
+  }, [knownWikiTargets]);
+
+  useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const previous = view.state.doc.toString();
@@ -159,5 +202,5 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
     });
   }, [value]);
 
-  return <div ref={hostRef} className="editorHost" aria-label="Markdown editor" />;
+  return <><div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 }

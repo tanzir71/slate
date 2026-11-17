@@ -1,9 +1,10 @@
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { createSheet, openLibrary, workspaceAction } from "./helpers";
 import { slateCommands } from "../packages/core/src/commands";
 import { AxeBuilder } from "@axe-core/playwright";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
+const altLabel = process.platform === "darwin" ? "⌥" : "Alt";
 
 test("every default web formatting binding reaches the editor and undoes in one step", async ({
   page,
@@ -61,9 +62,7 @@ test("registry labels, shortcut search, palette formatting and focus restoration
   await openLibrary(page);
   const editor = await createSheet(page, "words");
   await page.keyboard.press(`${modifier}+a`);
-  await page
-    .getByRole("button", { name: "Keyboard shortcuts", exact: true })
-    .click();
+  const shortcutsInvoker = await workspaceAction(page, "Keyboard shortcuts");
   const sheet = page.getByRole("dialog", {
     name: "Keyboard shortcuts",
     exact: true,
@@ -85,7 +84,7 @@ test("registry labels, shortcut search, palette formatting and focus restoration
   await expect(sheet.locator(".shortcutRow")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "Keyboard shortcuts", exact: true }),
+    shortcutsInvoker,
   ).toBeFocused();
   await page.keyboard.press(`${modifier}+/`);
   await expect(sheet).toBeVisible();
@@ -125,16 +124,14 @@ test("Space keymaps update editor bindings and labels, with complete fallback on
   await writeMap({ "format.bold": "Mod+Shift+b", "sheet.new": "Alt+m" });
   await expect(
     page.getByRole("button", { name: "New Sheet", exact: true }).first(),
-  ).toHaveAttribute("title", "New sheet (Alt M)");
+  ).toHaveAttribute("title", `New sheet (${altLabel} M)`);
   await editor.focus();
   await page.keyboard.press(`${modifier}+a`);
   await page.keyboard.press(`${modifier}+Shift+b`);
   await expect(editor).toHaveText("**words**");
   await page.keyboard.press(`${modifier}+z`);
   await expect(editor).toHaveText("words");
-  await page
-    .getByRole("button", { name: "Keyboard shortcuts", exact: true })
-    .click();
+  await workspaceAction(page, "Keyboard shortcuts");
   const row = page.locator(".shortcutRow").filter({ hasText: /^Bold/ });
   await expect(row.locator("kbd")).toContainText("⇧ B");
   await page.keyboard.press("Escape");
@@ -146,7 +143,7 @@ test("Space keymaps update editor bindings and labels, with complete fallback on
   ).toContainText("conflicts with Italic");
   await expect(
     page.getByRole("button", { name: "New Sheet", exact: true }).first(),
-  ).toHaveAttribute("title", "New sheet (Alt N)");
+  ).toHaveAttribute("title", `New sheet (${altLabel} N)`);
   await editor.focus();
   await page.keyboard.press(`${modifier}+a`);
   await page.keyboard.press(`${modifier}+b`);

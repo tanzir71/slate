@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   commandShortcut,
+  createCursorStore,
   keyboardInput,
   readKeymap,
   shortcutOS,
@@ -56,4 +57,21 @@ describe("workspace keyboard adapter", () => {
       altGraph: false,
     });
   });
+});
+
+
+it("publishes cursor positions only when they change and unsubscribes listeners", () => {
+  const store = createCursorStore();
+  let updates = 0;
+  const unsubscribe = store.subscribe(() => { updates++; });
+  const initial = store.getSnapshot();
+  store.update({ line: 1, column: 1, lines: 1 });
+  expect(store.getSnapshot()).toBe(initial);
+  expect(updates).toBe(0);
+  store.update({ line: 3, column: 4, lines: 8 });
+  expect(store.getSnapshot()).toEqual({ line: 3, column: 4, lines: 8 });
+  expect(updates).toBe(1);
+  unsubscribe();
+  store.update({ line: 4, column: 1, lines: 8 });
+  expect(updates).toBe(1);
 });

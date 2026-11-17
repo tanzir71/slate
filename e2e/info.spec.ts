@@ -1,6 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary } from "./helpers";
+import { createSheet, openLibrary, workspaceAction } from "./helpers";
 import { readFile } from "node:fs/promises";
 
 test("About shows release notes, capabilities and author credit with keyboard dismissal", async ({ page, context }) => {
@@ -25,7 +25,7 @@ test("About shows release notes, capabilities and author credit with keyboard di
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await context.setOffline(true);
-  await about.click();
+  await workspaceAction(page, "About Slate");
   await expect(dialog.getByRole("heading", { name: releaseHeading, exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(page.locator(".cm-content")).toContainText("Still mine.");
