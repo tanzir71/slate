@@ -3,6 +3,7 @@ import { createSheet, openLibrary } from "./helpers";
 import { readFile } from "node:fs/promises";
 
 test("runs under the Pages subpath with CSP and no third-party requests", async ({ page }) => {
+  const started = Date.now();
   const failures: string[] = [];
   const external: string[] = [];
   page.on("pageerror", (error) => failures.push(error.message));
@@ -13,6 +14,7 @@ test("runs under the Pages subpath with CSP and no third-party requests", async 
   });
   await openLibrary(page);
   await createSheet(page);
+  expect(Date.now() - started, "First visit to saved writing must take less than 60 seconds").toBeLessThan(60_000);
   await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveAttribute("content", /connect-src 'self'/);
   expect(external).toEqual([]);
   expect(failures).toEqual([]);

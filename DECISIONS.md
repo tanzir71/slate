@@ -218,6 +218,8 @@ Browser Markdown editing accepts UTF-8. Replacement decoding could silently chan
 
 Start the rebuildable SQLite cache after the editor's first frame, rather than opening/writing an empty index during first-run file operations. Files and recovery writes keep priority; the worker still builds a real OPFS FTS cache and receives subsequent saved changes. An empty Space does not need a worker.
 
+Once a user opens a Space, begin loading the workspace and editor modules alongside file/catalog reads. These remain lazy at initial onboarding, but returning writers no longer wait for three sequential module/file phases. First-create test helpers allow 15 seconds for cold storage setup; a separate <60-second first-saved-writing assertion and the unchanged <1-second offline paint budget measure the product requirements directly.
+
 The browser gate uses one Playwright worker, following [Playwright's CI recommendation](https://playwright.dev/docs/ci#workers), after Windows traces showed cold profiles stalling while three unrelated contexts initialized storage/cache concurrently. Its <1 s offline paint budget is measured with dedicated browser resources; `--workers=3` remains available for parallel stress checks. All browser projects, assertions, budgets and the concurrent two-tab ownership test remain enabled. Lighthouse uses software headless rendering with the same default mobile simulation and retains raw traces.
 
 ## 2026-11-17 - Use a consistent Linux landing performance reference

@@ -6,7 +6,8 @@ import { createBrowserOwnership, type BrowserOwnership } from "@slate/storage/br
 import { createWorkspaceStore, type WorkspaceStore } from "./workspaceStore";
 import "./browser.css";
 
-const Workspace = lazy(() => import("./BrowserWorkspace"));
+const loadWorkspace = () => import("./BrowserWorkspace");
+const Workspace = lazy(loadWorkspace);
 const InfoDialog = lazy(() => import("./BrowserInfoDialog"));
 type StorageTier = "folder" | "library" | "sample";
 interface InstallPrompt extends Event { prompt(): Promise<void> }
@@ -43,6 +44,9 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
     const currentGeneration = ++generation.current;
     setBusy(true);
     setError("");
+    // Load the writing UI alongside disk/catalog reads, rather than after them.
+    void loadWorkspace().catch(() => undefined);
+    void import("../MarkdownEditor").catch(() => undefined);
     try {
       await workspaceRef.current?.flush();
       await ownership.current?.close();

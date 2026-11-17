@@ -10,9 +10,9 @@ export async function openLibrary(page: Page) {
 export async function createSheet(page: Page, text = "# My writing\n\nWords worth keeping.") {
   await page.getByRole("button", { name: "New Sheet", exact: true }).first().click();
   const editor = page.locator(".cm-content");
-  await expect(editor).toBeVisible();
+  await expect(editor).toBeVisible({ timeout: 15_000 });
   await editor.click();
   await page.keyboard.insertText(text);
-  await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved$/ })).toBeVisible();
+  await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved$/ })).toBeVisible({ timeout: 15_000 });
   return editor;
 }
