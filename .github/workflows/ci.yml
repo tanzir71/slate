@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   verify:
     strategy:
@@ -21,6 +25,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/slate-core
+            apps/desktop/src-tauri
+          cache-on-failure: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install chromium firefox webkit --with-deps
         if: matrix.os == 'ubuntu-latest'

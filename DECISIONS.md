@@ -313,3 +313,9 @@ Evidence: Linux CI 44178565874 and 44190380062 passed every typing profile. In 4
 ## 2026-11-18 - Keep optional view persistence from forcing layout during input
 
 Persist the caret immediately with the last observed scroll offset when CodeMirror reports a document or selection change. Reading `scrollDOM.scrollTop` after its DOM update can force synchronous layout inside input handling. Refresh the offset on scroll, and read the actual value on pagehide/teardown so a pending scroll event cannot lose the latest position. Source-file autosave and synchronous per-edit recovery are unchanged. A regression proves no scroll-layout read occurs between the edit callback and optional preference write, while checking changed scroll offsets and the saved caret; the existing pagehide regression checks a scroll whose event has not fired yet.
+
+## 2026-11-18 - Reuse Rust dependencies and supersede old branch verification
+
+Cache third-party Cargo dependencies for both standalone workspaces after selecting the Rust toolchain. Keep the action's default exclusion of workspace crates so Slate source and embedded frontend assets rebuild; every test/build/gate command still runs. Save dependency caches even when a later JavaScript or timing check fails, rather than recompiling unchanged dependencies on every attempt. Keys retain the Rust host/toolchain, environment and manifest/lockfile inputs.
+
+Group CI by workflow and Git ref, allowing a newer branch/PR run to cancel its superseded run. Tag verification does not cancel an existing run. Release publication keeps its own required checks and is unaffected by these caches or branch concurrency.
