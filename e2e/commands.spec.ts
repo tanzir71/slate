@@ -66,7 +66,7 @@ test("every default web formatting binding reaches the editor and undoes in one 
 });
 
 test("registry labels, shortcut search, palette formatting and focus restoration stay consistent", async ({
-  page,
+  page, isMobile,
 }) => {
   await openLibrary(page);
   const editor = await createSheet(page, "words");
@@ -77,6 +77,11 @@ test("registry labels, shortcut search, palette formatting and focus restoration
     exact: true,
   });
   await expect(sheet).toBeVisible();
+  if (isMobile) {
+    const close = await sheet.getByRole("button", { name: "Close keyboard shortcuts", exact: true }).boundingBox();
+    expect(close?.width).toBeGreaterThanOrEqual(44);
+    expect(close?.height).toBeGreaterThanOrEqual(44);
+  }
   await expect(sheet.locator(".shortcutRow")).toHaveCount(commandsForSurface("web").length);
   const a11y = await new AxeBuilder({ page })
     .include(".commandDialog")
@@ -108,6 +113,11 @@ test("registry labels, shortcut search, palette formatting and focus restoration
   await page.keyboard.press(`${modifier}+k`);
   const palette = page.getByRole("dialog", { name: "Command palette" });
   await palette.getByRole("textbox", { name: "Search commands" }).fill("bold");
+  if (isMobile) {
+    const close = await palette.getByRole("button", { name: "Close command palette", exact: true }).boundingBox();
+    expect(close?.width).toBeGreaterThanOrEqual(44);
+    expect(close?.height).toBeGreaterThanOrEqual(44);
+  }
   await palette.getByRole("button", { name: /Bold/ }).click();
   await expect(editor).toHaveText("**words**");
   await expect(editor).toBeFocused();

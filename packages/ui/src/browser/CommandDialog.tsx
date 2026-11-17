@@ -102,7 +102,7 @@ export function CommandDialog({
 
   const searchField = (
     <label className="commandSearch">
-      <Search size={16} />
+      <Search size={16} strokeWidth={shortcuts ? 1.75 : undefined} />
       <input
         ref={search}
         aria-label={shortcuts ? "Search shortcuts" : "Search commands"}
@@ -125,7 +125,7 @@ export function CommandDialog({
     >
       <header>
         <h1>
-          <Keyboard size={17} />
+          <Keyboard size={shortcuts ? 16 : 17} strokeWidth={shortcuts ? 1.75 : undefined} />
           {title}
         </h1>
         <span className="shortcutProfile">
@@ -133,7 +133,7 @@ export function CommandDialog({
         </span>
         {shortcuts && searchField}
         <button aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>
-          <X size={18} />
+          <X size={shortcuts ? 16 : 18} strokeWidth={shortcuts ? 1.75 : undefined} />
         </button>
       </header>
       {!shortcuts && searchField}
