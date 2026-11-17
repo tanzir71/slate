@@ -81,6 +81,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
         position = { anchor: Math.min(Math.max(0, Math.trunc(stored.anchor)), initialValue.length), scroll: Math.max(0, stored.scroll) };
       }
     } catch { /* Invalid view preferences never prevent opening a file. */ }
+    // Reading scrollTop after a text update can force layout; scroll/pagehide refresh this cache.
+    let observedScroll = position.scroll;
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
@@ -142,7 +144,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
               onChangeRef.current(content, changes);
             }
             if (preferenceKey && (update.selectionSet || update.docChanged)) {
-              try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: update.state.selection.main.head, scroll: update.view.scrollDOM.scrollTop })); } catch { /* View preferences are optional. */ }
+              try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: update.state.selection.main.head, scroll: observedScroll })); } catch { /* View preferences are optional. */ }
             }
           })
         ]
@@ -162,7 +164,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     const readyFrame = requestAnimationFrame(() => onReadyRef.current?.());
     const scroll = () => {
       if (preferenceKey) {
-        try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: view.state.selection.main.head, scroll: view.scrollDOM.scrollTop })); } catch { /* View preferences are optional. */ }
+        observedScroll = view.scrollDOM.scrollTop;
+        try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: view.state.selection.main.head, scroll: observedScroll })); } catch { /* View preferences are optional. */ }
       }
     };
     view.requestMeasure({ read: () => position.scroll, write(scrollTop) { view.scrollDOM.scrollTop = scrollTop; } });

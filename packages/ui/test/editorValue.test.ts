@@ -73,6 +73,50 @@ it("flushes the latest view position on pagehide before queued scroll events", a
   }
 });
 
+it("persists the observed scroll position without reading layout during a document update", async () => {
+  const key = "slate.editor.typing-layout";
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  let persistingInput = false;
+  let inputScrollReads = 0;
+  const readsAtSave: number[] = [];
+  let restore: (() => void) | undefined;
+  try {
+    await act(async () => { root.render(createElement(MarkdownEditor, {
+      value: "My words", documentKey: "typing-layout",
+      onChange() { persistingInput = true; inputScrollReads = 0; },
+    })); });
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)!;
+    view.dispatch({ selection: { anchor: 3 } });
+    let scrollTop = 350;
+    Object.defineProperty(view.scrollDOM, "scrollTop", {
+      configurable: true,
+      get() { if (persistingInput) inputScrollReads++; return scrollTop; },
+      set(value: number) { scrollTop = value; },
+    });
+    view.scrollDOM.dispatchEvent(new Event("scroll"));
+    const write = Storage.prototype.setItem;
+    const storage = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, name, value) {
+      if (name === key && persistingInput) { readsAtSave.push(inputScrollReads); persistingInput = false; }
+      write.call(this, name, value);
+    });
+    restore = () => storage.mockRestore();
+    view.dispatch({ changes: { from: 0, insert: "X" } });
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({ anchor: 4, scroll: 350 });
+    scrollTop = 525;
+    view.scrollDOM.dispatchEvent(new Event("scroll"));
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "Y" } });
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({ anchor: 4, scroll: 525 });
+    expect(readsAtSave).toEqual([0, 0]);
+  } finally {
+    restore?.();
+    await act(async () => root.unmount());
+    host.remove();
+    localStorage.removeItem(key);
+  }
+});
+
 
 it("reports cursor movements and goes to a clamped line without changing writing", async () => {
   const host = document.createElement("div");
