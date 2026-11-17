@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { Folder, Hash, Inbox, Plus, Search, PanelRight, ArrowLeft, Download, Upload, Trash2, Pencil, BookOpen } from "lucide-react";
+import { Folder, Hash, Inbox, Plus, Search, PanelRight, ArrowLeft, Download, Upload, Trash2, Pencil, BookOpen, Info } from "lucide-react";
 import { parseSheet } from "@slate/core";
 import { safeBrowserPath } from "@slate/storage/browser-files";
 import { addBrowserImportEntry, collectBrowserDrop, type BrowserImportFile } from "@slate/storage/browser-import";
@@ -15,9 +15,10 @@ interface WorkspaceProps {
   onKeepSample: () => Promise<void>;
   onTakeover: () => Promise<void>;
   onSwitchSpace: () => Promise<void>;
+  onAbout: () => void;
 }
 
-export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace }: WorkspaceProps) {
+export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout }: WorkspaceProps) {
   const state = useStore(store.api);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
@@ -32,6 +33,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const input = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLInputElement>(null);
+  const aboutButton = useRef<HTMLButtonElement>(null);
   const index = useRef<ReturnType<NonNullable<BrowserAppProps["createIndex"]>> | undefined>(undefined);
   const queryGeneration = useRef(0);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
@@ -187,7 +189,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
-    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span><button title="Inspector (Ctrl Shift I)" aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
+    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title="Inspector (Ctrl Shift I)" aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
     {state.record.id === "sample" && <div className="notice">Sample — nothing is saved <button onClick={() => run(onKeepSample)}>Keep these sheets</button></div>}
     {!state.owned && <div className="notice" role="status">Slate is open in another tab <button onClick={() => run(onTakeover)}>Use here</button></div>}
     {state.error && <div className="errorNotice" role="alert">{state.error}<button onClick={() => run(store.flush)}>Retry saving</button></div>}
@@ -238,7 +240,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     </footer>
     <LaunchActions key={state.record.id} store={store} />
     {palette && <div className="modalBackdrop" onClick={() => setPalette(false)}><section className="browserDialog" role="dialog" aria-modal="true" aria-label="Command palette" onClick={(event) => event.stopPropagation()}>
-      <h2>Command palette</h2><button onClick={() => { setPalette(false); run(() => store.create()); }}>New sheet <kbd>Alt N</kbd></button><button onClick={() => { setPalette(false); search.current?.focus(); }}>Search sheets <kbd>Ctrl Shift F</kbd></button><button onClick={() => { setPalette(false); run(exportZip); }}>Export Space as .zip</button><button onClick={() => setPalette(false)}>Close</button>
+      <h2>Command palette</h2><button onClick={() => { setPalette(false); run(() => store.create()); }}>New sheet <kbd>Alt N</kbd></button><button onClick={() => { setPalette(false); search.current?.focus(); }}>Search sheets <kbd>Ctrl Shift F</kbd></button><button onClick={() => { setPalette(false); run(exportZip); }}>Export Space as .zip</button><button onClick={() => { setPalette(false); aboutButton.current?.focus(); onAbout(); }}>About Slate</button><button onClick={() => setPalette(false)}>Close</button>
     </section></div>}
     {action && <div className="modalBackdrop"><form className="browserDialog" role="dialog" aria-modal="true" aria-label={`${action} sheet`} onSubmit={(event) => { event.preventDefault(); run(performAction); }}>
       <h2>{action === "trash" ? "Move this sheet to trash?" : action === "notebook" ? "New notebook" : action === "rename" ? "Rename sheet" : "Move to notebook"}</h2>

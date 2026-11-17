@@ -7,6 +7,7 @@ import { createWorkspaceStore, type WorkspaceStore } from "./workspaceStore";
 import "./browser.css";
 
 const Workspace = lazy(() => import("./BrowserWorkspace"));
+const InfoDialog = lazy(() => import("./BrowserInfoDialog"));
 type StorageTier = "folder" | "library" | "sample";
 interface InstallPrompt extends Event { prompt(): Promise<void> }
 interface FolderPickerWindow extends Window {
@@ -20,10 +21,11 @@ export interface BrowserIndex {
 export interface BrowserAppProps {
   createIndex?: (spaceId: string) => BrowserIndex;
   updateReady?: boolean;
+  updateVersion?: string | undefined;
   onReload?: () => Promise<void>;
 }
 
-export function BrowserApp({ createIndex, updateReady, onReload }: BrowserAppProps) {
+export function BrowserApp({ createIndex, updateReady, updateVersion, onReload }: BrowserAppProps) {
   const folderAvailable = typeof (window as FolderPickerWindow).showDirectoryPicker === "function";
   const [tier, setTier] = useState<StorageTier>(folderAvailable ? "folder" : "library");
   const [records, setRecords] = useState<BrowserSpaceRecord[]>([]);
@@ -31,6 +33,7 @@ export function BrowserApp({ createIndex, updateReady, onReload }: BrowserAppPro
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [install, setInstall] = useState<InstallPrompt>();
+  const [aboutOpen, setAboutOpen] = useState(false);
   const ownership = useRef<BrowserOwnership | undefined>(undefined);
   const workspaceRef = useRef<WorkspaceStore | undefined>(undefined);
   const generation = useRef(0);
@@ -126,18 +129,18 @@ export function BrowserApp({ createIndex, updateReady, onReload }: BrowserAppPro
   }
 
   return <div className="browserSlate">
-    {updateReady && <div className="notice" role="status">Slate 0.2 is ready <button onClick={() => {
+    {updateReady && <div className="notice" role="status">{updateVersion ? `Slate ${updateVersion} is ready` : "A Slate update is ready"} <button onClick={(event) => { event.currentTarget.focus(); setAboutOpen(true); }}>What’s new</button><button onClick={() => {
       void (async () => { await workspaceRef.current?.flush(); await onReload?.(); })().catch((failure: unknown) => setError(errorMessage(failure)));
     }}>Reload</button></div>}
     {error && <div className="errorNotice" role="alert">{error}</div>}
     {workspace ? <Suspense fallback={<p role="status">Opening your writing…</p>}>
-      <Workspace store={workspace} createIndex={createIndex} onKeepSample={keepSample}
+      <Workspace store={workspace} createIndex={createIndex} onKeepSample={keepSample} onAbout={() => setAboutOpen(true)}
         onTakeover={async () => { await ownership.current?.acquire(true); await workspace.refresh(); await workspace.flush(); }}
         onSwitchSpace={async () => {
           await workspace.flush(); await ownership.current?.close(); workspaceRef.current = undefined; setWorkspace(undefined); setRecords(await listBrowserSpaces());
         }} />
     </Suspense> : <>
-      <header className="welcomeHeader"><span>Welcome to Slate</span>{install && <button onClick={() => { void install.prompt(); }}><Download size={15} /> Install Slate</button>}</header>
+      <header className="welcomeHeader"><span>Welcome to Slate</span><div className="welcomeHeaderActions"><button onClick={(event) => { event.currentTarget.focus(); setAboutOpen(true); }}><Info size={15} />About Slate</button>{install && <button onClick={() => { void install.prompt(); }}><Download size={15} /> Install Slate</button>}</div></header>
       <main className="onboarding">
         <div className="welcomeBrand"><img src="./brand/logo-mark.svg" width="30" height="30" alt="" /><span>Slate</span><small>Web · v0.2</small></div>
         <h1>Where should your writing live?</h1>
@@ -160,6 +163,7 @@ export function BrowserApp({ createIndex, updateReady, onReload }: BrowserAppPro
       <footer className="welcomeFooter"><div><span><Check size={16} />No account</span><span><Check size={16} />Works offline after first visit</span><span><Check size={16} />Nothing is uploaded</span><span><Check size={16} />Export everything as .zip</span></div>
         <button className="primaryButton" disabled={busy} onClick={() => { void continueOnboarding(); }}>Continue</button></footer>
     </>}
+    {aboutOpen && <Suspense fallback={<p role="status">Opening About Slate…</p>}><InfoDialog pendingUpdate={!!updateReady} onClose={() => setAboutOpen(false)} /></Suspense>}
   </div>;
 }
 

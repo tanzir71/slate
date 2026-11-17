@@ -14,6 +14,7 @@ button:focus-visible, input:focus-visible, .storageCard:focus-within { outline: 
 .browserSlate { min-block-size: 100dvh; font-size: 13px; }
 .welcomeHeader { block-size: 42px; border-block-end: 1px solid #ecebe7; background: #f6f6f4; display: flex; align-items: center; justify-content: space-between; padding-inline: 20px; }
 .welcomeHeader button { display: flex; gap: 7px; color: #3550d6; }
+.welcomeHeaderActions { display: flex; align-items: center; gap: 10px; }
 .onboarding { max-inline-size: 880px; margin: 60px auto 110px; }
 .welcomeBrand { display: flex; align-items: center; gap: 12px; }
 .welcomeBrand > span { font: 600 26px Georgia, serif; }
@@ -104,6 +105,18 @@ button:focus-visible, input:focus-visible, .storageCard:focus-within { outline: 
 .browserDialog textarea { inline-size: 100%; border: 1px solid #cfcdc7; padding: 12px; border-radius: 6px; font: 16px/1.6 Georgia, serif; resize: vertical; }
 .browserDialog > button { display: flex; justify-content: space-between; inline-size: 100%; padding-block: 12px; text-align: start; }
 .dialogActions { display: flex; justify-content: flex-end; gap: 10px; margin-block-start: 20px; }
+.browserInfoDialog { inline-size: min(720px, calc(100% - 32px)); max-block-size: 85dvh; overflow: auto; border: 1px solid #e2e1dc; border-radius: 12px; padding: 24px; color: #1d1c1a; background: #fff; font: 13px/1.6 Geist, Arial, sans-serif; }
+.browserInfoDialog::backdrop { background: #1d1c1a60; }
+.browserInfoDialog > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.browserInfoDialog h1 { font: 500 30px/1.3 Newsreader, Georgia, serif; margin: 0; }
+.browserInfoDialog h2 { font-size: 16px; margin: 25px 0 10px; }
+.browserInfoDialog h3 { font-size: 13px; margin: 10px 0; }
+.browserInfoDialog a { color: #3550d6; text-underline-offset: 3px; }
+.capabilityTable { overflow-x: auto; }
+.capabilityTable:focus-visible { outline: 2px solid #3550d6; outline-offset: -2px; }
+.capabilityTable table { inline-size: 100%; border-collapse: collapse; font-size: 12px; text-align: start; }
+.capabilityTable th, .capabilityTable td { border-block-end: 1px solid #e2e1dc; padding: 9px; text-align: start; min-inline-size: 125px; }
+.capabilityTable th { font-weight: 550; }
 kbd { font-size: 11px; color: #6e6c66; }
 @media (max-width: 1100px) {
   .onboarding { margin-inline: 28px; }

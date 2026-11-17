@@ -15,6 +15,7 @@ test("a deployed service-worker update waits for Reload and flushes typing first
     try {
       let body: Uint8Array | string = await readFile(path);
       if (path.endsWith(`${sep}sw.js`)) body = `${body.toString()}\n// deployed-version-${version}`;
+      if (path.endsWith(`${sep}whats-new.json`)) body = JSON.stringify({ version: version === 1 ? "0.2.0" : "0.2.1", title: "A fresh release", changes: ["New release notes, same files."] });
       const types: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json" };
       response.writeHead(200, { "Content-Type": types[extname(path)] ?? "application/octet-stream", "Cache-Control": "no-cache" });
       response.end(body);
@@ -34,6 +35,11 @@ test("a deployed service-worker update waits for Reload and flushes typing first
     await page.evaluate(async () => { const registration = await navigator.serviceWorker.getRegistration(); await registration?.update(); });
     const reload = page.getByRole("button", { name: "Reload", exact: true });
     await expect(reload).toBeVisible();
+    await expect(page.locator(".browserSlate > .notice")).toContainText("Slate 0.2.1 is ready");
+    await page.getByRole("button", { name: "What’s new", exact: true }).click();
+    const releaseDialog = page.getByRole("dialog", { name: "About Slate" });
+    await expect(releaseDialog.getByRole("heading", { name: "What’s new in Slate 0.2.1", exact: true })).toBeVisible();
+    await releaseDialog.getByRole("button", { name: "Close", exact: true }).click();
     await page.locator(".cm-content").click();
     await page.keyboard.press("ControlOrMeta+End");
     await page.keyboard.insertText(" Typed before reload.");

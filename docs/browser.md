@@ -22,6 +22,8 @@ The New sheet, Today and Capture app shortcuts request confirmation before creat
 
 Updates show a **Reload** action. Slate flushes pending edits before activating the new worker. Updates do not rewrite existing Markdown files.
 
+Choose **About Slate** in the header or command palette to read the release notes and browser capability matrix. These notes work offline after the first visit. A waiting update also offers **What's new**, which shows the incoming release before you choose Reload.
+
 ## Verification
 
 `pnpm build:site` assembles the site with relative assets and checks the manifest, CSP, redirect and initial JavaScript budget. `pnpm e2e` serves it under `/slate/` and exercises Chromium, Firefox, WebKit and mobile Chromium.

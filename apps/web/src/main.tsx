@@ -12,12 +12,24 @@ if (!root) {
 
 function App() {
   const [updateReady, setUpdateReady] = useState(false);
+  const [updateVersion, setUpdateVersion] = useState<string>();
   useEffect(() => {
     let active = true;
-    registerSW({ onNeedRefresh: () => { if (active) setUpdateReady(true); }, onNeedReload: () => undefined });
+    registerSW({ onNeedRefresh: () => {
+      if (!active) return;
+      setUpdateReady(true);
+      void waitingVersion().then((version) => { if (active) setUpdateVersion(version); }).catch(() => undefined);
+    }, onNeedReload: () => undefined });
     return () => { active = false; };
   }, []);
-  return <BrowserApp createIndex={createBrowserIndex} updateReady={updateReady} onReload={reloadWaitingWorker} />;
+  return <BrowserApp createIndex={createBrowserIndex} updateReady={updateReady} updateVersion={updateVersion} onReload={reloadWaitingWorker} />;
+}
+
+async function waitingVersion(): Promise<string | undefined> {
+  const response = await fetch(new URL("./whats-new.json?update=ready", document.baseURI), { cache: "no-store" });
+  if (!response.ok) return undefined;
+  const value: unknown = await response.json();
+  return typeof value === "object" && value !== null && "version" in value && typeof value.version === "string" ? value.version : undefined;
 }
 
 async function reloadWaitingWorker(): Promise<void> {
