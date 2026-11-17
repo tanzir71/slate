@@ -110,9 +110,12 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
     };
     view.requestMeasure({ read: () => position.scroll, write(scrollTop) { view.scrollDOM.scrollTop = scrollTop; } });
     view.scrollDOM.addEventListener("scroll", scroll);
+    window.addEventListener("pagehide", scroll);
     return () => {
       cancelAnimationFrame(readyFrame);
+      if (view.dom.isConnected) scroll();
       view.scrollDOM.removeEventListener("scroll", scroll);
+      window.removeEventListener("pagehide", scroll);
       view.destroy();
       viewRef.current = null;
     };
