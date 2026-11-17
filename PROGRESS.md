@@ -3,11 +3,12 @@
 ## Current Status
 
 - Current phase: Slate 2.0 handover implementation, in release order (v0.2 through v1.1).
-- Current task: Landing page first (F-120), per user steering; verify and push to GitHub with repeatable release publication. Continue v0.2–v1.1 afterward.
-- Gate: strict TypeScript, lint/clippy, 73 unit tests and 8 Rust tests pass. The full build (including the Windows desktop executable), site assembly and app perf budgets pass. Supported Windows browser suite: 48 passed, 3 capability skips. Linux WebKit: 15 passed, 2 capability skips. Final landing Lighthouse: 100 in all four categories, mobile LCP 1.41 s, CLS 0. Publication is in progress; v0.2 release is not complete.
+- Current task: Landing priority (F-120) is published and verified. Resume the remaining v0.2 acceptance items, then v0.3–v1.1.
+- Gate: strict TypeScript, lint/clippy, 73 unit tests and 8 Rust tests pass. The full build (including the Windows desktop executable), site assembly and app perf budgets pass. Supported Windows browser suite: 48 passed, 3 capability skips. GitHub's Linux publication gate: 47 passed across Chromium/Firefox/WebKit, 4 capability skips; Lighthouse 100 in all four categories, mobile LCP 1.43 s, CLS 0; live save/reopen passes. Native three-OS CI is still running. v0.2 release is not complete.
 
 ## Loop Notes
 
+- 2026-11-17: Pushed `c2e3bcb` to `main` and published [the landing](https://tanzir71.github.io/slate/) and [browser app](https://tanzir71.github.io/slate/app/) through [successful Pages run 44081644365](https://github.com/tanzir71/slate/actions/runs/44081644365). The public `release.json` points to that exact commit. GitHub and a separate local browser both passed first-run → saved writing → reload on the public URL. Pages uses Actions; the environment allows `main` and `v*` tags (the legacy policy allowed only `main`). Each release/tag rebuilds the app and real screenshots, gates the site, deploys, then smoke-tests it; tag pushes create release notes afterward. Remaining v0.2 work includes What's new/About surfaces, final release metadata/installability/offline timing, and the release tag. The broader handover goal remains active.
 - 2026-11-17: Completed and visually inspected the L1/L2 landing using local brand assets/fonts/icons, real app screenshots, responsive navigation, working browser CTAs, dated comparison sources and author credit. All eight landing checks passed across Chromium, Firefox, WebKit and mobile Chromium, including decoding the mobile AVIF. Default-mobile Lighthouse passes the original budget: all four scores 100, LCP 1.41 s, CLS 0. Added a release/tag/manual Pages workflow with a live save/reopen smoke check and release instructions. Pushing the verified source and changing Pages from legacy branch publishing to Actions.
 - 2026-11-17: Final browser-runtime verification: Playwright 1.65.1 with an isolated persistent profile passes all WebKit storage/offline/worker/update tests on Linux (15 passed, 2 capability skips). Windows still has transient OPFS/cache errors in WebKit; use `pnpm e2e --project=chromium --project=firefox --project=mobile` locally (48 passed, 3 skips), with the full WebKit gate on Linux/macOS. This supersedes the older runtime/platform notes below.
 - 2026-11-17: User explicitly prioritized the landing page and requested a GitHub push so it is ready with every release. Moving the landing redesign ahead of the original v0.6 ordering; retain the full remaining handover scope. Live Figma design-context tool still returns Unknown tool, so implementing from the supplied L1/L2 snapshots and bundled brand. Marketing will show implemented features and hide unshipped capabilities.
@@ -63,6 +64,7 @@
 
 ### Slate 2.0 — remaining releases
 
+- [x] F-120 landing redesign, GitHub publication and release workflow (prioritized by user)
 - [ ] v0.3 Design tokens/fonts/theming, registry/keymaps, toolbar and basic live rendering
 - [ ] v0.4 Blocks/slash menu, smart input/paste/lists/tables
 - [ ] v0.5 Templates/prompts/daily notes/snippets/starter kits

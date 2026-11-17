@@ -8,6 +8,6 @@ The landing page and browser app ship together from the same commit. GitHub Page
 4. Commit the source and generated marketing assets, push the commit to `main`, then push the matching `vX.Y.Z` tag.
 5. The **Deploy Slate website and app** workflow installs browser engines, rebuilds the site and screenshots, runs Chromium/Firefox/WebKit tests under `/slate/`, publishes the single Pages artifact, then checks the live landing-to-editor save/reopen flow. It creates GitHub Release notes only after deployment verification succeeds.
 
-Publishing a release in GitHub also deploys that release's tag. For an initial landing update or a deliberate redeploy, run the workflow manually against the desired ref. GitHub Pages must use **GitHub Actions** as its build source rather than legacy branch publishing.
+Publishing a release in GitHub also deploys that release's tag. For an initial landing update or a deliberate redeploy, run the workflow manually against the desired ref. GitHub Pages uses **GitHub Actions** as its build source; the `github-pages` environment permits branch `main` and tags matching `v*`. Preserve both policies so release tags are allowed to deploy.
 
 Do not use Figma exports as product screenshots or advertise unshipped blocks, templates, Tidy, automation or Sync. Re-run `pnpm shots` after app changes. When Dark mode ships, add its real capture to the landing `<picture>`; the current page only presents the implemented Light workspace.
