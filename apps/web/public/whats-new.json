@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
-  "title": "Use it today",
-  "changes": ["Choose a folder or a private browser library", "Write offline and reopen your Markdown tomorrow", "Import files and export your entire Space as a zip"]
+  "version": "0.2.1",
+  "title": "Safer tab recovery",
+  "changes": ["Taking over a Space restores the writer's latest recovery draft", "A completed save clears stale recovery snapshots in other tabs", "Reload every open Slate tab after updating to use the fix"]
 }

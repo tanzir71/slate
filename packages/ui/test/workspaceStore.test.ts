@@ -7,6 +7,52 @@ beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
 describe("persistent workspace store", () => {
+  it("leaves a writer's recovery journal untouched when a read-only tab flushes", async () => {
+    const files = createMemoryFiles({ "note.md": "saved base" });
+    const owner = createWorkspaceStore(record, files);
+    owner.setOwned(true);
+    await owner.load();
+    owner.edit("writer's unsaved words");
+    const reader = createWorkspaceStore(record, files);
+    await reader.load();
+    const journal = localStorage.getItem(`slate.recovery.${record.id}`);
+    await reader.flush();
+    expect(await reader.space.read("note.md")).toBe("saved base");
+    expect(localStorage.getItem(`slate.recovery.${record.id}`)).toBe(journal);
+  });
+
+  it("takes over the latest recovery draft after the previous writer disappears", async () => {
+    const files = createMemoryFiles({ "note.md": "saved base" });
+    const owner = createWorkspaceStore(record, files);
+    owner.setOwned(true);
+    await owner.load();
+    owner.edit("early draft");
+    const reader = createWorkspaceStore(record, files);
+    await reader.load();
+    owner.edit("latest words before the writer disappeared");
+    reader.setOwned(true);
+    expect(reader.api.getState().sheets[0]?.content).toBe("latest words before the writer disappeared");
+    await reader.refresh();
+    await reader.flush();
+    expect(await reader.space.read("note.md")).toBe("latest words before the writer disappeared");
+  });
+
+  it("drops a reader's stale recovery snapshot after the writer has already saved it", async () => {
+    const files = createMemoryFiles({ "note.md": "saved base" });
+    const owner = createWorkspaceStore(record, files);
+    owner.setOwned(true);
+    await owner.load();
+    owner.edit("early draft");
+    const reader = createWorkspaceStore(record, files);
+    await reader.load();
+    owner.edit("latest saved words");
+    await owner.flush();
+    reader.setOwned(true);
+    await reader.refresh();
+    await reader.flush();
+    expect(await reader.space.sheets()).toEqual([{ path: "note.md", content: "latest saved words" }]);
+  });
+
   it("restores the last selected file when opening a Space without a sheet URL", async () => {
     const files = createMemoryFiles({ "A.md": "First", "B.md": "Last selected" });
     localStorage.setItem(`slate.last-sheet.${record.id}`, "B.md");
