@@ -22,7 +22,10 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const state = useStore(store.api);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
-  const [inspector, setInspector] = useState(false);
+  const inspectorKey = `slate.inspector.${state.record.id}`;
+  const [inspector, setInspector] = useState(() => {
+    try { return localStorage.getItem(inspectorKey) === "true"; } catch { return false; }
+  });
   const [palette, setPalette] = useState(false);
   const [action, setAction] = useState<"rename" | "move" | "trash" | "notebook" | undefined>();
   const [actionValue, setActionValue] = useState("");
@@ -50,6 +53,10 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   function run(work: () => Promise<unknown>) {
     void work().catch((error: unknown) => store.api.setState({ error: error instanceof Error ? error.message : "The operation failed. Your files were kept." }));
   }
+
+  useEffect(() => {
+    try { localStorage.setItem(inspectorKey, String(inspector)); } catch { /* View preferences are optional. */ }
+  }, [inspectorKey, inspector]);
 
   useEffect(() => {
     const record = state.record;

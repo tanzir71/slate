@@ -134,7 +134,7 @@ export function BrowserApp({ createIndex, updateReady, updateVersion, onReload }
     }}>Reload</button></div>}
     {error && <div className="errorNotice" role="alert">{error}</div>}
     {workspace ? <Suspense fallback={<p role="status">Opening your writing…</p>}>
-      <Workspace store={workspace} createIndex={createIndex} onKeepSample={keepSample} onAbout={() => setAboutOpen(true)}
+      <Workspace key={workspace.api.getState().record.id} store={workspace} createIndex={createIndex} onKeepSample={keepSample} onAbout={() => setAboutOpen(true)}
         onTakeover={async () => { await ownership.current?.acquire(true); await workspace.refresh(); await workspace.flush(); }}
         onSwitchSpace={async () => {
           await workspace.flush(); await ownership.current?.close(); workspaceRef.current = undefined; setWorkspace(undefined); setRecords(await listBrowserSpaces());
