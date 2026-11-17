@@ -2,12 +2,13 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: ["**/typing-performance.spec.ts", "**/e2e/desktop/**"],
+  testIgnore: ["**/typing-performance.spec.ts", "**/e2e/desktop/**", "**/e2e/visual/**"],
   timeout: 30_000,
   fullyParallel: true,
   // The suite includes a <1 s first-paint budget, which needs dedicated resources.
   workers: 1,
-  reporter: [["list"], ["html", { open: "never" }]],
+  outputDir: "test-results/browser",
+  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report/browser" }]],
   use: {
     baseURL: "http://127.0.0.1:4175/slate/app/",
     trace: "retain-on-failure",

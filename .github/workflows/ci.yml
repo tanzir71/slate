@@ -46,6 +46,9 @@ jobs:
         run: pnpm e2e
       - name: Verify the built desktop frontend
         run: pnpm e2e:desktop
+      - name: Visual regression (pinned Linux Chromium reference)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm visual
       - name: Verify Windows (WebKit storage is checked on Linux and macOS)
         if: matrix.os == 'windows-latest'
         run: pnpm e2e --project=chromium --project=firefox --project=mobile

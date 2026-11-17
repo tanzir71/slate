@@ -86,6 +86,8 @@ After `pnpm build`, the debug desktop executable is at `apps/desktop/src-tauri/t
 
 `pnpm e2e:desktop` checks the built desktop frontend's commands, formatting, shortcut sheet, modal accessibility and focus. These browser-driven checks use an explicit test IPC adapter; they do not replace the native disk tests or OS package smoke checks.
 
+`pnpm visual` checks A1/A5/A11 and the selection toolbar in Light/Dark against reviewed PNGs with a 0.2% difference limit. It uses a pinned Linux Chromium image through Docker on every host. See [visual testing](docs/visual-testing.md) for baseline review and updates.
+
 ## Keyboard shortcuts
 
 | Action | Shortcut |

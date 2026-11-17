@@ -100,6 +100,19 @@ export function CommandDialog({
     },
   ];
 
+  const searchField = (
+    <label className="commandSearch">
+      <Search size={16} />
+      <input
+        ref={search}
+        aria-label={shortcuts ? "Search shortcuts" : "Search commands"}
+        placeholder={shortcuts ? `Search ${available.length} commands` : "What would you like to do?"}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+    </label>
+  );
+
   return (
     <dialog
       ref={dialog}
@@ -118,26 +131,14 @@ export function CommandDialog({
         <span className="shortcutProfile">
           {os === "mac" ? "macOS" : os === "windows" ? "Windows" : "Linux"} · {surface === "web" ? "Browser" : "Desktop"}
         </span>
+        {shortcuts && searchField}
         <button aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>
           <X size={18} />
         </button>
       </header>
-      <label className="commandSearch">
-        <Search size={16} />
-        <input
-          ref={search}
-          aria-label={shortcuts ? "Search shortcuts" : "Search commands"}
-          placeholder={
-            shortcuts
-              ? `Search ${available.length} commands`
-              : "What would you like to do?"
-          }
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
+      {!shortcuts && searchField}
       {shortcuts ? (
-        <div className="shortcutColumns">
+        <div className="shortcutColumns" role="region" aria-label="Keyboard shortcut list" tabIndex={0}>
           {columns
             .filter((column) => column.entries.length)
             .map((column) => (

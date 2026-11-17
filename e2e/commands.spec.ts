@@ -83,6 +83,12 @@ test("registry labels, shortcut search, palette formatting and focus restoration
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
   expect(a11y.violations).toEqual([]);
+  const shortcutList = sheet.getByRole("region", { name: "Keyboard shortcut list", exact: true });
+  if (await shortcutList.evaluate((element) => element.scrollHeight > element.clientHeight)) {
+    await shortcutList.focus();
+    await page.keyboard.press("PageDown");
+    await expect.poll(() => shortcutList.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  }
   await expect(
     sheet
       .locator(".shortcutRow")

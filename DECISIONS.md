@@ -291,3 +291,9 @@ The desktop palette and inspector start closed. Inspector uses Mod+Shift+I, leav
 ## 2026-11-18 - Keep the shortcut migration notice optional and consistent
 
 Retain the existing `slate.shortcuts.v2` seen marker rather than showing another browser migration message. Build default-shortcut labels from the shared registry and OS profile, including Command/Shift on macOS. The native preview uses the same notice once per origin, with a keyboard-accessible dismiss button. Failed preference reads or writes skip this optional notice; they cannot fail a workspace open or change file recovery. The wording explicitly describes defaults because a Space can customize its bindings.
+
+## 2026-11-18 - Keep pixel comparisons on one reproducible browser reference
+
+Visual regression uses a Linux x64 Playwright 1.65.1 Noble image pinned by digest, including when invoked from Windows. An ephemeral Linux project installs the exact test runner, reads the real built site and mounts only expected PNGs and test reports writable. Host dependencies are not reused across operating systems. Time, locale, fonts, storage estimate and fixtures are controlled; file persistence and app rendering remain real. CI and Pages compare eight Light/Dark snapshots at the original 0.2% limit, and CI cannot update expected images.
+
+The baseline review compares the implemented A1/A5/A11 structure to the supplied Figma snapshots; it does not claim raster equality with future-feature mockups. The shortcut sheet now places search in its header and uses A5's 720 px desktop frame, with a stacked header and scrollable body on small screens. Properties/rich widgets, starter kits and rebinding retain their planned later releases. Pixel regression is separate from the engine-wide functional, accessibility and typing gates.
