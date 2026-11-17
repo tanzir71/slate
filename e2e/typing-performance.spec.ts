@@ -91,7 +91,19 @@ test("50k-word typing reaches the next frame within the p95 budget", async ({
   });
   await short.focus();
   const baseline = await typingSamples(page);
-  const editor = await createSheet(page, markdown);
+  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText("Saved");
+  expect(await readCurrentSheet(page)).toBe(`Short document.${sampleText}`);
+  // Open a real 50k-word file; bulk contenteditable insertion is a separate paste workload.
+  await page.getByLabel("Import files", { exact: true }).setInputFiles({
+    name: "Fifty Thousand Words.md", mimeType: "text/markdown", buffer: Buffer.from(markdown),
+  });
+  await showSheets(page);
+  const imported = page.locator('.browserSheetRow[data-path="Fifty Thousand Words.md"]');
+  await expect(imported).toBeVisible({ timeout: 15_000 });
+  await imported.click();
+  await expect(page).toHaveURL(/Fifty%20Thousand%20Words\.md$/);
+  const editor = page.locator(".cm-content");
+  await expect(editor).toContainText("word0 word1");
   expect(
     (await readCurrentSheet(page)) === markdown,
     "The benchmark starts with all 50,000 words saved in the selected sheet",
