@@ -1,8 +1,9 @@
-declare module "wa-sqlite/src/examples/OriginPrivateFileSystemVFS.js" {
-  import * as VFS from "wa-sqlite/src/VFS.js";
+declare module "*.wasm?url" { const url: string; export default url; }
 
-  export class OriginPrivateFileSystemVFS extends VFS.Base {
+declare module "@journeyapps/wa-sqlite/src/examples/OPFSCoopSyncVFS.js" {
+  export class OPFSCoopSyncVFS {
     readonly name: string;
+    static create(name: string, module: unknown): Promise<OPFSCoopSyncVFS>;
     close(): Promise<void>;
   }
 }

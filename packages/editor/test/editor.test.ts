@@ -7,8 +7,22 @@ import {
   findInactiveMarkdownMarkerRanges,
   findWikiLinkAtPosition
 } from "../src/index";
+import { createSlateMarkdownExtensions, toggleEditorTask, wrapEditorSelection } from "../src/index";
+import { undo } from "@codemirror/commands";
 
 describe("editor helpers", () => {
+  it("formats a selection with one undo and toggles a Markdown task", () => {
+    const host = document.createElement("div");
+    const view = new EditorView({ parent: host, state: EditorState.create({ doc: "my words\n- [ ] task", selection: { anchor: 0, head: 8 }, extensions: createSlateMarkdownExtensions() }) });
+    expect(wrapEditorSelection(view, "*")).toBe(true);
+    expect(view.state.doc.toString()).toBe("*my words*\n- [ ] task");
+    undo(view);
+    expect(view.state.doc.toString()).toBe("my words\n- [ ] task");
+    view.dispatch({ selection: { anchor: view.state.doc.length } });
+    expect(toggleEditorTask(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe("my words\n- [x] task");
+    view.destroy();
+  });
   it("computes the live HUD from Markdown text", () => {
     expect(computeEditorHud("# Title\n\nDraft copy for #writing/work.")).toMatchObject({
       words: 5,

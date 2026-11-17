@@ -2,12 +2,20 @@
 
 ## Current Status
 
-- Current phase: Complete
-- Current task: Product website and same-instance PWA demo rollout complete.
-- Gate: `pnpm verify` plus `pnpm build:site` pass on 2026-07-13: strict typecheck, lint/clippy, 57 TypeScript tests, 8 Rust tests, all builds, performance budgets, 7 runnable E2E flows (1 intentional mobile keyboard skip), and landing/PWA checks.
+- Current phase: Slate 2.0 handover implementation, in release order (v0.2 through v1.1).
+- Current task: Landing page first (F-120), per user steering; verify and push to GitHub with repeatable release publication. Continue v0.2–v1.1 afterward.
+- Gate: strict TypeScript, lint/clippy, 73 unit tests and 8 Rust tests pass. The full build (including the Windows desktop executable), site assembly and app perf budgets pass. Supported Windows browser suite: 48 passed, 3 capability skips. Linux WebKit: 15 passed, 2 capability skips. Final landing Lighthouse: 100 in all four categories, mobile LCP 1.41 s, CLS 0. Publication is in progress; v0.2 release is not complete.
 
 ## Loop Notes
 
+- 2026-11-17: Completed and visually inspected the L1/L2 landing using local brand assets/fonts/icons, real app screenshots, responsive navigation, working browser CTAs, dated comparison sources and author credit. All eight landing checks passed across Chromium, Firefox, WebKit and mobile Chromium, including decoding the mobile AVIF. Default-mobile Lighthouse passes the original budget: all four scores 100, LCP 1.41 s, CLS 0. Added a release/tag/manual Pages workflow with a live save/reopen smoke check and release instructions. Pushing the verified source and changing Pages from legacy branch publishing to Actions.
+- 2026-11-17: Final browser-runtime verification: Playwright 1.65.1 with an isolated persistent profile passes all WebKit storage/offline/worker/update tests on Linux (15 passed, 2 capability skips). Windows still has transient OPFS/cache errors in WebKit; use `pnpm e2e --project=chromium --project=firefox --project=mobile` locally (48 passed, 3 skips), with the full WebKit gate on Linux/macOS. This supersedes the older runtime/platform notes below.
+- 2026-11-17: User explicitly prioritized the landing page and requested a GitHub push so it is ready with every release. Moving the landing redesign ahead of the original v0.6 ordering; retain the full remaining handover scope. Live Figma design-context tool still returns Unknown tool, so implementing from the supplied L1/L2 snapshots and bundled brand. Marketing will show implemented features and hide unshipped capabilities.
+- 2026-11-17: Linux testing reproduced the same absent Storage API with Playwright 1.61.1, including persistent profiles. Upstream fixed this in the WebKit r2339 roll ([Playwright #41984](https://github.com/microsoft/playwright/pull/41984)); the baseline lockfile predates it. Upgrading the test runner to the verified current stable 1.65.1 and keeping isolated persistent WebKit profiles. This supersedes the earlier assumption that moving the existing runner to Linux alone would fix the gate.
+- 2026-11-17: Implemented file-backed Folder/OPFS/temporary Sample Spaces, a Zustand workspace store with recovery journal, conflict-copy saves, safe moves and trash, byte-preserving lazy zip import/export, multi-tab ownership and broadcasts, real notebook/tag navigation, hash deep links, basic formatting and caret/scroll preferences. Added worker SQLite FTS search, local icons, CSP, Workbox prompt updates, `/app/` site assembly and `/demo/` redirect. Production shell is approximately 69 KB gzip. Chromium and Firefox passed persistence/offline/ownership/archive/worker tests; mobile Chromium passed the corresponding flows. Added real SW replacement coverage; final gates and missing v0.2 acceptance items remain in progress.
+- 2026-11-17: Browser tests discovered baseline wa-sqlite WASM lacked FTS5. Replaced it with pinned `@journeyapps/wa-sqlite@2.0.10`, OPFSCoopSyncVFS and a prepared-statement adapter; real worker FTS tests now pass without COOP/COEP.
+- 2026-11-17: Platform finding: Windows Playwright WebKit 1.61.1 exposes no `navigator.storage` on either secure `localhost` or `127.0.0.1`. Full WebKit tests remain enabled, and CI runs them on Ubuntu/macOS. Local workaround: `pnpm e2e --project=chromium --project=firefox --project=mobile`; attempting the full WebKit suite in a Linux Playwright container. Do not interpret Windows WebKit failures as verified Safari behavior.
+- 2026-11-17: User authorized implementation of `handover/`. Following the dated redesign plan in release order; all v0.3–v1.1 requirements remain pending. Live Figma tool returned `Unknown tool`, so dated snapshots are the available visual reference until live access is restored. Started browser storage dependencies (Zustand, fflate); dependency install session no longer exists, so checking installed state before continuing.
 - 2026-07-13: Added a static product site and build pipeline that serves the real seeded web PWA at `/demo/`, with relative assets so the same output works on Vercel and GitHub Pages.
 - 2026-07-13: Verified landing-to-editor interaction, search, shortcuts, console/network cleanliness, desktop/mobile layout, security headers, and the live deployment at `https://slate-local-workspace.vercel.app/`.
 - 2026-07-09: Workspace contained only `SLATE_CODEX_HANDOFF.md`. Initialized Git in place because no existing repository or branch was available.
@@ -38,6 +46,33 @@
 - 2026-07-10: Added release notes summarizing the shipped handoff build, verification evidence, operational notes, and remaining deepening areas.
 
 ## Phase Board
+
+### Slate 2.0 — v0.2 "Use it today" (in progress)
+
+- [x] Persistent file adapter, conflict-safe operations and recovery-journal tests
+- [x] Folder/Browser library/Sample onboarding, real workspace store and notebook/tag controls
+- [x] Local worker FTS index without cross-origin isolation (Chromium/Firefox verified)
+- [x] Relative `/app/` build, hash links, legacy redirect, CSP and bundled brand icons
+- [x] Offline save/reopen, folder reconnect, multi-tab ownership and byte-identical zip tests (supported Windows engines)
+- [x] Folder and multi-batch directory import implementation
+- [x] Finish verification of SW update activation/flush flow
+- [x] Linux WebKit OPFS/worker/offline verification
+- [ ] Complete manifest shortcut/file-handler behavior and capability matrix
+- [ ] Final v0.2 performance/installability, `pnpm verify`, release notes/version and commit
+- [ ] Tag/deploy/release validation
+
+### Slate 2.0 — remaining releases
+
+- [ ] v0.3 Design tokens/fonts/theming, registry/keymaps, toolbar and basic live rendering
+- [ ] v0.4 Blocks/slash menu, smart input/paste/lists/tables
+- [ ] v0.5 Templates/prompts/daily notes/snippets/starter kits
+- [ ] v0.6 Guarded Tidy engine/review/batch and redesigned landing
+- [ ] v0.7 Palette modes/quick open/search replace/outline/tabs/split
+- [ ] v0.8 Rich Live/Source/Read rendering and Zen
+- [ ] v0.9 Desktop IO/watch/security/signing/installers/updater/capture/URL actions
+- [ ] v0.10 Automation/rules/CLI/permissioned MCP/rebinding
+- [ ] v1.0 History/export/importers/full settings and template library
+- [ ] v1.1 Opt-in encrypted Sync beta, relay/key management/devices/conflicts
 
 ### Phase 0 - Foundation and Guardrails
 

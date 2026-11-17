@@ -1,0 +1,111 @@
+/** File operations shared by user-selected directories and OPFS libraries. */
+export interface BrowserFileHandle {
+  readonly kind: "file";
+  readonly name: string;
+  getFile(): Promise<Pick<File, "text" | "arrayBuffer" | "size" | "lastModified">>;
+  createWritable(): Promise<{
+    write(data: Uint8Array): Promise<void>;
+    close(): Promise<void>;
+    abort(): Promise<void>;
+  }>;
+}
+
+export interface BrowserDirectoryHandle {
+  readonly kind: "directory";
+  readonly name: string;
+  entries(): AsyncIterableIterator<[string, BrowserDirectoryHandle | BrowserFileHandle]>;
+  getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<BrowserDirectoryHandle>;
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<BrowserFileHandle>;
+  removeEntry(name: string): Promise<void>;
+  queryPermission?(options: { mode: "readwrite" }): Promise<PermissionState>;
+  requestPermission?(options: { mode: "readwrite" }): Promise<PermissionState>;
+}
+
+export interface BrowserFiles {
+  list(includePrivate?: boolean): Promise<string[]>;
+  read(path: string): Promise<Uint8Array | undefined>;
+  write(path: string, bytes: Uint8Array): Promise<void>;
+  remove(path: string): Promise<void>;
+}
+
+export function safeBrowserPath(path: string): string {
+  const normalized = path.replaceAll("\\", "/");
+  const parts = normalized.split("/");
+  if (!normalized || parts.some((part) => !part || part === "." || part === ".." || part.includes(":") || [...part].some((character) => character.charCodeAt(0) < 32))) {
+    throw new Error(`Invalid workspace path: ${path}`);
+  }
+  return normalized;
+}
+
+export function createDirectoryFiles(root: BrowserDirectoryHandle): BrowserFiles {
+  async function locate(path: string, create: boolean) {
+    const parts = safeBrowserPath(path).split("/");
+    const name = parts.pop()!;
+    let directory = root;
+    for (const part of parts) directory = await directory.getDirectoryHandle(part, { create });
+    return { directory, name };
+  }
+
+  return {
+    async list(includePrivate = false) {
+      const paths: string[] = [];
+      async function walk(directory: BrowserDirectoryHandle, prefix: string) {
+        for await (const [name, entry] of directory.entries()) {
+          if (!includePrivate && name === ".slate") continue;
+          const path = safeBrowserPath(`${prefix}${name}`);
+          if (entry.kind === "directory") await walk(entry, `${path}/`);
+          else paths.push(path);
+        }
+      }
+      await walk(root, "");
+      return paths.sort();
+    },
+    async read(path) {
+      try {
+        const { directory, name } = await locate(path, false);
+        const file = await (await directory.getFileHandle(name)).getFile();
+        return new Uint8Array(await file.arrayBuffer());
+      } catch (error) {
+        if (isNotFound(error)) return undefined;
+        throw error;
+      }
+    },
+    async write(path, bytes) {
+      const { directory, name } = await locate(path, true);
+      const handle = await directory.getFileHandle(name, { create: true });
+      const writable = await handle.createWritable();
+      try {
+        await writable.write(bytes);
+        await writable.close();
+      } catch (error) {
+        await writable.abort().catch(() => undefined);
+        throw error;
+      }
+    },
+    async remove(path) {
+      const { directory, name } = await locate(path, false);
+      await directory.removeEntry(name);
+    }
+  };
+}
+
+export function createMemoryFiles(initial: Record<string, string> = {}): BrowserFiles {
+  const files = new Map(Object.entries(initial).map(([path, content]) => [safeBrowserPath(path), encodeText(content)]));
+  return {
+    async list(includePrivate = false) {
+      return [...files.keys()].filter((path) => includePrivate || !path.startsWith(".slate/")).sort();
+    },
+    async read(path) { return files.get(safeBrowserPath(path))?.slice(); },
+    async write(path, bytes) { files.set(safeBrowserPath(path), bytes.slice()); },
+    async remove(path) {
+      if (!files.delete(safeBrowserPath(path))) throw new DOMException("File not found", "NotFoundError");
+    }
+  };
+}
+
+export const encodeText = (text: string): Uint8Array => new TextEncoder().encode(text);
+export const decodeText = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
+
+function isNotFound(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "name" in error && error.name === "NotFoundError";
+}

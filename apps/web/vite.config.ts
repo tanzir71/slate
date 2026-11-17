@@ -1,15 +1,37 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
+import { VitePWA } from "vite-plugin-pwa";
 
 const fromRoot = (path: string): string =>
   fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
   base: "./",
-  plugins: [react()],
+  plugins: [react(), VitePWA({
+    registerType: "prompt",
+    injectRegister: false,
+    manifest: false,
+    workbox: {
+      globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm,json,webmanifest}"],
+      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      navigateFallback: "index.html",
+      cleanupOutdatedCaches: true,
+      clientsClaim: true
+    }
+  })],
+  worker: { format: "es" },
   resolve: {
     alias: {
+      "@slate/ui/browser": fromRoot("../../packages/ui/src/browser/BrowserApp.tsx"),
+      "@slate/storage/browser-files": fromRoot("../../packages/storage/src/browserFiles.ts"),
+      "@slate/storage/browser-import": fromRoot("../../packages/storage/src/browserImport.ts"),
+      "@slate/storage/browser-space": fromRoot("../../packages/storage/src/browserSpace.ts"),
+      "@slate/storage/browser-archive": fromRoot("../../packages/storage/src/browserArchive.ts"),
+      "@slate/storage/browser-catalog": fromRoot("../../packages/storage/src/browserCatalog.ts"),
+      "@slate/storage/browser-ownership": fromRoot("../../packages/storage/src/browserOwnership.ts"),
+      "@slate/storage/web-opfs": fromRoot("../../packages/storage/src/webOpfsSqlite.ts"),
+      "@slate/storage/runtime": fromRoot("../../packages/storage/src/runtimeSqliteAdapter.ts"),
       "@slate/core": fromRoot("../../packages/core/src/index.ts"),
       "@slate/editor": fromRoot("../../packages/editor/src/index.ts"),
       "@slate/export": fromRoot("../../packages/export/src/index.ts"),

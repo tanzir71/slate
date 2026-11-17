@@ -1,6 +1,6 @@
 # Slate
 
-**Website:** https://slate-local-workspace.vercel.app/ · **Live demo:** https://slate-local-workspace.vercel.app/demo/
+**Website:** [tanzir71.github.io/slate](https://tanzir71.github.io/slate/) · **Browser app:** [Open Slate](https://tanzir71.github.io/slate/app/) · [Sample Space](https://tanzir71.github.io/slate/app/?sample=1)
 
 > A local-first Markdown editor and knowledge workspace — the calm of Ulysses/Bear with the ownership of Obsidian, on web and desktop.
 
@@ -51,7 +51,10 @@ Why this shape: `core` is pure (no I/O), so all document logic is fast to test; 
 
 ```bash
 pnpm install
+pnpm exec playwright install chromium firefox webkit
 ```
+
+The landing page and browser app publish together on every release. `pnpm build:site` builds the app, captures its real Sample Space for the product image, and assembles the static site. `pnpm perf:site` checks the landing's Lighthouse, LCP and layout-shift budgets. See [RELEASING.md](RELEASING.md) for the tag/deploy workflow and [the browser guide](docs/browser.md) for local storage and backup behavior.
 
 > **Windows note:** on this host, dependency installation needed Node's system certificate store: `$env:NODE_OPTIONS='--use-system-ca'; pnpm install`. Cargo revocation checks are disabled in `.cargo/config.toml` because local Schannel revocation lookup failed while fetching crates.
 

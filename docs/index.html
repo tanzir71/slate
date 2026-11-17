@@ -3,945 +3,676 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Slate — calm writing, complete ownership</title>
+    <title>Slate — Markdown at the speed of thought.</title>
     <meta
       name="description"
-      content="A free, local-first Markdown workspace for web and desktop. Calm writing, Spaces organization, and plain-text ownership."
+      content="A calm, keyboard-first Markdown editor that runs in your browser. Write offline, keep your own files, and take your words anywhere. Free. No account."
     />
-    <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#0b0c0f" />
-    <link rel="canonical" href="https://slate-local-workspace.vercel.app/" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light" />
+    <link rel="canonical" href="https://tanzir71.github.io/slate/" />
+    <meta property="og:type" content="website" />
     <meta
       property="og:title"
-      content="Slate — calm writing, complete ownership"
+      content="Slate — Markdown at the speed of thought."
     />
     <meta
       property="og:description"
-      content="Ulysses-calm writing. Obsidian-grade ownership. Web + desktop, free."
+      content="For people who write in plain text. A calm editor, ordinary Markdown files, and a little more room to think."
     />
-    <meta property="og:type" content="website" />
-    <meta
-      property="og:url"
-      content="https://slate-local-workspace.vercel.app/"
-    />
+    <meta property="og:url" content="https://tanzir71.github.io/slate/" />
     <meta
       property="og:image"
-      content="https://slate-local-workspace.vercel.app/og.svg"
+      content="https://tanzir71.github.io/slate/assets/workspace-light.jpg"
     />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="Slate — calm writing, complete ownership"
-    />
-    <meta
-      name="twitter:description"
-      content="A free, local-first Markdown workspace for web and desktop."
-    />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg: #0b0c0f;
-        --raised: #14161b;
-        --raised2: #191c22;
-        --border: #292d36;
-        --text: #e8eaf0;
-        --dim: #9aa0ae;
-        --accent: #94a3b8;
-        --ink: #101317;
-        --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
-        --sans: -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
-        --radius: 12px;
-        --max: 1120px;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html {
-        scroll-behavior: smooth;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font: 15px/1.65 var(--sans);
-      }
-      body:before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        background:
-          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-          linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.025) 1px,
-            transparent 1px
-          );
-        background-size: 52px 52px;
-        mask-image: linear-gradient(#000, transparent 82%);
-      }
-      a {
-        color: inherit;
-      }
-      .wrap {
-        width: min(calc(100% - 40px), var(--max));
-        margin: auto;
-      }
-      .skip {
-        position: absolute;
-        left: -9999px;
-      }
-      .skip:focus {
-        left: 15px;
-        top: 15px;
-        background: #fff;
-        color: #000;
-        padding: 10px 14px;
-        z-index: 30;
-        border-radius: 8px;
-      }
-      nav {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(11, 12, 15, 0.82);
-        backdrop-filter: blur(18px);
-      }
-      .nav {
-        min-height: 66px;
-        display: flex;
-        align-items: center;
-        gap: 25px;
-      }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-decoration: none;
-        font-weight: 760;
-      }
-      .mark {
-        width: 30px;
-        height: 30px;
-        border: 1px solid var(--accent);
-        border-radius: 8px;
-        display: grid;
-        place-items: center;
-        color: var(--accent);
-        font: 700 16px var(--mono);
-      }
-      .links {
-        margin-left: auto;
-        display: flex;
-        align-items: center;
-        gap: 22px;
-      }
-      .links a {
-        text-decoration: none;
-        color: #c8ccd4;
-        font-size: 14px;
-      }
-      .button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 15px;
-        border: 1px solid var(--border);
-        border-radius: 9px;
-        background: var(--raised);
-        text-decoration: none;
-        font-weight: 680;
-        color: #fff;
-      }
-      .button:hover {
-        border-color: #59606d;
-        transform: translateY(-1px);
-      }
-      .button.primary {
-        background: var(--accent);
-        color: var(--ink);
-        border-color: var(--accent);
-      }
-      .hero {
-        padding: 96px 0 60px;
-      }
-      .eyebrow {
-        color: #cbd5e1;
-        font: 700 11px/1 var(--mono);
-        text-transform: uppercase;
-        letter-spacing: 0.14em;
-      }
-      h1 {
-        font-size: clamp(45px, 7vw, 82px);
-        line-height: 0.98;
-        letter-spacing: -0.055em;
-        max-width: 1000px;
-        margin: 20px 0 25px;
-      }
-      .lede {
-        font-size: clamp(18px, 2vw, 22px);
-        color: #c5c9d1;
-        max-width: 750px;
-      }
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 11px;
-        margin-top: 31px;
-      }
-      .trust {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 20px;
-        color: var(--dim);
-        font-size: 13px;
-        margin-top: 24px;
-      }
-      .trust span:before {
-        content: "✓";
-        color: #cbd5e1;
-        margin-right: 7px;
-      }
-      section {
-        position: relative;
-        padding: 76px 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.075);
-      }
-      .head {
-        display: flex;
-        justify-content: space-between;
-        align-items: end;
-        gap: 35px;
-        margin-bottom: 32px;
-      }
-      .head h2 {
-        font-size: clamp(31px, 4vw, 49px);
-        line-height: 1.04;
-        letter-spacing: -0.043em;
-        margin: 10px 0;
-      }
-      .head p {
-        max-width: 480px;
-        color: var(--dim);
-        margin: 0;
-      }
-      .product-shot {
-        position: relative;
-        border: 1px solid #363b46;
-        border-radius: 16px;
-        padding: 11px;
-        background: #111318;
-        box-shadow: 0 40px 90px rgba(0, 0, 0, 0.45);
-      }
-      .product-shot img {
-        display: block;
-        width: 100%;
-        height: auto;
-        border-radius: 9px;
-      }
-      .live-chip {
-        position: absolute;
-        top: 26px;
-        right: 26px;
-        padding: 7px 10px;
-        background: rgba(11, 12, 15, 0.85);
-        border: 1px solid #49505d;
-        border-radius: 99px;
-        font: 700 10px var(--mono);
-        letter-spacing: 0.08em;
-      }
-      .live-chip:before {
-        content: "";
-        display: inline-block;
-        width: 7px;
-        height: 7px;
-        background: #86efac;
-        border-radius: 50%;
-        margin-right: 7px;
-      }
-      .flow {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        background: var(--raised);
-      }
-      .flow article {
-        padding: 24px;
-        border-right: 1px solid var(--border);
-      }
-      .flow article:last-child {
-        border: 0;
-      }
-      .num {
-        font: 700 11px var(--mono);
-        color: var(--accent);
-      }
-      .flow h3 {
-        margin: 30px 0 7px;
-      }
-      .flow p,
-      .muted {
-        color: var(--dim);
-      }
-      .demo-grid {
-        display: grid;
-        grid-template-columns: 1.35fr 0.65fr;
-        gap: 18px;
-      }
-      .demo-card {
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: var(--raised);
-        padding: 26px;
-      }
-      .demo-card.big {
-        min-height: 340px;
-        background: linear-gradient(145deg, #181b21, #101216);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-      }
-      .demo-card h3 {
-        font-size: 26px;
-        margin: 10px 0;
-      }
-      .demo-card ul {
-        padding-left: 19px;
-        color: #c7cbd3;
-      }
-      .shortcut {
-        font: 12px var(--mono);
-        border: 1px solid var(--border);
-        background: #0d0f12;
-        border-radius: 6px;
-        padding: 3px 7px;
-      }
-      .demo-steps {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-top: 22px;
-      }
-      .demo-steps div {
-        padding: 15px;
-        border: 1px solid var(--border);
-        border-radius: 9px;
-        background: #121419;
-      }
-      .demo-steps b {
-        display: block;
-        font-size: 13px;
-      }
-      .demo-steps span {
-        color: var(--dim);
-        font-size: 12px;
-      }
-      .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 14px;
-      }
-      .feature {
-        border-top: 1px solid var(--border);
-        padding: 22px 3px;
-      }
-      .feature h3 {
-        margin: 0 0 6px;
-      }
-      .perf {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 14px;
-      }
-      .metric {
-        border: 1px solid var(--border);
-        background: var(--raised);
-        border-radius: var(--radius);
-        padding: 24px;
-      }
-      .metric strong {
-        display: block;
-        font-size: 36px;
-        letter-spacing: -0.04em;
-      }
-      .metric span {
-        color: var(--dim);
-      }
-      .table-wrap {
-        overflow: auto;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-      }
-      table {
-        width: 100%;
-        min-width: 700px;
-        border-collapse: collapse;
-        background: var(--raised);
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 15px 17px;
-        border-bottom: 1px solid var(--border);
-      }
-      th {
-        font: 700 11px var(--mono);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #cbd5e1;
-      }
-      tbody tr:last-child td {
-        border: 0;
-      }
-      tbody tr:first-child {
-        background: #1b1e25;
-      }
-      tbody tr:first-child td:first-child {
-        font-weight: 750;
-      }
-      .scope {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-      }
-      .scope > div {
-        border: 1px solid var(--border);
-        background: var(--raised);
-        border-radius: var(--radius);
-        padding: 25px;
-      }
-      .scope ul {
-        padding-left: 19px;
-        color: #c7cbd3;
-      }
-      details {
-        border-bottom: 1px solid var(--border);
-      }
-      summary {
-        cursor: pointer;
-        list-style: none;
-        padding: 20px 3px;
-        font-weight: 680;
-      }
-      summary:after {
-        content: "+";
-        float: right;
-        color: var(--accent);
-        font-size: 20px;
-      }
-      details[open] summary:after {
-        content: "−";
-      }
-      details p {
-        margin: -5px 0 20px;
-        color: var(--dim);
-        max-width: 780px;
-      }
-      footer {
-        border-top: 1px solid var(--border);
-        padding: 32px 0 48px;
-        color: var(--dim);
-      }
-      .footer {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        flex-wrap: wrap;
-      }
-      .footer a:hover {
-        color: white;
-      }
-      :focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 3px;
-      }
-      @media (max-width: 850px) {
-        .flow,
-        .feature-grid {
-          grid-template-columns: 1fr 1fr;
-        }
-        .flow article:nth-child(2) {
-          border-right: 0;
-        }
-        .flow article {
-          border-bottom: 1px solid var(--border);
-        }
-        .demo-grid {
-          grid-template-columns: 1fr;
-        }
-        .links a:not(.button) {
-          display: none;
-        }
-      }
-      @media (max-width: 600px) {
-        .wrap {
-          width: min(calc(100% - 28px), var(--max));
-        }
-        .hero {
-          padding-top: 64px;
-        }
-        h1 {
-          font-size: 43px;
-        }
-        .head {
-          display: block;
-        }
-        .flow,
-        .feature-grid,
-        .perf,
-        .scope,
-        .demo-steps {
-          grid-template-columns: 1fr;
-        }
-        .flow article {
-          border-right: 0;
-        }
-        section {
-          padding: 58px 0;
-        }
-        .product-shot {
-          padding: 5px;
-        }
-        .live-chip {
-          top: 14px;
-          right: 14px;
-        }
-        .links .button {
-          padding: 8px 10px;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        html {
-          scroll-behavior: auto;
-        }
-        * {
-          transition: none !important;
-          animation: none !important;
-        }
-      }
-    </style>
+    <link rel="preload" as="image" href="./assets/workspace-mobile.avif" media="(max-width: 700px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="./assets/workspace-light.jpg" media="(min-width: 701px)" fetchpriority="high" />
+    <link
+      rel="preload"
+      href="./assets/fonts/newsreader.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="./assets/fonts/geist.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="./landing.css" />
+    <script src="./landing.js" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
-    <nav aria-label="Main navigation">
-      <div class="wrap nav">
-        <a class="brand" href="#top"><span class="mark">S</span>Slate</a>
-        <div class="links">
-          <a href="#features">Features</a><a href="#ownership">Ownership</a
-          ><a href="#faq">FAQ</a
-          ><a class="button" href="./demo/">Open demo ↗</a>
-        </div>
-      </div>
-    </nav>
-    <main id="main">
-      <header class="hero wrap" id="top">
-        <div class="eyebrow">Local-first Markdown workspace</div>
-        <h1>
-          Ulysses-calm writing. Obsidian-grade ownership. Web + desktop, free.
-        </h1>
-        <p class="lede">
-          Slate gives writers a quiet, keyboard-first editor and gives their
-          ideas real structure—Spaces, notebooks, sheets, tags, backlinks, and
-          goals—all backed by Markdown files you own.
-        </p>
-        <div class="actions">
-          <a class="button primary" href="./demo/">Write in the live demo</a
-          ><a class="button" href="https://github.com/tanzir71/slate"
-            >View source ↗</a
+    <header class="site-header">
+      <nav class="container navigation" aria-label="Main navigation">
+        <a class="brand" href="./" aria-label="Slate home"
+          ><img
+            src="./assets/brand/logo-lockup.svg"
+            alt="Slate"
+            width="104"
+            height="28"
+        /></a>
+        <div class="desktop-links">
+          <a href="#features">Features</a><a href="#shortcuts">Shortcuts</a
+          ><a href="#ownership">Ownership</a><a href="#compare">Compare</a
+          ><a href="https://github.com/tanzir71/slate/blob/main/CHANGELOG.md"
+            >Changelog</a
           >
         </div>
-        <div class="trust">
-          <span>No subscription</span><span>Plain .md files</span
-          ><span>Windows, Linux, macOS + PWA</span
-          ><span>No account required</span>
+        <div class="nav-actions">
+          <a class="source-link" href="https://github.com/tanzir71/slate"
+            ><img
+              class="icon"
+              src="./assets/icons/github.svg"
+              alt=""
+            />Source</a
+          ><a class="button small primary" href="./app/"
+            ><img
+              class="icon inverse"
+              src="./assets/icons/globe.svg"
+              alt=""
+            />Open app</a
+          >
         </div>
-      </header>
-      <div class="wrap">
-        <a
-          class="product-shot"
-          href="./demo/"
-          aria-label="Open the live Slate workspace"
-          ><img
-            src="./slate-desktop.png"
-            alt="Slate workspace showing Spaces, notebooks, sheets, Markdown editor, and inspector"
-          /><span class="live-chip">REAL SEEDED PWA</span></a
-        >
-      </div>
-      <section id="ownership">
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <div class="eyebrow">The app is a lens, not a vault</div>
-              <h2>Files first. Index second.</h2>
+        <details class="mobile-menu">
+          <summary aria-label="Open navigation menu">
+            <img src="./assets/icons/menu.svg" width="20" height="20" alt="" />
+          </summary>
+          <div>
+            <a href="#features">Features</a><a href="#shortcuts">Shortcuts</a
+            ><a href="#ownership">Ownership</a><a href="#compare">Compare</a><a href="#faq">FAQ</a
+            ><a href="https://github.com/tanzir71/slate/blob/main/CHANGELOG.md"
+              >Changelog</a
+            ><a href="https://github.com/tanzir71/slate">Source</a
+            ><a href="./app/">Open app</a>
+          </div>
+        </details>
+      </nav>
+    </header>
+    <main id="main">
+      <section class="hero container" aria-labelledby="hero-title">
+        <a class="new-pill" href="./app/"
+          ><span>New</span>Your writing, right in your browser<img
+            class="icon"
+            src="./assets/icons/arrowRight.svg"
+            alt=""
+        /></a>
+        <h1 id="hero-title">
+          Markdown at the <br />speed of <span class="marker">thought.</span>
+        </h1>
+        <p class="lead">
+          A calm, keyboard-first editor for plain .md files. Write, find your
+          flow, and keep every word in a folder you own.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="./app/"
+            ><img
+              class="icon inverse"
+              src="./assets/icons/globe.svg"
+              alt=""
+            />Open in your browser</a
+          ><a class="button secondary" href="https://github.com/tanzir71/slate"
+            ><img class="icon" src="./assets/icons/code.svg" alt="" />View
+            source</a
+          >
+        </div>
+        <ul class="checks" aria-label="Slate essentials">
+          <li>
+            <img class="icon" src="./assets/icons/check.svg" alt="" />No account
+          </li>
+          <li>
+            <img class="icon" src="./assets/icons/check.svg" alt="" />Works
+            offline
+          </li>
+          <li>
+            <img class="icon" src="./assets/icons/check.svg" alt="" />Free
+          </li>
+        </ul>
+      </section>
+
+      <section class="product-section" aria-label="Inside Slate">
+        <div class="product-frame">
+          <a href="./app/?sample=1" aria-label="Try the Slate Sample Space"
+            ><picture><source media="(max-width: 700px)" srcset="./assets/workspace-mobile.avif" width="604" height="480" />
+              <img
+                class="workspace-shot"
+                src="./assets/workspace-light.jpg"
+                width="1440"
+                height="900"
+                fetchpriority="high"
+                alt="The real Slate editor with notebooks, sheets, and a Markdown document, ready for writing." /></picture
+          ></a>
+        </div>
+        <div class="works-with container">
+          <p>Works with the folders you already have</p>
+          <ul>
+            <li>iCloud Drive</li>
+            <li>Dropbox</li>
+            <li>OneDrive</li>
+            <li>Git</li>
+            <li>Syncthing</li>
+            <li>Obsidian vaults</li>
+          </ul>
+          <small
+            >Choose a folder in Chrome or Edge. Use local import and export in
+            other browsers.</small
+          >
+        </div>
+      </section>
+
+      <section
+        class="section create-section container"
+        id="features"
+        aria-labelledby="create-title"
+      >
+        <div class="section-heading">
+          <span class="eyebrow">Create</span>
+          <h2 id="create-title">A little room for your next idea.</h2>
+          <p>
+            Start a sheet, give it a home, and get back to the words.<br
+              class="desktop-only"
+            />
+            Everything you write is ordinary Markdown.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-visual markdown-visual" aria-hidden="true">
+              <div class="mock-label">a-fresh-start.md</div>
+              <div class="mock-writing">
+                <span class="md-marker">#</span> A fresh start
+              </div>
+              <p>
+                One thought becomes a sentence.<br />A sentence becomes a story.
+              </p>
+              <div class="mock-task">
+                <span class="tick">✓</span> Make room to write
+              </div>
+              <div class="mock-task">
+                <span class="empty-tick"></span> See where it takes you<span
+                  class="caret"
+                ></span>
+              </div>
             </div>
+            <div class="feature-icon">
+              <img
+                src="./assets/icons/file.svg"
+                width="20"
+                height="20"
+                alt=""
+              />
+            </div>
+            <div class="feature-copy">
+              <div class="key-hint"><kbd>Alt</kbd><kbd>N</kbd></div>
+              <h3>A fresh page in a keystroke</h3>
+              <p>
+                Headings, lists, links, and your own words. A proper Markdown
+                editor, without an account between you and a blank page.
+              </p>
+            </div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-visual folders-visual" aria-hidden="true">
+              <div class="mock-folder">
+                <img class="icon" src="./assets/icons/folder.svg" alt="" />My
+                writing
+              </div>
+              <div class="mock-folder inset">
+                <img
+                  class="icon"
+                  src="./assets/icons/folder.svg"
+                  alt=""
+                />Projects
+              </div>
+              <div class="mock-file chosen">
+                <img class="icon" src="./assets/icons/file.svg" alt="" />A good
+                beginning.md
+              </div>
+              <div class="mock-file">
+                <img class="icon" src="./assets/icons/file.svg" alt="" />Notes
+                from today.md
+              </div>
+              <div class="mock-folder inset">
+                <img class="icon" src="./assets/icons/folder.svg" alt="" />Ideas
+              </div>
+              <div class="mock-tags">
+                <span>#writing</span><span>#little-things</span>
+              </div>
+            </div>
+            <div class="feature-icon">
+              <img
+                src="./assets/icons/folder.svg"
+                width="20"
+                height="20"
+                alt=""
+              />
+            </div>
+            <div class="feature-copy">
+              <h3>Give your ideas a home</h3>
+              <p>
+                Notebooks are folders. Sheets are files. Add tags, search your
+                writing, and keep related thoughts within reach.
+              </p>
+            </div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-visual capture-visual" aria-hidden="true">
+              <div class="mock-label">a thought, before it disappears</div>
+              <div class="capture-note">
+                <img class="icon" src="./assets/icons/capture.svg" alt="" />
+                <p>
+                  What if the next chapter<br />started with a question?<span
+                    class="caret"
+                  ></span>
+                </p>
+                <div>
+                  <span>Inbox</span
+                  ><span class="mock-save">Save thought ↗</span>
+                </div>
+              </div>
+            </div>
+            <div class="feature-icon">
+              <img
+                src="./assets/icons/capture.svg"
+                width="20"
+                height="20"
+                alt=""
+              />
+            </div>
+            <div class="feature-copy">
+              <h3>Catch the passing thought</h3>
+              <p>
+                Use Capture to save an idea to your Inbox. Keep writing offline,
+                then pick up exactly where you left off.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section
+        class="keyboard-section section"
+        id="shortcuts"
+        aria-labelledby="keyboard-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <span class="eyebrow">Keyboard</span>
+            <h2 id="keyboard-title">Less reaching. More writing.</h2>
             <p>
-              Each Space maps to a folder. Markdown files are authoritative;
-              SQLite FTS is a rebuildable cache. Delete the index and Slate
-              reconstructs it from your writing.
+              The everyday actions, right under your fingertips.<br
+                class="desktop-only"
+              />
+              Use Ctrl on Windows and Linux, or ⌘ on Mac.
             </p>
           </div>
-          <div class="flow">
-            <article>
-              <span class="num">01 / SPACE</span>
-              <h3>Separate contexts</h3>
-              <p>
-                Work, personal, research, or a novel—each backed by its own root
-                folder.
-              </p>
-            </article>
-            <article>
-              <span class="num">02 / NOTEBOOK</span>
-              <h3>Build hierarchy</h3>
-              <p>
-                Nestable folders organize sheets without inventing a proprietary
-                format.
-              </p>
-            </article>
-            <article>
-              <span class="num">03 / SHEET</span>
-              <h3>Write Markdown</h3>
-              <p>
-                One sheet equals one real <code>.md</code> file, with optional
-                front matter.
-              </p>
-            </article>
-            <article>
-              <span class="num">04 / INDEX</span>
-              <h3>Search instantly</h3>
-              <p>
-                SQLite FTS indexes 10,000 sheets while files remain the source
-                of truth.
-              </p>
-            </article>
+          <div class="keyboard-grid">
+            <div class="palette-illustration" aria-hidden="true">
+              <div class="palette-query">
+                <img
+                  class="icon inverse"
+                  src="./assets/icons/search.svg"
+                  alt=""
+                />What would you like to do?<span class="caret"></span>
+              </div>
+              <div class="palette-item active">
+                <img
+                  class="icon inverse"
+                  src="./assets/icons/file.svg"
+                  alt=""
+                /><span>New sheet<small>A little space to think</small></span
+                ><span class="palette-keys">Alt N</span>
+              </div>
+              <div class="palette-item">
+                <img
+                  class="icon inverse"
+                  src="./assets/icons/search.svg"
+                  alt=""
+                /><span>Search sheets<small>Find a thought again</small></span
+                ><span class="palette-keys">Ctrl ⇧ F</span>
+              </div>
+              <div class="palette-item">
+                <img
+                  class="icon inverse"
+                  src="./assets/icons/download.svg"
+                  alt=""
+                /><span
+                  >Export Space as .zip<small
+                    >Take everything with you</small
+                  ></span
+                >
+              </div>
+            </div>
+            <div class="shortcut-grid">
+              <div class="shortcut">
+                <div><kbd>Ctrl</kbd><kbd>K</kbd></div>
+                <span>Command palette</span>
+              </div>
+              <div class="shortcut">
+                <div><kbd>Alt</kbd><kbd>N</kbd></div>
+                <span>New sheet</span>
+              </div>
+              <div class="shortcut">
+                <div>
+                  <kbd>Ctrl</kbd><kbd>B</kbd><span class="key-or">/</span
+                  ><kbd>I</kbd>
+                </div>
+                <span>Bold / italic</span>
+              </div>
+              <div class="shortcut">
+                <div><kbd>Ctrl</kbd><kbd>⇧</kbd><kbd>F</kbd></div>
+                <span>Search your writing</span>
+              </div>
+              <div class="shortcut">
+                <div><kbd>Ctrl</kbd><kbd>⇧</kbd><kbd>I</kbd></div>
+                <span>Show inspector</span>
+              </div>
+              <div class="shortcut">
+                <div><kbd>Ctrl</kbd><kbd>↵</kbd></div>
+                <span>Check off a task</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
-      <section id="demo">
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <div class="eyebrow">Same-instance flagship demo</div>
-              <h2>Use the real editor.</h2>
-            </div>
-            <p>
-              The demo is the actual production web app with a seeded sample
-              Space. Edits stay inside your browser session; it needs no login,
-              API key, or backend.
-            </p>
+
+      <section
+        class="section ownership-section container"
+        id="ownership"
+        aria-labelledby="ownership-title"
+      >
+        <div
+          class="file-tree"
+          aria-label="An example folder of ordinary Markdown files"
+        >
+          <div class="tree-row root">
+            <img class="icon" src="./assets/icons/folder.svg" alt="" /><strong
+              >My writing/</strong
+            >
           </div>
-          <div class="demo-grid">
-            <div class="demo-card big">
+          <div class="tree-row indent-one">
+            <img class="icon" src="./assets/icons/folder.svg" alt="" /><code
+              >Projects/</code
+            >
+          </div>
+          <div class="tree-row indent-two">
+            <img class="icon" src="./assets/icons/folder.svg" alt="" /><code
+              >New beginnings/</code
+            >
+          </div>
+          <div class="tree-row indent-three selected-file">
+            <img class="icon" src="./assets/icons/file.svg" alt="" /><code
+              >a-good-beginning.md</code
+            ><span>the real file</span>
+          </div>
+          <div class="tree-row indent-three">
+            <img class="icon" src="./assets/icons/file.svg" alt="" /><code
+              >notes-from-today.md</code
+            >
+          </div>
+          <div class="tree-row indent-one">
+            <img class="icon" src="./assets/icons/folder.svg" alt="" /><code
+              >Inbox/</code
+            >
+          </div>
+          <div class="tree-row indent-two">
+            <img class="icon" src="./assets/icons/file.svg" alt="" /><code
+              >Capture.md</code
+            >
+          </div>
+          <div class="tree-row indent-one">
+            <img class="icon" src="./assets/icons/folder.svg" alt="" /><code
+              >.slate/trash/</code
+            ><span>a second chance</span>
+          </div>
+          <div class="tree-bottom">
+            <img class="icon" src="./assets/icons/shield.svg" alt="" />Still
+            yours, even without Slate.
+          </div>
+        </div>
+        <div class="ownership-copy">
+          <span class="eyebrow">Ownership</span>
+          <h2 id="ownership-title">Your files. Your folders.<br />Forever.</h2>
+          <ul class="ownership-list">
+            <li>
+              <span class="feature-icon"
+                ><img class="icon" src="./assets/icons/file.svg" alt=""
+              /></span>
               <div>
-                <div class="eyebrow">Try this walkthrough</div>
-                <h3>From idea to organized sheet in two minutes.</h3>
-                <p class="muted">
-                  Open the command palette, create a sheet, write Markdown,
-                  search the library, inspect backlinks, and enter focus mode.
+                <h3>Plain .md is the source of truth</h3>
+                <p>
+                  Every sheet is a normal Markdown file. Open it in another
+                  editor, keep it in Git, or come back in a decade.
                 </p>
               </div>
-              <div class="demo-steps">
-                <div>
-                  <b>1. Explore Spaces</b
-                  ><span>Switch Work, Blog, Research, and Drafts.</span>
-                </div>
-                <div>
-                  <b>2. Create a sheet</b
-                  ><span
-                    >Press <span class="shortcut">Ctrl N</span> or use New
-                    Sheet.</span
-                  >
-                </div>
-                <div>
-                  <b>3. Search</b
-                  ><span
-                    >Press <span class="shortcut">Ctrl Shift F</span> and type
-                    “research”.</span
-                  >
-                </div>
-                <div>
-                  <b>4. Focus</b
-                  ><span
-                    >Press <span class="shortcut">Ctrl .</span> to hide the
-                    noise.</span
-                  >
-                </div>
+            </li>
+            <li>
+              <span class="feature-icon"
+                ><img class="icon" src="./assets/icons/folder.svg" alt=""
+              /></span>
+              <div>
+                <h3>A folder, or your browser</h3>
+                <p>
+                  Work directly in a folder in Chrome or Edge. Keep a private
+                  browser library in Firefox and Safari.
+                </p>
               </div>
-              <a class="button primary" href="./demo/"
-                >Launch seeded workspace ↗</a
-              >
-            </div>
-            <aside class="demo-card">
-              <div class="eyebrow">What is real</div>
-              <h3>Not a mockup.</h3>
-              <ul>
-                <li>Real CodeMirror 6 editor</li>
-                <li>Real search and sheet filtering</li>
-                <li>Real keyboard shortcuts</li>
-                <li>Real responsive workspace</li>
-                <li>Real accessibility-tested UI</li>
-              </ul>
-              <p class="muted">
-                The hosted demo uses seeded in-browser data. Desktop file
-                access, Tauri commands, OPFS folder selection, sync, and
-                publishing adapters require their respective runtime or future
-                integration.
-              </p>
-            </aside>
-          </div>
+            </li>
+            <li>
+              <span class="feature-icon"
+                ><img class="icon" src="./assets/icons/layers.svg" alt=""
+              /></span>
+              <div>
+                <h3>Conflicts become copies</h3>
+                <p>
+                  When edits disagree, Slate keeps both versions. Your words
+                  deserve a second copy, not a replacement.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="feature-icon"
+                ><img class="icon" src="./assets/icons/download.svg" alt=""
+              /></span>
+              <div>
+                <h3>Take everything with you</h3>
+                <p>
+                  Export your whole Space as a .zip. Markdown, assets, and your
+                  recoverable trash travel together.
+                </p>
+              </div>
+            </li>
+          </ul>
         </div>
       </section>
-      <section id="features">
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <div class="eyebrow">Calm by default, powerful on demand</div>
-              <h2>A writing space with depth.</h2>
-            </div>
+
+      <section
+        class="section compare-section"
+        id="compare"
+        aria-labelledby="compare-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <span class="eyebrow">Compare</span>
+            <h2 id="compare-title">The essentials, without the lock-in.</h2>
+            <p>A few things to consider when choosing a home for your words.</p>
           </div>
-          <div class="feature-grid">
-            <article class="feature">
-              <h3>Invisible Markdown</h3>
-              <p class="muted">
-                CodeMirror decorations quiet syntax outside the active range
-                without altering source.
-              </p>
-            </article>
-            <article class="feature">
-              <h3>Spaces → sheets</h3>
-              <p class="muted">
-                Context, nested notebooks, sheets, tags, and smart filters in a
-                focused three-pane model.
-              </p>
-            </article>
-            <article class="feature">
-              <h3>Backlinks + wiki-links</h3>
-              <p class="muted">
-                Navigate <code>[[linked ideas]]</code> and inspect which sheets
-                point back.
-              </p>
-            </article>
-            <article class="feature">
-              <h3>Writing goals</h3>
-              <p class="muted">
-                Track word, character, and progress targets beside the document.
-              </p>
-            </article>
-            <article class="feature">
-              <h3>Keyboard spine</h3>
-              <p class="muted">
-                Command palette, search, pane toggles, focus mode, and Space
-                switching have shortcuts.
-              </p>
-            </article>
-            <article class="feature">
-              <h3>Conflict-safe by design</h3>
-              <p class="muted">
-                BYO-folder reconciliation prefers conflict copies over
-                destructive overwrites.
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-      <section>
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <div class="eyebrow">Budgets, not vibes</div>
-              <h2>Performance enforced in CI.</h2>
-            </div>
-            <p>
-              Deterministic gates keep large documents and libraries responsive
-              as features grow.
-            </p>
-          </div>
-          <div class="perf">
-            <div class="metric">
-              <strong>&lt;400ms</strong
-              ><span>Open and parse a 50,000-word sheet</span>
-            </div>
-            <div class="metric">
-              <strong>&lt;100ms</strong
-              ><span>SQLite FTS search across 10,000 sheets</span>
-            </div>
-            <div class="metric">
-              <strong>94%+</strong
-              ><span>Current core line coverage baseline</span>
-            </div>
-          </div>
-        </div>
-      </section>
-      <section>
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <div class="eyebrow">Different trade-offs</div>
-              <h2>Ownership without the Apple tax.</h2>
-            </div>
-            <p>
-              July 2026 reference points. Competitor prices and product terms
-              can change.
-            </p>
-          </div>
-          <div class="table-wrap">
+          <div
+            class="comparison-scroll"
+            role="region"
+            aria-label="Editor comparison"
+            tabindex="0"
+          >
             <table>
+              <caption class="visually-hidden">
+                Slate and other Markdown editors, checked 17 November 2026
+              </caption>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Price / platform</th>
-                  <th>Storage</th>
-                  <th>Shape</th>
+                  <th scope="col">At a glance</th>
+                  <th scope="col" class="slate-column">Slate</th>
+                  <th scope="col">Obsidian</th>
+                  <th scope="col">Typora</th>
+                  <th scope="col">iA Writer</th>
+                  <th scope="col">Bear</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Slate</td>
-                  <td>Free · web + desktop</td>
-                  <td>Plain local Markdown</td>
-                  <td>Calm writing + Spaces hierarchy</td>
+                  <th scope="row">Plain .md files in your folders</th>
+                  <td class="slate-column">Yes</td>
+                  <td>Yes</td>
+                  <td>Yes</td>
+                  <td>Yes</td>
+                  <td>Export to .md</td>
                 </tr>
                 <tr>
-                  <td>Ulysses</td>
-                  <td>$5.99/mo or $49.99/yr · Apple</td>
-                  <td>App library / iCloud</td>
-                  <td>Polished long-form writing</td>
+                  <th scope="row">Start writing in a browser</th>
+                  <td class="slate-column">Yes</td>
+                  <td>Desktop / mobile</td>
+                  <td>Desktop</td>
+                  <td>Desktop / mobile</td>
+                  <td>Web beta</td>
                 </tr>
                 <tr>
-                  <td>Bear Pro</td>
-                  <td>$2.99/mo or $29.99/yr · Apple</td>
-                  <td>App library / iCloud</td>
-                  <td>Beautiful notes + nested tags</td>
-                </tr>
-                <tr>
-                  <td>Obsidian</td>
-                  <td>Free core · optional paid Sync</td>
-                  <td>Plain local Markdown</td>
-                  <td>Plugin-rich knowledge vault</td>
-                </tr>
-                <tr>
-                  <td>iA Writer</td>
-                  <td>One-time purchase · multiple platforms</td>
-                  <td>Local/cloud folders</td>
-                  <td>Minimal editor, lighter library model</td>
+                  <th scope="row">Local writing</th>
+                  <td class="slate-column">Free</td>
+                  <td>Free</td>
+                  <td>One-time purchase</td>
+                  <td>One-time purchase</td>
+                  <td>Free + Pro</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <p class="comparison-note">
+            Checked 17 November 2026 against each product’s public pages.
+            Editions and availability can change.
+            <a
+              href="https://github.com/tanzir71/slate/blob/main/docs/compare-sources.md"
+              >Sources and details ↗</a
+            >
+          </p>
         </div>
       </section>
-      <section>
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <div class="eyebrow">Honest scope</div>
-              <h2>What ships—and what does not.</h2>
-            </div>
+
+      <section class="section faq-section" id="faq" aria-labelledby="faq-title">
+        <div class="container">
+          <div class="section-heading">
+            <span class="eyebrow">FAQ</span>
+            <h2 id="faq-title">Questions, answered.</h2>
           </div>
-          <div class="scope">
-            <div>
-              <h3>Working today</h3>
-              <ul>
-                <li>Seeded web PWA and Tauri desktop shell</li>
-                <li>Markdown editing, search, goals, backlinks, modes</li>
-                <li>File/index adapters and conflict-safe primitives</li>
-                <li>
-                  Export and publishing interfaces with deterministic adapters
-                </li>
-                <li>Accessibility and performance test gates</li>
-              </ul>
-            </div>
-            <div>
-              <h3>Still a separate track</h3>
-              <ul>
-                <li>
-                  Mobile is a placeholder shell, not a finished mobile release
-                </li>
-                <li>
-                  Slate Sync is an interface and local merge model—not a hosted
-                  service
-                </li>
-                <li>Publishing adapters are not hosted integrations</li>
-                <li>The web demo uses seeded browser state, not your disk</li>
-                <li>
-                  No multiplayer, plugin marketplace, or proprietary block
-                  format
-                </li>
-              </ul>
-            </div>
+          <div class="faq-grid">
+            <article>
+              <h3>Is Slate really free?</h3>
+              <p>
+                Yes. Writing on your own files is free, with no account.
+                Optional encrypted Slate Sync is planned last, and will be
+                <strong>free while in beta</strong>.
+              </p>
+            </article>
+            <article>
+              <h3>Where are my files?</h3>
+              <p>
+                In a folder you choose, or in your browser’s private storage.
+                Export the browser library as a .zip whenever you want a
+                portable copy.
+              </p>
+            </article>
+            <article>
+              <h3>Can I open my Obsidian vault?</h3>
+              <p>
+                Yes. Open the vault’s folder in Chrome or Edge, or import its
+                Markdown files into a browser library. Your original files stay
+                plain text.
+              </p>
+            </article>
+            <article id="privacy">
+              <h3>Does Slate use AI?</h3>
+              <p>
+                No AI service is required. Your writing stays on your device.
+                You can write offline, and no account stands between you and
+                your words.
+              </p>
+            </article>
           </div>
         </div>
       </section>
-      <section id="faq">
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <div class="eyebrow">FAQ</div>
-              <h2>Know where your words live.</h2>
-            </div>
-          </div>
-          <details>
-            <summary>Where are my files?</summary>
-            <p>
-              In local folders you choose. Each sheet is a Markdown file.
-              Slate’s SQLite full-text index is a disposable cache that can be
-              rebuilt from those files.
-            </p>
-          </details>
-          <details>
-            <summary>Is there a subscription?</summary>
-            <p>
-              No. The local core and source are free. A future hosted Slate Sync
-              service is a separate, optional track and is not part of this
-              demo.
-            </p>
-          </details>
-          <details>
-            <summary>Does it run on Windows and Linux?</summary>
-            <p>
-              Yes. The codebase targets a Tauri desktop shell for Windows,
-              Linux, and macOS, plus the browser PWA. This site’s live demo is
-              the PWA.
-            </p>
-          </details>
-          <details>
-            <summary>Does the web demo access my files?</summary>
-            <p>
-              No. It opens a seeded sample Space in browser state.
-              Directory-handle and OPFS adapters exist in the codebase, but the
-              public demo does not prompt for or touch your local folders.
-            </p>
-          </details>
-          <details>
-            <summary>Is sync available?</summary>
-            <p>
-              BYO-folder conflict reconciliation and sync interfaces are
-              implemented as tested primitives. There is no hosted Slate Sync
-              backend yet, and the website does not claim one.
-            </p>
-          </details>
-          <details>
-            <summary>Why “calm”?</summary>
-            <p>
-              Slate uses progressive disclosure: a familiar three-pane
-              workspace, quiet Markdown, focus/typewriter modes, and a command
-              palette instead of a wall of plugins and settings.
-            </p>
-          </details>
+
+      <section
+        class="section final-cta container"
+        aria-labelledby="final-title"
+      >
+        <h2 id="final-title">
+          Your next document is one<br class="desktop-only" />
+          keystroke away.
+        </h2>
+        <div class="actions">
+          <a class="button primary" href="./app/"
+            ><img
+              class="icon inverse"
+              src="./assets/icons/globe.svg"
+              alt=""
+            />Open in your browser</a
+          ><a class="button secondary" href="https://github.com/tanzir71/slate"
+            ><img class="icon" src="./assets/icons/code.svg" alt="" />View
+            source</a
+          >
         </div>
+        <p>Then press <kbd>Alt</kbd><kbd>N</kbd></p>
       </section>
     </main>
-    <footer>
-      <div class="wrap footer">
-        <span>Slate · local-first and open source</span
-        ><span
-          >built by <a href="https://tanziro.com">tanziro.com</a> ·
-          <a href="https://buymeacoffee.com/tanzir">buy me a coffee →</a></span
-        >
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <nav class="mobile-footer-links" aria-label="Footer navigation">
+          <a href="#features">Features</a><a href="#shortcuts">Shortcuts</a><a href="#ownership">Ownership</a><a href="#compare">Compare</a><a href="https://github.com/tanzir71/slate">Source</a>
+        </nav>
+        <div class="footer-brand">
+          <a class="brand" href="./" aria-label="Slate home"
+            ><img
+              src="./assets/brand/logo-lockup.svg"
+              alt="Slate"
+              width="104"
+              height="28"
+          /></a>
+          <p>For people who write in plain text.</p>
+          <p>
+            Designed &amp; built by
+            <a href="https://tanziro.com">tanziro.com</a>
+          </p>
+        </div>
+        <nav class="footer-links" aria-label="Product">
+          <h2>Product</h2>
+          <a href="#features">Features</a><a href="#shortcuts">Shortcuts</a
+          ><a href="#ownership">Ownership</a
+          ><a href="https://github.com/tanzir71/slate/blob/main/CHANGELOG.md"
+            >Changelog</a
+          >
+        </nav>
+        <nav class="footer-links" aria-label="Resources">
+          <h2>Resources</h2>
+          <a href="https://github.com/tanzir71/slate/blob/main/docs/browser.md"
+            >Browser guide</a
+          ><a href="https://github.com/tanzir71/slate/blob/main/README.md"
+            >Documentation</a
+          ><a href="#faq">FAQ</a
+          ><a
+            href="https://github.com/tanzir71/slate/blob/main/docs/compare-sources.md"
+            >Compare sources</a
+          >
+        </nav>
+        <nav class="footer-links" aria-label="Project">
+          <h2>Project</h2>
+          <a href="https://github.com/tanzir71/slate">Source</a
+          ><a href="https://github.com/tanzir71/slate/releases">Releases</a
+          ><a href="#privacy">Privacy</a
+          ><a href="https://buymeacoffee.com/tanzir">Buy me a coffee ↗</a>
+        </nav>
       </div>
     </footer>
   </body>

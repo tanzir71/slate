@@ -4,8 +4,9 @@ Slate is a free, open-source, local-first Markdown editor and knowledge workspac
 
 ## Links
 
-- Product site: https://slate-local-workspace.vercel.app/
-- Live seeded PWA demo: https://slate-local-workspace.vercel.app/demo/
+- Product site: https://tanzir71.github.io/slate/
+- Browser app: https://tanzir71.github.io/slate/app/
+- Sample Space: https://tanzir71.github.io/slate/app/?sample=1
 - Source: https://github.com/tanzir71/slate
 
 ## Data model
@@ -24,7 +25,7 @@ Slate is a free, open-source, local-first Markdown editor and knowledge workspac
 
 ## Honest scope
 
-- The public demo uses seeded browser state and does not access local files.
+- The browser app can edit a selected folder in Chromium or keep ordinary Markdown in a private OPFS library. Sample Spaces stay temporary until Keep.
 - Mobile is a placeholder track, not a finished release.
 - Slate Sync and publishing are adapter interfaces; no hosted sync or publishing service ships here.
 - BYO-folder reconciliation is implemented as conflict-safe tested primitives.

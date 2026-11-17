@@ -1,0 +1,16 @@
+{
+  "source": "real app",
+  "fixture": "Sample Space",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "light": "workspace-light.jpg",
+  "mobile": "workspace-mobile.avif",
+  "mobileCrop": {
+    "x": 457,
+    "y": 0,
+    "width": 604,
+    "height": 480
+  }
+}

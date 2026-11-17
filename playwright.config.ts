@@ -4,18 +4,21 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   fullyParallel: true,
+  workers: 3,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: "http://127.0.0.1:4175/slate/app/",
     trace: "on-first-retry"
   },
   webServer: {
-    command: "node scripts/serve-static.mjs apps/web/dist 4173",
-    url: "http://127.0.0.1:4173",
+    command: "node scripts/serve-static.mjs site-dist 4175 /slate",
+    url: "http://127.0.0.1:4175/slate/app/",
     reuseExistingServer: !process.env.CI
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
     { name: "mobile", use: { ...devices["Pixel 7"] } }
   ]
 });

@@ -175,3 +175,33 @@ Context: The handoff requires cold/open/search/typing performance gates, but dev
 Decision: Add `pnpm perf` as a deterministic Node script after the build step. It measures pure large-sheet parsing, typing HUD stat calculation, and SQLite FTS search over 10k synthetic rows.
 
 Consequence: The verify gate now has a real performance tripwire without adding flaky browser timing assertions. Deeper device/browser telemetry can layer on top later.
+
+## 2026-11-17 - Browser Spaces are files, with recoverable writes
+
+Context: The redesign handover starts with a useful static web app. The baseline web shell edited only seeded data and could not reopen it.
+
+Decision: Use a Zustand workspace store fed by shared `BrowserFiles` and `BrowserSpace` adapters. Folder Spaces use a selected directory handle retained in IndexedDB; library Spaces use `/spaces/<id>/` in OPFS. Sample sheets stay in memory until Keep. Serialize mutations, compare the last disk content before saves, create conflict copies on divergent edits, refuse move overwrites, and copy deletions to `.slate/trash/` before removing their source. A synchronous localStorage recovery journal holds only pending edits; successful writes clear it, and recovered divergent edits also become conflict copies. Web Locks and BroadcastChannel provide one write owner and a flush-before-takeover flow.
+
+Consequence: Markdown files remain authoritative; a journal recovers interrupted writes without becoming the normal database. Archives include configuration, trash and binary assets byte-for-byte. Storage permission/quota failures keep drafts and surface a retry action.
+
+## 2026-11-17 - FTS-enabled SQLite in a cooperative OPFS worker
+
+Context: GitHub Pages cannot provide COOP/COEP headers. Real browser testing found that the baseline `wa-sqlite@1.0.0` WASM lacks FTS5 (`no such module: fts5`), which the shared schema requires.
+
+Decision: Pin the PowerSync-maintained `@journeyapps/wa-sqlite@2.0.10` build, which includes FTS5, and use its `OPFSCoopSyncVFS` in a dedicated worker. Bundle the WASM URL locally, keep `/indexes/<space-id>.sqlite` separate from user files, and rebuild from Markdown. Adapt bound queries using prepared statements. The VFS uses access handles and Web Locks without SharedArrayBuffer. Source: [wa-sqlite VFS documentation](https://github.com/powersync-ja/wa-sqlite/blob/master/src/examples/README.md); upstream [FTS build discussion](https://github.com/rhashimoto/wa-sqlite/discussions/79).
+
+Consequence: Chromium, Firefox and Linux WebKit tests exercise a real FTS index without cross-origin isolation. A cache failure leaves files editable and allows direct file search. Playwright 1.65.1 and isolated persistent WebKit profiles fix the old runtime's missing Storage API; Windows WebKit still has transient OPFS/cache errors. The complete WebKit storage gate passes on Linux and runs on Linux/macOS, with a documented Windows workaround in `PROGRESS.md`.
+
+## 2026-11-17 - Relative app assets, hash routes and prompt updates
+
+Decision: Assemble the static site at `/app/`, keep `/demo/` as a redirect to `../app/?sample=1`, and keep sheet deep links in the hash. Bundle the provided logo/icon assets, precache the shell/editor/WASM using Workbox, and activate updates only after an explicit Reload action flushes pending writes. CSP is a meta policy with same-origin connections only. Tag-triggered Pages builds run browser gates before deployment and a save/reopen smoke check afterward.
+
+Visual reference: The live Figma tool returned `Unknown tool` in this session. The dated handover snapshots are the available implementation reference; live-Figma parity remains unverified. No handover plan was changed to match implementation.
+
+## 2026-11-17 - Prioritize the landing page and GitHub publication
+
+The user explicitly requested that the landing page become first priority and be pushed to GitHub ready for every release. This overrides the plan's original v0.6 timing for F-120. Implement L1/L2's paper/graphite layout and bundled typography now, retain the rule that marketing only shows implemented capabilities, and publish the landing and app in the same GitHub Pages artifact on each release. The rest of the handover remains active and keeps its dependency order.
+
+## 2026-11-17 - Keep marketing assets small without remote dependencies
+
+The production site inlines minified landing CSS and serves a responsive crop of the real app on mobile. The committed marketing fonts retain only Latin/punctuation and the weights used by the design; `scripts/subset-landing-fonts.py` reproduces them from the full editor fonts, which remain unchanged for user documents. Every site build regenerates screenshots and checks both marketing and app budgets. Lighthouse audits the production artifact with default mobile throttling before publication.

@@ -7,6 +7,10 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 ## [Unreleased]
 
 ### Added
+- Redesigned paper-and-graphite landing page with local fonts, real product screenshots, responsive navigation, and a direct browser-app launch.
+- Persistent browser Folder/library Spaces, conflict-safe autosave and recovery, local worker FTS search, multi-tab ownership, and byte-preserving zip import/export.
+- Offline PWA caching with an explicit save-before-reload update flow, install icons and confirmation-based launch shortcuts.
+- Tag/release-driven GitHub Pages publication with three-browser checks, landing performance budgets and a live save/reopen smoke check.
 - Initial handoff-driven pnpm monorepo with web, desktop, mobile, UI, editor, core, storage, sync, tokens, and Rust crates.
 - Pure core Markdown parsing, tags, wiki-links, backlinks, smart filters, stats, and goal progress.
 - Local storage adapter with rebuildable index cache and conflict-copy writes.
@@ -43,4 +47,4 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Replaced the scaffold JSON index stand-in with a real SQLite FTS5 database via Node 24 `node:sqlite`.
 
 ### Known Gaps
-- Browser handle persistence, export/publish adapters, and deeper axe coverage remain to be deepened from the scaffold.
+- The remaining Slate 2.0 handover milestones (themes, creation tools, Tidy, desktop hardening, automation, history/export and opt-in Sync) are tracked in `PROGRESS.md`.

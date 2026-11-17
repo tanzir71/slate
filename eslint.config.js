@@ -11,6 +11,7 @@ export default [
       "**/coverage/**",
       "playwright-report/**",
       "site-dist/**",
+      "artifacts/**",
       "test-results/**",
       "target/**",
       "apps/desktop/src-tauri/target/**",

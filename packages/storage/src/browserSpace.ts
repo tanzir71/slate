@@ -1,0 +1,94 @@
+import { decodeText, encodeText, safeBrowserPath, type BrowserFiles } from "./browserFiles";
+
+export interface BrowserSheet { path: string; content: string }
+export interface BrowserWriteResult extends BrowserSheet { conflict: boolean }
+
+/** All mutations are serialized; callers supply their last disk content for optimistic concurrency. */
+export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean = () => true) {
+  let pending: Promise<unknown> = Promise.resolve();
+  const read = async (path: string) => {
+    const bytes = await files.read(safeBrowserPath(path));
+    return bytes === undefined ? undefined : decodeText(bytes);
+  };
+  function mutate<T>(action: () => Promise<T>): Promise<T> {
+    const next = pending.then(async () => {
+      if (!canWrite()) throw new Error("This Space is read-only. Choose Use here to edit.");
+      return action();
+    });
+    pending = next.catch(() => undefined);
+    return next;
+  }
+  async function uniquePath(path: string): Promise<string> {
+    safeBrowserPath(path);
+    let candidate = path;
+    let suffix = 1;
+    while ((await files.read(candidate)) !== undefined) {
+      candidate = path.replace(/(\.[^/.]+)?$/, ` (${suffix++})$1`);
+    }
+    return candidate;
+  }
+  async function writeNew(path: string, bytes: Uint8Array): Promise<string> {
+    const target = await uniquePath(path);
+    await files.write(target, bytes);
+    return target;
+  }
+  return {
+    files,
+    read,
+    flush: () => pending,
+    async sheets(): Promise<BrowserSheet[]> {
+      const paths = (await files.list()).filter((path) => /\.md$/i.test(path));
+      const rows = await Promise.all(paths.map(async (path) => ({ path, content: await read(path) })));
+      return rows.filter((row): row is BrowserSheet => row.content !== undefined);
+    },
+    create(path: string, content: string): Promise<BrowserSheet> {
+      return mutate(async () => ({ path: await writeNew(path, encodeText(content)), content }));
+    },
+    save(path: string, content: string, baseContent: string | undefined): Promise<BrowserWriteResult> {
+      return mutate(async () => {
+        const disk = await read(path);
+        if (disk !== baseContent && disk !== content) {
+          const conflictPath = path.replace(/\.md$/i, ` (conflicted copy ${new Date().toISOString().replaceAll(/[:.]/g, "-")}).md`);
+          return { path: await writeNew(conflictPath, encodeText(content)), content, conflict: true };
+        }
+        await files.write(path, encodeText(content));
+        return { path, content, conflict: false };
+      });
+    },
+    move(from: string, to: string, baseContent: string): Promise<BrowserSheet> {
+      return mutate(async () => {
+        const bytes = await files.read(from);
+        if (!bytes || decodeText(bytes) !== baseContent) throw new Error("File changed outside Slate. Refresh before moving it.");
+        if (await files.read(to)) throw new Error("A file already exists at the destination.");
+        await files.write(safeBrowserPath(to), bytes);
+        // A concurrent external edit is preserved in the source, even after copying the destination.
+        if ((await read(from)) !== baseContent) throw new Error("Source changed during move. Both copies have been kept.");
+        await files.remove(from);
+        return { path: to, content: baseContent };
+      });
+    },
+    trash(path: string, baseContent: string): Promise<string> {
+      return mutate(async () => {
+        if ((await read(path)) !== baseContent) throw new Error("File changed outside Slate. Refresh before deleting it.");
+        const destination = `.slate/trash/${Date.now()}/${safeBrowserPath(path)}`;
+        const bytes = await files.read(path);
+        if (!bytes) throw new Error("File no longer exists.");
+        const target = await writeNew(destination, bytes);
+        if ((await read(path)) !== baseContent) throw new Error("File changed during deletion. The original and trash copy have been kept.");
+        await files.remove(path);
+        return target;
+      });
+    },
+    importFiles(entries: Record<string, Uint8Array>): Promise<string[]> {
+      return mutate(async () => {
+        // Validate every path before writing anything. Imported configuration never replaces existing configuration.
+        Object.keys(entries).forEach(safeBrowserPath);
+        const imported: string[] = [];
+        for (const [path, bytes] of Object.entries(entries)) imported.push(await writeNew(path, bytes));
+        return imported;
+      });
+    }
+  };
+}
+
+export type BrowserSpace = ReturnType<typeof createBrowserSpace>;

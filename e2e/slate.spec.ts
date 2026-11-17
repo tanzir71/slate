@@ -1,22 +1,22 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { createSheet, openLibrary } from "./helpers";
 
-test("loads the Slate workspace and creates a new sheet", async ({ page }) => {
-  await page.goto("/");
-
-  await expect(page.getByText("Slate").first()).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "New Sheet" }).first()).toBeVisible();
-
-  await page.getByRole("button", { name: "New Sheet" }).first().click();
-
-  await expect(page.getByRole("heading", { name: "Untitled Sheet" })).toBeVisible();
-  await expect(page.getByLabel("Markdown editor")).toBeVisible();
+test("creates a persistent browser sheet with palette and inspector closed", async ({ page }) => {
+  await openLibrary(page);
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toBeHidden();
+  await expect(page.getByRole("complementary", { name: "Inspector" })).toBeHidden();
+  await createSheet(page);
+  await page.reload();
+  await expect(page.locator(".cm-content")).toContainText("Words worth keeping.");
+  await expect(page).toHaveURL(/\/slate\/app\/#\/space\/.+\/sheet\/Inbox%2FUntitled.md/);
 });
 
 test("filters sheets by search text", async ({ page }) => {
-  await page.goto("/");
-
-  await page.getByPlaceholder("Search sheets...").fill("research");
-  await expect(page.getByRole("button", { name: /User Research Synthesis/ })).toBeVisible();
+  await openLibrary(page);
+  await createSheet(page, "# Research\n\nA unique research note.");
+  await page.getByRole("button", { name: "New Sheet", exact: true }).first().click();
+  await page.getByRole("textbox", { name: "Search sheets" }).fill("unique");
+  await expect(page.getByRole("button", { name: /Research.*unique research/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Untitled.*Start writing/ })).toBeHidden();
 });
 

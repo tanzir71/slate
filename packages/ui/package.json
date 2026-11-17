@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
+    "./browser": { "types": "./dist/browser/BrowserApp.d.ts", "import": "./dist/browser/BrowserApp.js" },
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
@@ -16,12 +17,14 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.8",
     "@slate/core": "workspace:*",
+    "@slate/storage": "workspace:*",
     "@slate/editor": "workspace:*",
     "@slate/tokens": "workspace:*",
     "@tauri-apps/api": "^2.10.2",
     "lucide-react": "^0.555.0",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",

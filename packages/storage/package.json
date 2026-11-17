@@ -3,6 +3,27 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
+    "./browser-import": { "types": "./dist/browserImport.d.ts", "import": "./dist/browserImport.js" },
+    "./browser-files": {
+      "types": "./dist/browserFiles.d.ts",
+      "import": "./dist/browserFiles.js"
+    },
+    "./browser-space": {
+      "types": "./dist/browserSpace.d.ts",
+      "import": "./dist/browserSpace.js"
+    },
+    "./browser-archive": {
+      "types": "./dist/browserArchive.d.ts",
+      "import": "./dist/browserArchive.js"
+    },
+    "./browser-catalog": {
+      "types": "./dist/browserCatalog.d.ts",
+      "import": "./dist/browserCatalog.js"
+    },
+    "./browser-ownership": {
+      "types": "./dist/browserOwnership.d.ts",
+      "import": "./dist/browserOwnership.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
@@ -36,6 +57,7 @@
     "@slate/core": "workspace:*",
     "@tauri-apps/api": "^2.10.2",
     "@tauri-apps/plugin-sql": "^2.4.0",
-    "wa-sqlite": "^1.0.0"
+    "fflate": "^0.8.3",
+    "@journeyapps/wa-sqlite": "2.0.10"
   }
 }

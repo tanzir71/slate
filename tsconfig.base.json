@@ -22,9 +22,18 @@
       "@slate/export": ["packages/export/src/index.ts"],
       "@slate/publish": ["packages/publish/src/index.ts"],
       "@slate/storage": ["packages/storage/src/index.ts"],
+      "@slate/storage/browser-files": ["packages/storage/src/browserFiles.ts"],
+      "@slate/storage/browser-import": ["packages/storage/src/browserImport.ts"],
+      "@slate/storage/browser-space": ["packages/storage/src/browserSpace.ts"],
+      "@slate/storage/browser-archive": ["packages/storage/src/browserArchive.ts"],
+      "@slate/storage/browser-catalog": ["packages/storage/src/browserCatalog.ts"],
+      "@slate/storage/browser-ownership": ["packages/storage/src/browserOwnership.ts"],
+      "@slate/storage/web-opfs": ["packages/storage/src/webOpfsSqlite.ts"],
+      "@slate/storage/runtime": ["packages/storage/src/runtimeSqliteAdapter.ts"],
       "@slate/sync": ["packages/sync/src/index.ts"],
       "@slate/editor": ["packages/editor/src/index.ts"],
       "@slate/ui": ["packages/ui/src/index.ts"],
+      "@slate/ui/browser": ["packages/ui/src/browser/BrowserApp.tsx"],
       "@slate/tokens": ["packages/tokens/src/index.ts"]
     }
   }

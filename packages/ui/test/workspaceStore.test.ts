@@ -1,0 +1,77 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMemoryFiles, encodeText } from "@slate/storage/browser-files";
+import { createWorkspaceStore } from "../src/browser/workspaceStore";
+
+const record = { id: "test-library", name: "Writing", tier: "library" } as const;
+beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
+afterEach(() => vi.useRealTimers());
+
+describe("persistent workspace store", () => {
+  it("reopens saved files and recovers a draft that was not flushed before closing", async () => {
+    const files = createMemoryFiles({ "Inbox/note.md": "original" });
+    const first = createWorkspaceStore(record, files);
+    first.setOwned(true);
+    await first.load();
+    first.edit("my unsaved words");
+    expect(await first.space.read("Inbox/note.md")).toBe("original");
+    const reopened = createWorkspaceStore(record, files);
+    reopened.setOwned(true);
+    await reopened.load();
+    expect(reopened.api.getState().sheets[0]?.content).toBe("my unsaved words");
+    await reopened.flush();
+    expect(await reopened.space.read("Inbox/note.md")).toBe("my unsaved words");
+    expect(localStorage.getItem("slate.recovery.test-library")).toBeNull();
+  });
+
+  it("keeps a recovered draft as a conflict copy when the disk changed", async () => {
+    const files = createMemoryFiles({ "note.md": "base" });
+    const first = createWorkspaceStore(record, files);
+    first.setOwned(true);
+    await first.load();
+    first.edit("local words");
+    await files.write("note.md", encodeText("external words"));
+    const reopened = createWorkspaceStore(record, files);
+    reopened.setOwned(true);
+    await reopened.load();
+    await reopened.flush();
+    expect(await reopened.space.read("note.md")).toBe("external words");
+    expect(reopened.api.getState().selectedPath).toContain("conflicted copy");
+    expect(await reopened.space.read(reopened.api.getState().selectedPath)).toBe("local words");
+  });
+
+  it("keeps an edit made while the previous version is writing", async () => {
+    const files = createMemoryFiles({ "note.md": "base" });
+    const originalWrite = files.write;
+    let finishWrite: (() => void) | undefined;
+    files.write = async (path, bytes) => {
+      await new Promise<void>((resolve) => { finishWrite = resolve; });
+      files.write = originalWrite;
+      await originalWrite(path, bytes);
+    };
+    const store = createWorkspaceStore(record, files);
+    store.setOwned(true);
+    await store.load();
+    store.edit("first");
+    const save = store.flush();
+    await vi.waitFor(() => expect(finishWrite).toBeDefined());
+    store.edit("second");
+    finishWrite!();
+    await save;
+    expect(await store.space.read("note.md")).toBe("second");
+    expect(store.api.getState().saveState).toBe("Saved");
+  });
+
+  it("retains the draft and shows an error when the file write fails", async () => {
+    const files = createMemoryFiles({ "note.md": "base" });
+    const store = createWorkspaceStore(record, files);
+    store.setOwned(true);
+    await store.load();
+    store.edit("keep my words");
+    files.write = async () => { throw new Error("Quota exceeded"); };
+    await expect(store.flush()).rejects.toThrow("Quota exceeded");
+    expect(store.api.getState().sheets[0]?.content).toBe("keep my words");
+    expect(store.api.getState().saveState).toBe("Unsaved");
+    expect(store.api.getState().error).toContain("Quota exceeded");
+    expect(localStorage.getItem("slate.recovery.test-library")).toContain("keep my words");
+  });
+});

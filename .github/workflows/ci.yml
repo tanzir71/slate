@@ -22,7 +22,18 @@ jobs:
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install chromium --with-deps
+      - run: pnpm exec playwright install chromium firefox webkit --with-deps
         if: matrix.os == 'ubuntu-latest'
+      - run: pnpm exec playwright install chromium firefox webkit
+        if: matrix.os == 'macos-latest'
+      - run: pnpm exec playwright install chromium firefox
+        if: matrix.os == 'windows-latest'
+      - name: Linux desktop prerequisites
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
       - run: pnpm verify
+        if: matrix.os != 'windows-latest'
+      - name: Verify Windows (WebKit storage is checked on Linux and macOS)
+        if: matrix.os == 'windows-latest'
+        run: pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e --project=chromium --project=firefox --project=mobile
 

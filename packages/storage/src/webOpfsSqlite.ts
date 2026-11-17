@@ -7,6 +7,7 @@ import {
   type SqliteIndexRow
 } from "./sqliteIndexOperations";
 import type { SheetIndexEntry } from "./index";
+import wasmUrl from "@journeyapps/wa-sqlite/dist/wa-sqlite-async.wasm?url";
 
 export const slateWebOpfsIndexPath = "slate/index.sqlite";
 export const sqliteOpenReadWriteCreate = 0x02 | 0x04;
@@ -17,6 +18,7 @@ export interface WaSqliteVfs {
 }
 
 export interface WaSqliteApi {
+  wasmModule?: unknown;
   vfs_register(vfs: WaSqliteVfs, asDefault: boolean): void;
   open_v2(path: string, flags?: number, vfsName?: string): Promise<number>;
   exec(db: number, statement: string): Promise<number>;
@@ -53,14 +55,21 @@ type SqliteModuleFactory = (config?: object) => Promise<unknown>;
 export async function loadWebOpfsSqliteIndex({
   path = slateWebOpfsIndexPath,
   loadSqlite = loadWaSqliteAsync,
-  createVfs = createOriginPrivateFileSystemVfs
+  createVfs = createCooperativeOpfsVfs
 }: WebOpfsSqliteIndexOptions = {}): Promise<WebOpfsSqliteIndex> {
   const sqlite3 = await loadSqlite();
   const vfs = await createVfs(sqlite3);
   sqlite3.vfs_register(vfs, false);
 
-  const db = await sqlite3.open_v2(path, sqliteOpenReadWriteCreate, vfs.name);
-  await ensureWebOpfsIndexSchema(sqlite3, db);
+  let db: number;
+  try {
+    db = await sqlite3.open_v2(path, sqliteOpenReadWriteCreate, vfs.name);
+    try { await ensureWebOpfsIndexSchema(sqlite3, db); }
+    catch (error) { await sqlite3.close(db); throw error; }
+  } catch (error) {
+    await vfs.close?.();
+    throw error;
+  }
   const executor = createWaSqliteExecutor(sqlite3, db);
 
   return {
@@ -115,23 +124,40 @@ export function isOpfsAvailable(): boolean {
 
 async function loadWaSqliteAsync(): Promise<WaSqliteApi> {
   const [factoryModule, sqliteModule] = await Promise.all([
-    import("wa-sqlite/dist/wa-sqlite-async.mjs"),
-    import("wa-sqlite")
+    import("@journeyapps/wa-sqlite/dist/wa-sqlite-async.mjs"),
+    import("@journeyapps/wa-sqlite")
   ]);
   const moduleFactory = readModuleFactory(factoryModule);
-  const sqliteWasmModule = await moduleFactory();
-  return sqliteModule.Factory(sqliteWasmModule) as unknown as WaSqliteApi;
+  const sqliteWasmModule = await moduleFactory({ locateFile: () => wasmUrl });
+  const api = sqliteModule.Factory(sqliteWasmModule);
+  return {
+    wasmModule: sqliteWasmModule,
+    vfs_register: (vfs, asDefault) => { api.vfs_register(vfs as Parameters<typeof api.vfs_register>[0], asDefault); },
+    open_v2: (path, flags, vfsName) => api.open_v2(path, flags, vfsName),
+    exec: (db, statement) => api.exec(db, statement),
+    close: (db) => api.close(db),
+    async execWithParams(db, statement, bindValues = []) {
+      const rows: unknown[][] = [];
+      let columns: string[] = [];
+      for await (const prepared of api.statements(db, statement)) {
+        api.bind_collection(prepared, bindValues as Parameters<typeof api.bind_collection>[1]);
+        columns = api.column_names(prepared);
+        while (await api.step(prepared) === sqliteModule.SQLITE_ROW) rows.push(api.row(prepared));
+      }
+      return { rows, columns };
+    }
+  };
 }
 
-async function createOriginPrivateFileSystemVfs(): Promise<WaSqliteVfs> {
+async function createCooperativeOpfsVfs(sqlite3: WaSqliteApi): Promise<WaSqliteVfs> {
   if (!isOpfsAvailable()) {
     throw new Error("OPFS storage is unavailable; run the web SQLite adapter in an OPFS-capable worker.");
   }
 
-  const { OriginPrivateFileSystemVFS } = await import(
-    "wa-sqlite/src/examples/OriginPrivateFileSystemVFS.js"
+  const { OPFSCoopSyncVFS } = await import(
+    "@journeyapps/wa-sqlite/src/examples/OPFSCoopSyncVFS.js"
   );
-  return new OriginPrivateFileSystemVFS();
+  return OPFSCoopSyncVFS.create("slate-opfs", sqlite3.wasmModule);
 }
 
 function readModuleFactory(module: unknown): SqliteModuleFactory {
