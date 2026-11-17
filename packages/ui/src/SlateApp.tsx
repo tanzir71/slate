@@ -43,6 +43,7 @@ import {
   type SheetAutosaveWriter
 } from "./autosave";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { AppearanceControl, useAppearance } from "./appearance";
 import { notebooks, sheets as seedSheets, spaces, type NotebookSeed, type SheetSeed } from "./sampleData";
 import "./styles.css";
 
@@ -69,6 +70,7 @@ const smartFilters = [
 ];
 
 export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}) {
+  const appearance = useAppearance();
   const [activeSpace, setActiveSpace] = useState("work");
   const [sheets, setSheets] = useState<SheetSeed[]>(seedSheets);
   const [selectedId, setSelectedId] = useState(seedSheets[0]?.id ?? "");
@@ -305,6 +307,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
       <header className="topbar">
         <div className="brand">Slate</div>
         <nav aria-label="Application menu">
+          <AppearanceControl preference={appearance.preference} onChange={appearance.change} />
           <button>File</button>
           <button>Edit</button>
           <button>View</button>

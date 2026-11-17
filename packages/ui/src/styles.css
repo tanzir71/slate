@@ -1,17 +1,17 @@
 :root {
-  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-editor: Georgia, "Times New Roman", ui-serif, serif;
-  --font-mono: "SF Mono", "Cascadia Code", ui-monospace, monospace;
-  --slate-bg: #f7f8fa;
-  --slate-panel: #ffffff;
-  --slate-panel-muted: #f2f5f8;
-  --slate-border: #dce2ea;
-  --slate-text: #18212f;
-  --slate-muted: #6f7b8b;
-  --slate-accent: #326bff;
-  --slate-accent-soft: #e8f0ff;
-  --slate-success: #178a4b;
-  --slate-warning: #ce6b00;
+  --font-ui: Geist, system-ui, sans-serif;
+  --font-editor: Newsreader, Georgia, serif;
+  --font-mono: "Geist Mono", monospace;
+  --slate-bg: var(--bg-app);
+  --slate-panel: var(--bg-canvas);
+  --slate-panel-muted: var(--bg-subtle);
+  --slate-border: var(--border-default);
+  --slate-text: var(--text-primary);
+  --slate-muted: var(--text-tertiary);
+  --slate-accent: var(--accent-default);
+  --slate-accent-soft: var(--accent-soft);
+  --slate-success: var(--status-success);
+  --slate-warning: var(--status-warning);
   color: var(--slate-text);
   background: var(--slate-bg);
   font-family: var(--font-ui);
@@ -58,7 +58,7 @@ input:focus-visible {
   align-items: center;
   height: 43px;
   border-bottom: 1px solid var(--slate-border);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--bg-app);
 }
 
 .brand {
@@ -108,7 +108,7 @@ input:focus-visible {
 .windowControls span {
   width: 11px;
   height: 11px;
-  border: 1.5px solid #1d2430;
+  border: 1.5px solid var(--text-primary);
   border-radius: 2px;
 }
 
@@ -163,7 +163,7 @@ input:focus-visible {
   justify-content: space-between;
   height: 34px;
   padding: 12px 10px 6px;
-  color: #536070;
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 720;
   text-transform: uppercase;
@@ -191,7 +191,7 @@ input:focus-visible {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #273244;
+  color: var(--text-primary);
   text-align: left;
   gap: 7px;
 }
@@ -243,7 +243,7 @@ input:focus-visible {
 .sheetList {
   display: flex;
   flex-direction: column;
-  background: #fbfcfe;
+  background: var(--bg-panel);
 }
 
 .sheetActions {
@@ -259,7 +259,7 @@ input:focus-visible {
   min-width: 128px;
   gap: 8px;
   border: 1px solid var(--slate-border) !important;
-  background: #fff !important;
+  background: var(--bg-canvas) !important;
   font-weight: 650;
 }
 
@@ -274,7 +274,7 @@ input:focus-visible {
   height: 36px;
   border: 1px solid var(--slate-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--bg-canvas);
   color: var(--slate-muted);
 }
 
@@ -310,11 +310,11 @@ input:focus-visible {
 }
 
 .emptyState svg {
-  color: #7f8b9b;
+  color: var(--text-tertiary);
 }
 
 .emptyState strong {
-  color: #354154;
+  color: var(--text-secondary);
   font-weight: 680;
 }
 
@@ -323,7 +323,7 @@ input:focus-visible {
   min-height: 32px;
   border: 1px solid var(--slate-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--bg-canvas);
 }
 
 .sheetEmptyState {
@@ -382,7 +382,7 @@ input:focus-visible {
 .sheetPreview {
   display: -webkit-box;
   overflow: hidden;
-  color: #455367;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.35;
   -webkit-line-clamp: 2;
@@ -391,14 +391,14 @@ input:focus-visible {
 
 .tagLine {
   overflow: hidden;
-  color: #506b92;
+  color: var(--text-accent);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .progressLine {
-  color: #1b7442;
+  color: var(--status-success);
   font-size: 12px;
 }
 
@@ -408,7 +408,7 @@ input:focus-visible {
   overflow: hidden;
   height: 4px;
   border-radius: 4px;
-  background: #dfe5ed;
+  background: var(--border-subtle);
 }
 
 .miniProgress {
@@ -440,7 +440,7 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: #fff;
+  background: var(--bg-canvas);
 }
 
 .editorToolbar {
@@ -548,7 +548,7 @@ input:focus-visible {
   padding: 12px;
   border: 1px solid var(--slate-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg-canvas);
   box-shadow: 0 20px 54px rgba(18, 30, 46, 0.2);
   transform: translateX(-50%);
 }
@@ -566,7 +566,7 @@ kbd {
 .commandLabel {
   display: block;
   padding: 6px 10px;
-  color: #536070;
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 720;
 }
@@ -626,7 +626,7 @@ kbd {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: #536070;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -654,7 +654,7 @@ kbd {
 }
 
 .backlinkRow span {
-  color: #526071;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -674,7 +674,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #1b7442;
+  color: var(--status-success);
   font-size: 12px;
 }
 
@@ -698,7 +698,7 @@ kbd {
   padding: 5px 8px;
   border-radius: 6px;
   background: var(--slate-accent-soft);
-  color: #345d94;
+  color: var(--text-accent);
   font-size: 12px;
 }
 
@@ -719,7 +719,7 @@ kbd {
 
 .outlineRow {
   padding: 8px 0;
-  color: #273244;
+  color: var(--text-primary);
 }
 
 .statusDot {
@@ -736,7 +736,7 @@ kbd {
 }
 
 .statusDot.idle {
-  background: #a7b0bd;
+  background: var(--md-marker);
 }
 
 @media (max-width: 1100px) {

@@ -1,0 +1,9 @@
+@font-face { font-family: Geist; src: url('../../tokens/node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: Newsreader; src: url('../../tokens/node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2') format('woff2'); font-weight: 200 800; font-style: normal; font-display: swap; }
+@font-face { font-family: Newsreader; src: url('../../tokens/node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-italic.woff2') format('woff2'); font-weight: 200 800; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Geist Mono'; src: url('../../tokens/node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+:root { --font-ui: Geist, system-ui, sans-serif; --font-editor: Newsreader, Georgia, serif; --font-mono: 'Geist Mono', monospace; }
+.appearanceControl { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; color: var(--text-secondary); font: 12px/1.4 var(--font-ui); }
+.appearanceControl select { font: inherit; color: inherit; background: var(--bg-panel); border: 1px solid var(--border-default); border-radius: 6px; padding: 4px; }
+.appearanceControl select:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+@media (pointer: coarse) { .appearanceControl select { min-block-size: 44px; } }
