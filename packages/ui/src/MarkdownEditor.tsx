@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -9,7 +9,7 @@ import {
   knownWikiTargets as wikiTargets,
   type WikiLinkHit
 } from "@slate/editor";
-import type { ResolvedKeymap } from "@slate/core";
+import type { ResolvedKeymap, TextChange } from "@slate/core";
 import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
@@ -27,7 +27,7 @@ function documentChange(previous: string, next: string) {
 
 interface MarkdownEditorProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, changes: readonly TextChange[]) => void;
   onNavigateWikiLink?: (link: WikiLinkHit) => void;
   readOnly?: boolean;
   documentKey?: string;
@@ -38,7 +38,7 @@ interface MarkdownEditorProps {
   onCursorChange?: (cursor: EditorCursor) => void;
 }
 
-export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -54,6 +54,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   const wikiLinks = useRef(new Compartment());
   const previousWikiTargets = useRef(knownWikiTargets);
   const onCursorRef = useRef(onCursorChange);
+  const lastEmittedValue = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -134,7 +135,11 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
               onCursorRef.current?.({ line: line.number, column: update.state.selection.main.head - line.from + 1, lines: update.state.doc.lines });
             }
             if (update.docChanged && update.transactions.some((transaction) => transaction.docChanged && !transaction.annotation(externalValue))) {
-              onChangeRef.current(update.state.doc.toString());
+              const changes: TextChange[] = [];
+              update.changes.iterChanges((...change) => { changes.push({ from: change[0], to: change[1], text: change[4].toString() }); });
+              const content = update.state.doc.toString();
+              lastEmittedValue.current = content;
+              onChangeRef.current(content, changes);
             }
             if (preferenceKey && (update.selectionSet || update.docChanged)) {
               try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: update.state.selection.main.head, scroll: update.view.scrollDOM.scrollTop })); } catch { /* View preferences are optional. */ }
@@ -192,6 +197,8 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
+    if (value === lastEmittedValue.current) { lastEmittedValue.current = undefined; return; }
+    lastEmittedValue.current = undefined;
     const previous = view.state.doc.toString();
     const normalized = value.replace(/\r\n?/g, "\n");
     if (previous === normalized) return;
@@ -203,4 +210,4 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   }, [value]);
 
   return <><div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
-}
+});

@@ -2,8 +2,9 @@ import { createStore } from "zustand/vanilla";
 import { createBrowserSpace, type BrowserSheet } from "@slate/storage/browser-space";
 import { decodeText, type BrowserFiles } from "@slate/storage/browser-files";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
-import type { WikiLink } from "@slate/core";
+import type { WikiLink, TextChange } from "@slate/core";
 import { readWorkspacePreferences, type WorkspacePreferences } from "@slate/core";
+import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 
 interface Draft { content: string; baseContent: string | undefined }
 export interface WorkspaceState {
@@ -22,7 +23,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
   const space = createBrowserSpace(files, () => api.getState().owned);
   const bases = new Map<string, string>();
   const drafts = new Map<string, Draft>();
-  const journalKey = `slate.recovery.${record.id}`;
+  const recovery = record.id === "sample" ? undefined : createRecoveryJournal(record.id);
   let timer: ReturnType<typeof setTimeout> | undefined;
   let saving: Promise<void> | undefined;
   let onSaved: () => void = () => undefined;
@@ -49,30 +50,17 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     return next;
   }
 
-  function journal() {
+  function journal(edit?: RecoveryEdit) {
     if (record.id === "sample") return;
     try {
-      if (drafts.size) localStorage.setItem(journalKey, JSON.stringify(Object.fromEntries(drafts)));
-      else localStorage.removeItem(journalKey);
+      recovery?.save(drafts, edit);
     } catch {
       api.setState({ error: "Recovery storage is full. Keep this tab open until saving finishes." });
     }
   }
 
   function readRecovery() {
-    const recovered = new Map<string, Draft>();
-    if (record.id === "sample") return recovered;
-    const raw = localStorage.getItem(journalKey);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (typeof parsed === "object" && parsed !== null) {
-      for (const [path, draft] of Object.entries(parsed)) {
-        if (typeof draft === "object" && draft !== null && "content" in draft && typeof draft.content === "string" &&
-            (!("baseContent" in draft) || typeof draft.baseContent === "string")) {
-          recovered.set(path, { content: draft.content, baseContent: "baseContent" in draft ? draft.baseContent as string : undefined });
-        }
-      }
-    }
-    return recovered;
+    return recovery?.read() ?? new Map<string, Draft>();
   }
 
   function overlayDrafts(sheets: BrowserSheet[]) {
@@ -156,13 +144,14 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
       }
       if (preferredPath && api.getState().sheets.some((sheet) => sheet.path === preferredPath)) api.setState({ selectedPath: preferredPath });
     },
-    edit(content: string) {
+    edit(content: string, changes?: readonly TextChange[]) {
       const { selectedPath, owned } = api.getState();
       if (!owned || !selectedPath) return;
       const previous = drafts.get(selectedPath);
+      const before = previous?.content ?? api.getState().sheets.find((sheet) => sheet.path === selectedPath)?.content ?? "";
       drafts.set(selectedPath, { content, baseContent: previous ? previous.baseContent : bases.get(selectedPath) });
       api.setState((state) => ({ sheets: state.sheets.map((sheet) => sheet.path === selectedPath ? { ...sheet, content } : sheet), saveState: "Unsaved" }));
-      journal();
+      journal(changes ? { path: selectedPath, before: before.replace(/\r\n?/g, "\n"), changes } : undefined);
       clearTimeout(timer);
       timer = setTimeout(() => { void flush().catch(() => undefined); }, 250);
     },

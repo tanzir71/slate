@@ -1,5 +1,7 @@
 import { Pin } from "lucide-react";
+import { useMemo } from "react";
 import type { SheetDocument, GoalProgress } from "@slate/core";
+import { sheetPreview } from "./sheetPreview";
 
 export function GoalRing({ goal }: { goal: GoalProgress }) {
   const progress = Math.max(0, Math.min(1, goal.current / goal.target));
@@ -35,22 +37,13 @@ export function SheetRow({
   onOpen,
   draggable,
 }: {
-  sheet: SheetDocument;
+  sheet: SheetDocument & { preview?: string };
   active: boolean;
   pinned: boolean;
   onOpen(): void;
   draggable: boolean;
 }) {
-  const preview = sheet.body
-    .replace(/^#+\s.*$/gm, "")
-    .replace(
-      /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
-      (_match: string, target: string, label: string | undefined) =>
-        label ?? target,
-    )
-    .replace(/[*_`~]/g, "")
-    .trim()
-    .slice(0, 115);
+  const preview = useMemo(() => sheet.preview ?? sheetPreview(sheet.body), [sheet.preview, sheet.body]);
   const date = sheet.updatedAt
     ? new Intl.DateTimeFormat(undefined, {
         month: "short",

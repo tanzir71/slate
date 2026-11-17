@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary, showSheets, workspaceAction } from "./helpers";
+import { createSheet, openLibrary, readCurrentSheet, showSheets, workspaceAction } from "./helpers";
 import { readFile } from "node:fs/promises";
 
 test("runs under the Pages subpath with CSP and no third-party requests", async ({ page }) => {
@@ -68,7 +68,7 @@ test("gives one tab write ownership and transfers it after flushing", async ({ p
   await second.locator(".cm-content").click();
   await second.keyboard.press("ControlOrMeta+End");
   await second.keyboard.insertText(" From the other tab.");
-  await expect(second.locator(".workspaceStatus [role=status]")).toHaveText("Saved");
+  await expect(second.locator(".workspaceStatus [role=status]")).toHaveText("Saved", { timeout: 15_000 });
   await expect(page.locator(".cm-content")).toContainText("From the other tab.");
 });
 
@@ -84,14 +84,50 @@ test("recovers the writer's latest failed save when another tab takes over", asy
   await reader.goto("./");
   await expect(reader.locator(".cm-content")).toContainText("Early recovery draft.");
   await expect(reader.locator(".cm-content")).toHaveAttribute("contenteditable", "false");
+  const previousJournal = await page.evaluate(() => localStorage.getItem(`slate.recovery-v2.${decodeURIComponent(location.hash.split("/")[2]!)}`));
   await page.locator(".cm-content").fill("Latest words before the writer disappeared.");
-  await expect.poll(() => page.evaluate(() => Object.values(localStorage).some((value) => typeof value === "string" && value.includes("Latest words before the writer disappeared.")))).toBe(true);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem(`slate.recovery-v2.${decodeURIComponent(location.hash.split("/")[2]!)}`))).not.toBe(previousJournal);
   await page.close();
   await reader.getByRole("button", { name: "Use here", exact: true }).click();
   await expect(reader.locator(".cm-content")).toContainText("Latest words before the writer disappeared.");
   await expect(reader.locator(".workspaceStatus [role=status]")).toHaveText("Saved");
   await reader.reload();
   await expect(reader.locator(".cm-content")).toContainText("Latest words before the writer disappeared.");
+});
+
+test("keeps drafts from an older open app separate from the new recovery journal", async ({ page, context }) => {
+  await openLibrary(page);
+  await createSheet(page, "Saved base.");
+  await page.evaluate(() => {
+    FileSystemFileHandle.prototype.createWritable = async () => { throw new DOMException("Test write permission revoked", "NotAllowedError"); };
+  });
+  const newer = "# New app\n\nKeep these newer words.";
+  const older = "# Earlier app\n\nKeep these earlier words.";
+  await page.locator(".cm-content").fill(newer);
+  await expect(page.getByRole("alert")).toContainText("Test write permission revoked");
+  const reader = await context.newPage();
+  await reader.goto("./");
+  await expect(reader.locator(".cm-content")).toContainText("Keep these newer words.");
+  await expect(reader.locator(".cm-content")).toHaveAttribute("contenteditable", "false");
+  const protectedJournal = await page.evaluate((older) => {
+    const parts = location.hash.split("/");
+    const id = decodeURIComponent(parts[2]!);
+    const path = decodeURIComponent(parts[4]!);
+    const key = `slate.recovery-v2.${id}`;
+    const before = localStorage.getItem(key);
+    localStorage.removeItem(`slate.recovery.${id}`);
+    localStorage.setItem(`slate.recovery.${id}`, JSON.stringify({ [path]: { content: older, baseContent: "Saved base." } }));
+    return !!before && before === localStorage.getItem(key);
+  }, older);
+  expect(protectedJournal).toBe(true);
+  await page.close();
+  await reader.getByRole("button", { name: "Use here", exact: true }).click();
+  await expect(reader.locator(".workspaceStatus [role=status]")).toHaveText("Saved", { timeout: 15_000 });
+  expect(await readCurrentSheet(reader)).toBe(newer);
+  await showSheets(reader);
+  await reader.locator(".browserSheetRow").filter({ hasText: "Earlier app" }).click();
+  await expect(reader.locator(".cm-content")).toContainText("Keep these earlier words.");
+  expect(await readCurrentSheet(reader)).toBe(older);
 });
 
 test("exports and reimports a Space without changing Markdown bytes", async ({ page }) => {

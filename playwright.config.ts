@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["**/typing-performance.spec.ts"],
   timeout: 30_000,
   fullyParallel: true,
   // The suite includes a <1 s first-paint budget, which needs dedicated resources.

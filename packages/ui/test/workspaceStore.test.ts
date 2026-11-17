@@ -8,6 +8,52 @@ beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
 describe("persistent workspace store", () => {
+  it("keeps new recovery, older-app recovery and externally saved words as separate files", async () => {
+    const files = createMemoryFiles({ "note.md": "original" });
+    const owner = createWorkspaceStore(record, files);
+    owner.setOwned(true);
+    await owner.load();
+    owner.edit("new app unsaved", [{ from: 0, to: 8, text: "new app unsaved" }]);
+    await files.write("note.md", encodeText("older app saved"));
+    localStorage.setItem("slate.recovery.test-library", JSON.stringify({ "note.md": { content: "older app unsaved", baseContent: "older app saved" } }));
+    const reopened = createWorkspaceStore(record, files);
+    reopened.setOwned(true);
+    await reopened.load();
+    await reopened.flush();
+    expect((await reopened.space.sheets()).map((sheet) => sheet.content).sort()).toEqual(["new app unsaved", "older app saved", "older app unsaved"]);
+    expect(localStorage.getItem("slate.recovery.test-library")).toBeNull();
+    expect(localStorage.getItem("slate.recovery-v2.test-library")).toBeNull();
+  });
+  it("keeps the volatile sample editable when browser recovery storage is unavailable", async () => {
+    const files = createMemoryFiles({ "sample.md": "Sample words" });
+    const blocked = vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new DOMException("Unavailable", "SecurityError"); });
+    try {
+      const store = createWorkspaceStore({ id: "sample", name: "Sample", tier: "library" }, files);
+      await store.load();
+      store.edit("My sample words", [{ from: 0, to: 6, text: "My sample" }]);
+      await store.flush();
+      expect(await store.space.read("sample.md")).toBe("My sample words");
+    } finally { blocked.mockRestore(); }
+  });
+  it("recovers compact editor changes from a CRLF source and preserves an external edit as a conflict", async () => {
+    const original = "alpha\r\nbeta\r\n";
+    const files = createMemoryFiles({ "note.md": original });
+    const owner = createWorkspaceStore(record, files);
+    owner.setOwned(true);
+    await owner.load();
+    owner.edit("alpha!\nbeta\n", [{ from: 5, to: 5, text: "!" }]);
+    owner.edit("alpha!!\nbeta\n", [{ from: 6, to: 6, text: "!" }]);
+    expect(await owner.space.read("note.md")).toBe(original);
+    await files.write("note.md", encodeText("external words"));
+    const reopened = createWorkspaceStore(record, files);
+    reopened.setOwned(true);
+    await reopened.load();
+    expect(reopened.api.getState().sheets[0]?.content).toBe("alpha!!\nbeta\n");
+    await reopened.flush();
+    expect(await reopened.space.read("note.md")).toBe("external words");
+    expect(await reopened.space.read(reopened.api.getState().selectedPath)).toBe("alpha!!\nbeta\n");
+    expect(localStorage.getItem("slate.recovery-v2.test-library")).toBeNull();
+  });
   it("persists pins/density alongside files, preserves unknown preferences and follows pins through moves", async () => {
     const files = createMemoryFiles({ "note.md": "words", ".slate/view.json": JSON.stringify({ version: 1, custom: { keep: true } }) });
     const store = createWorkspaceStore(record, files);
@@ -118,10 +164,10 @@ describe("persistent workspace store", () => {
     owner.edit("writer's unsaved words");
     const reader = createWorkspaceStore(record, files);
     await reader.load();
-    const journal = localStorage.getItem(`slate.recovery.${record.id}`);
+    const journal = localStorage.getItem(`slate.recovery-v2.${record.id}`);
     await reader.flush();
     expect(await reader.space.read("note.md")).toBe("saved base");
-    expect(localStorage.getItem(`slate.recovery.${record.id}`)).toBe(journal);
+    expect(localStorage.getItem(`slate.recovery-v2.${record.id}`)).toBe(journal);
   });
 
   it("takes over the latest recovery draft after the previous writer disappears", async () => {
@@ -181,7 +227,7 @@ describe("persistent workspace store", () => {
     expect(reopened.api.getState().sheets[0]?.content).toBe("my unsaved words");
     await reopened.flush();
     expect(await reopened.space.read("Inbox/note.md")).toBe("my unsaved words");
-    expect(localStorage.getItem("slate.recovery.test-library")).toBeNull();
+    expect(localStorage.getItem("slate.recovery-v2.test-library")).toBeNull();
   });
 
   it("keeps a recovered draft as a conflict copy when the disk changed", async () => {
@@ -233,6 +279,6 @@ describe("persistent workspace store", () => {
     expect(store.api.getState().sheets[0]?.content).toBe("keep my words");
     expect(store.api.getState().saveState).toBe("Unsaved");
     expect(store.api.getState().error).toContain("Quota exceeded");
-    expect(localStorage.getItem("slate.recovery.test-library")).toContain("keep my words");
+    expect(localStorage.getItem("slate.recovery-v2.test-library")).toContain("keep my words");
   });
 });

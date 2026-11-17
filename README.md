@@ -75,9 +75,12 @@ The verify gate runs TypeScript checks, ESLint, Vitest, Rust tests, builds both 
 
 ```bash
 pnpm perf
+pnpm perf:typing
 ```
 
 The performance hook checks the 50k-word open path, typing HUD stats on a large sheet, and SQLite FTS search over 10k synthetic sheets.
+
+`pnpm perf:typing` uses fresh browser processes to measure 225 real keystrokes in a 50k-word sheet, enforces p95 <16 ms, and verifies that every word is saved unchanged. Its reports are under `playwright-report/typing/`; functional browser checks remain in `pnpm e2e`.
 
 After `pnpm build`, the debug desktop executable is at `apps/desktop/src-tauri/target/debug/slate-desktop.exe`.
 

@@ -25,6 +25,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm build:site
       - run: pnpm e2e --project=chromium --project=firefox --project=webkit
+      - run: pnpm perf:typing --project=chromium --project=firefox --project=webkit
       - run: pnpm perf:site
       - name: Upload failed browser and performance evidence
         if: failure()

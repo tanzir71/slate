@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import type { GoalProgress, SheetStats } from "@slate/core";
 import type { createCursorStore } from "../commands";
 import { GoalRing } from "./SheetRow";
@@ -35,16 +35,16 @@ export function WorkspaceStatusBar({
   );
   const [info, setInfo] = useState<"stats" | "file" | "line">();
   const [line, setLine] = useState(1);
-  const lineEnding = /\r\n/.test(content)
+  const lineEnding = useMemo(() => /\r\n/.test(content)
     ? /(^|[^\r])\n/.test(content)
       ? "Mixed"
       : "CRLF"
     : /\r/.test(content)
       ? "CR"
-      : "LF";
+      : "LF", [content]);
   return (
     <>
-      <footer className="workspaceStatus">
+      <footer className="workspaceStatus" onClickCapture={(event) => { if (event.target instanceof Element) event.target.closest("button")?.focus(); }}>
         <button
           className="saveStateControl"
           title={

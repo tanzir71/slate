@@ -8,7 +8,9 @@ export async function openLibrary(page: Page) {
 }
 
 export async function createSheet(page: Page, text = "# My writing\n\nWords worth keeping.") {
+  const previousURL = page.url();
   await page.getByRole("button", { name: "New Sheet", exact: true }).first().click();
+  await expect(page).not.toHaveURL(previousURL);
   const editor = page.locator(".cm-content");
   await expect(editor).toBeVisible({ timeout: 15_000 });
   await editor.click();
@@ -44,4 +46,17 @@ export async function appearanceControl(page: Page) {
 export async function chooseAppearance(page: Page, preference: "light" | "dark" | "system") {
   await (await appearanceControl(page)).selectOption(preference);
   if (await page.locator(".sheetActionsMenu[open]").count()) await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
+}
+
+export async function readCurrentSheet(page: Page) {
+  return page.evaluate(async () => {
+    const parts = location.hash.split("/");
+    const id = decodeURIComponent(parts[2]!);
+    const path = decodeURIComponent(parts[4]!).split("/");
+    const filename = path.pop()!;
+    const root = await navigator.storage.getDirectory();
+    let directory = await (await root.getDirectoryHandle("spaces")).getDirectoryHandle(id);
+    for (const part of path) directory = await directory.getDirectoryHandle(part);
+    return (await (await directory.getFileHandle(filename)).getFile()).text();
+  });
 }

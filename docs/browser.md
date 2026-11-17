@@ -30,4 +30,6 @@ Choose **About Slate** in the header or command palette to read the release note
 
 `pnpm build:site` assembles the site with relative assets and checks the manifest, CSP, redirect and initial JavaScript budget. `pnpm e2e` serves it under `/slate/` and exercises Chromium, Firefox, WebKit and mobile Chromium.
 
+`pnpm perf:typing` runs the strict 50k-word typing budget in fresh browser processes and checks the saved Markdown. On Windows, use `pnpm perf:typing --project=chromium --project=firefox --project=mobile`; WebKit runs on Linux/macOS. The timing limit is unchanged across engines.
+
 Playwright 1.65.1 fixes the older WebKit runtime's missing Storage API. Storage tests use an isolated persistent WebKit profile because ephemeral WebKit contexts do not support OPFS. Windows WebKit still returns transient OPFS/cache errors; its complete storage suite passes on Linux and runs on Linux/macOS in CI. On Windows, the supported-engine command is `pnpm e2e --project=chromium --project=firefox --project=mobile`.

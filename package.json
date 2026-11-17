@@ -17,7 +17,8 @@
     "shots": "node scripts/shots.mjs",
     "perf:site": "node scripts/perf-site.mjs",
     "perf": "node scripts/perf-budgets.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e",
+    "perf:typing": "playwright test --config=playwright.performance.config.ts",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e && pnpm perf:typing",
     "format": "prettier --write ."
   },
   "devDependencies": {

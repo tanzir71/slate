@@ -24,10 +24,10 @@ it("displays external values without autosave echoes, caret jumps or undoing ext
     undo();
     expect(view.state.doc.toString()).toBe("Alpha\nBeta\nGamma");
     view.dispatch({ changes: { from: 0, insert: "typed " } });
-    expect(changed).toHaveBeenLastCalledWith("typed Alpha\nBeta\nGamma");
+    expect(changed).toHaveBeenLastCalledWith("typed Alpha\nBeta\nGamma", [{ from: 0, to: 0, text: "typed " }]);
     undo();
     expect(view.state.doc.toString()).toBe("Alpha\nBeta\nGamma");
-    expect(changed).toHaveBeenLastCalledWith("Alpha\nBeta\nGamma");
+    expect(changed).toHaveBeenLastCalledWith("Alpha\nBeta\nGamma", [{ from: 0, to: 6, text: "" }]);
   } finally {
     await act(async () => root.unmount());
     host.remove();
