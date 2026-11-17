@@ -3,9 +3,13 @@ import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/s
 import { EditorView } from "@codemirror/view";
 import {
   createSlateMarkdownExtensions,
+  createFormattingBindings,
+  runFormattingCommand,
   findWikiLinkAtPosition,
   type WikiLinkHit
 } from "@slate/editor";
+import type { ResolvedKeymap } from "@slate/core";
+import type { MarkdownEditorHandle } from "./commands";
 
 const externalValue = Annotation.define<boolean>();
 
@@ -25,15 +29,19 @@ interface MarkdownEditorProps {
   readOnly?: boolean;
   documentKey?: string;
   onReady?: () => void;
+  keymap?: ResolvedKeymap;
+  onHandle?: (handle: MarkdownEditorHandle | undefined) => void;
 }
 
-export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onNavigateWikiLinkRef = useRef(onNavigateWikiLink);
   const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
+  const formattingKeys = useRef(new Compartment());
+  const onHandleRef = useRef(onHandle);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -43,6 +51,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
     onNavigateWikiLinkRef.current = onNavigateWikiLink;
   }, [onNavigateWikiLink]);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
+  useEffect(() => { onHandleRef.current = onHandle; }, [onHandle]);
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -66,7 +75,8 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
         extensions: [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
-          ...createSlateMarkdownExtensions(),
+          ...createSlateMarkdownExtensions({ formattingKeys: false }),
+          formattingKeys.current.of(createFormattingBindings(keymap)),
           EditorView.domEventHandlers({
             mousedown(event, view) {
               const navigate = onNavigateWikiLinkRef.current;
@@ -102,6 +112,12 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
     });
 
     viewRef.current = view;
+    onHandleRef.current?.({
+      runFormat(id) { const applied = runFormattingCommand(view, id); if (applied) view.focus(); return applied; },
+      focus() { view.focus(); },
+      hasFocus() { return view.hasFocus; },
+      hasSelection() { return !view.state.selection.main.empty; }
+    });
     const readyFrame = requestAnimationFrame(() => onReadyRef.current?.());
     const scroll = () => {
       if (preferenceKey) {
@@ -118,12 +134,17 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
       window.removeEventListener("pagehide", scroll);
       view.destroy();
       viewRef.current = null;
+      onHandleRef.current?.(undefined);
     };
   }, []);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: editable.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) });
   }, [readOnly]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: formattingKeys.current.reconfigure(createFormattingBindings(keymap)) });
+  }, [keymap]);
 
   useEffect(() => {
     const view = viewRef.current;

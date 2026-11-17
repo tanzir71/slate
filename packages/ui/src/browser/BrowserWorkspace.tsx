@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { Folder, Hash, Inbox, Plus, Search, PanelRight, ArrowLeft, Download, Upload, Trash2, Pencil, BookOpen, Info } from "lucide-react";
-import { parseSheet } from "@slate/core";
+import { matchCommand, parseSheet, resolveCommandKeymap } from "@slate/core";
 import { safeBrowserPath, type BrowserDirectoryHandle } from "@slate/storage/browser-files";
 import { addBrowserImportEntry, collectBrowserDrop, type BrowserImportFile } from "@slate/storage/browser-import";
 import type { WorkspaceStore } from "./workspaceStore";
@@ -9,6 +9,8 @@ import type { BrowserAppProps } from "./BrowserApp";
 import { LaunchActions } from "./LaunchActions";
 import { AppearanceControl, type useAppearance } from "../appearance";
 import { BrandMark } from "../BrandMark";
+import { commandShortcut, keyboardInput, readKeymap, shortcutOS, type MarkdownEditorHandle } from "../commands";
+import { CommandDialog } from "./CommandDialog";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 interface FolderObserver {
@@ -36,6 +38,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     try { return localStorage.getItem(inspectorKey) === "true"; } catch { return false; }
   });
   const [palette, setPalette] = useState(false);
+  const [shortcuts, setShortcuts] = useState(false);
+  const os = shortcutOS();
+  const [keymap, setKeymap] = useState(() => resolveCommandKeymap({ os, surface: "web" }));
   const [action, setAction] = useState<"rename" | "move" | "trash" | "notebook" | undefined>();
   const [actionValue, setActionValue] = useState("");
   const [extraNotebooks, setExtraNotebooks] = useState<string[]>([]);
@@ -49,6 +54,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const aboutButton = useRef<HTMLButtonElement>(null);
   const index = useRef<ReturnType<NonNullable<BrowserAppProps["createIndex"]>> | undefined>(undefined);
   const queryGeneration = useRef(0);
+  const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
   const documents = useMemo(() => state.sheets.map((sheet) => parseSheet(sheet.content, sheet.path)), [state.sheets]);
   const document = documents.find((sheet) => sheet.path === state.selectedPath);
@@ -63,6 +69,42 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   function run(work: () => Promise<unknown>) {
     void work().catch((error: unknown) => store.api.setState({ error: error instanceof Error ? error.message : "The operation failed. Your files were kept." }));
   }
+
+  function shortcut(id: string) { return commandShortcut(id, keymap, os); }
+
+  function dispatchCommand(id: string) {
+    if (id.startsWith("format.")) { if (state.owned) editorHandle.current?.runFormat(id); return; }
+    const actions: Record<string, () => void> = {
+      "app.palette": () => setPalette((open) => !open),
+      "sheet.new": () => { if (state.owned) run(() => store.create(filter && !filter.startsWith("#") ? filter : "Inbox")); },
+      "sheet.search": () => search.current?.focus(),
+      "sheet.save": () => run(store.flush),
+      "space.export": () => run(exportZip),
+      "space.switch": () => run(onSwitchSpace),
+      "view.inspector": () => setInspector((open) => !open),
+      "app.shortcuts": () => setShortcuts(true),
+      "app.about": () => { aboutButton.current?.focus(); onAbout(); },
+      "appearance.light": () => appearance.change("light"),
+      "appearance.dark": () => appearance.change("dark"),
+      "appearance.system": () => appearance.change("system")
+    };
+    actions[id]?.();
+  }
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const next = readKeymap(await store.space.files.read(".slate/keymap.json"), os);
+        if (active) setKeymap(next);
+      } catch {
+        if (active) setKeymap({ ...resolveCommandKeymap({ os, surface: "web" }), issues: [{ commandId: "", message: "The Space keymap could not be read. Default shortcuts remain active." }] });
+      }
+    };
+    void load();
+    window.addEventListener("focus", load);
+    return () => { active = false; window.removeEventListener("focus", load); };
+  }, [store, os]);
 
   useEffect(() => {
     try { localStorage.setItem(inspectorKey, String(inspector)); } catch { /* View preferences are optional. */ }
@@ -159,19 +201,16 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.getModifierState("AltGraph")) return;
-      const mod = event.ctrlKey || event.metaKey;
-      const key = event.key.toLowerCase();
-      if (event.key === "Escape") { setPalette(false); setAction(undefined); return; }
-      if ((event.altKey && !mod && !event.shiftKey && key === "n")) { event.preventDefault(); run(() => store.create(filter && !filter.startsWith("#") ? filter : "Inbox")); }
-      if (mod && key === "k") { event.preventDefault(); setPalette((open) => !open); }
-      if (mod && event.shiftKey && key === "i") { event.preventDefault(); setInspector((open) => !open); }
-      if (mod && event.shiftKey && key === "f") { event.preventDefault(); search.current?.focus(); }
-      if (mod && key === "s") { event.preventDefault(); run(store.flush); }
+      if (event.defaultPrevented) return;
+      if (event.key === "Escape") { setPalette(false); setShortcuts(false); setAction(undefined); return; }
+      if (palette || shortcuts || action) return;
+      const editor = editorHandle.current;
+      const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false });
+      if (id) { event.preventDefault(); dispatchCommand(id); }
     };
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [store, filter]);
+  });
 
   async function importPicked(files: FileList | File[] | BrowserImportFile[]) {
     const entries: Record<string, Uint8Array> = Object.create(null) as Record<string, Uint8Array>;
@@ -229,7 +268,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
-    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={17} /></button>}<button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title="Inspector (Ctrl Shift I)" aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
+    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={17} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={() => setShortcuts(true)}>?</button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title={`Inspector (${shortcut("view.inspector")})`} aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
+    {!!keymap.issues.length && <div className="notice" role="status">Default shortcuts are active. .slate/keymap.json: {keymap.issues.map((issue) => `${issue.commandId ? `${issue.commandId}: ` : ""}${issue.message}`).join(" ")}</div>}
     {state.record.id === "sample" && <div className="notice">Sample — nothing is saved <button onClick={() => run(onKeepSample)}>Keep these sheets</button></div>}
     {!state.owned && <div className="notice" role="status">Slate is open in another tab <button onClick={() => run(onTakeover)}>Use here</button></div>}
     {state.error && <div className="errorNotice" role="alert">{state.error}<button onClick={() => run(store.flush)}>Retry saving</button></div>}
@@ -249,7 +289,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         <div className="storageFooter">{state.record.id === "sample" ? "Sample" : state.record.tier === "folder" ? `Folder: ${state.record.name}` : `Browser library · ${usage}`}<br /><span>{indexWarning}</span></div>
       </aside>
       <aside className="browserSheetList" aria-label="Sheets">
-        <div className="listHeading"><strong>{filter || "All sheets"}</strong><button title="New sheet (Alt N)" aria-label="New Sheet" disabled={!state.owned} onClick={() => run(() => store.create(filter && !filter.startsWith("#") ? filter : "Inbox"))}><Plus size={18} /></button></div>
+        <div className="listHeading"><strong>{filter || "All sheets"}</strong><button title={`New sheet (${shortcut("sheet.new")})`} aria-label="New Sheet" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}><Plus size={18} /></button></div>
         <label className="browserSearch"><Search size={15} /><input ref={search} aria-label="Search sheets" placeholder="Search sheets…" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <div className="browserSheetRows">{visible.map((sheet) => <button className={`browserSheetRow ${sheet.path === state.selectedPath ? "active" : ""}`} key={sheet.path} aria-current={sheet.path === state.selectedPath ? "true" : undefined} draggable={state.owned}
           onDragStart={(event) => event.dataTransfer.setData("slate/sheet-path", sheet.path)} onClick={() => run(() => store.select(sheet.path))}>
@@ -264,7 +304,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
           <button title="Move sheet" aria-label="Move sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => { setAction("move"); setActionValue(notebookFor(state.selectedPath)); }}><Folder size={16} /></button>
           <button title="Move to trash" aria-label="Delete sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => setAction("trash")}><Trash2 size={16} /></button>
         </div></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onReady={() => setEditorReady(true)} onChange={(content) => {
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} keymap={keymap} onHandle={(handle) => { editorHandle.current = handle; }} onReady={() => setEditorReady(true)} onChange={(content) => {
           store.edit(content);
         }} onNavigateWikiLink={(link) => {
           const target = documents.find((sheet) => sheet.id === link.targetId || sheet.title.toLowerCase() === link.target.toLowerCase());
@@ -279,9 +319,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       <button disabled={!state.owned} onClick={() => input.current?.click()}><Upload size={14} />Import</button><button disabled={!state.owned} onClick={() => folderInput.current?.click()}>Import folder</button><button onClick={() => run(exportZip)}><Download size={14} />Export .zip</button>
     </footer>
     <LaunchActions key={state.record.id} store={store} />
-    {palette && <div className="modalBackdrop" onClick={() => setPalette(false)}><section className="browserDialog" role="dialog" aria-modal="true" aria-label="Command palette" onClick={(event) => event.stopPropagation()}>
-      <h2>Command palette</h2><button onClick={() => { setPalette(false); run(() => store.create()); }}>New sheet <kbd>Alt N</kbd></button><button onClick={() => { setPalette(false); search.current?.focus(); }}>Search sheets <kbd>Ctrl Shift F</kbd></button><button onClick={() => { setPalette(false); run(exportZip); }}>Export Space as .zip</button><button onClick={() => { setPalette(false); aboutButton.current?.focus(); onAbout(); }}>About Slate</button><button onClick={() => setPalette(false)}>Close</button>
-    </section></div>}
+    {(palette || shortcuts) && <CommandDialog kind={shortcuts ? "shortcuts" : "palette"} keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} onClose={() => { setPalette(false); setShortcuts(false); }} onCommand={(id) => { setPalette(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
     {action && <div className="modalBackdrop"><form className="browserDialog" role="dialog" aria-modal="true" aria-label={`${action} sheet`} onSubmit={(event) => { event.preventDefault(); run(performAction); }}>
       <h2>{action === "trash" ? "Move this sheet to trash?" : action === "notebook" ? "New notebook" : action === "rename" ? "Rename sheet" : "Move to notebook"}</h2>
       {action === "trash" ? <p>A copy stays in .slate/trash and is included in your Space export.</p> : <label>{action === "rename" ? "File name" : "Notebook path"}<input autoFocus value={actionValue} onChange={(event) => setActionValue(event.target.value)} required /></label>}

@@ -14,6 +14,8 @@ import {
   type ViewUpdate
 } from "@codemirror/view";
 import { computeStats } from "@slate/core";
+import { createFormattingBindings } from "./formatting.js";
+export { createFormattingBindings, formattingCommandIds, runFormattingCommand, setEditorBlock, toggleEditorTask, wrapEditorSelection } from "./formatting.js";
 
 export interface EditorHud {
   words: number;
@@ -40,7 +42,7 @@ export interface WikiLinkHit {
 const wikiLinkPattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 const ulidLikePattern = /^(?:id:)?01[0-9A-HJKMNP-TV-Z]{24}$/i;
 
-export function createSlateMarkdownExtensions(): Extension[] {
+export function createSlateMarkdownExtensions(options: { formattingKeys?: boolean } = {}): Extension[] {
   return [
     history(),
     markdown(),
@@ -54,13 +56,8 @@ export function createSlateMarkdownExtensions(): Extension[] {
       { tag: tags.link, color: "var(--slate-accent)" },
       { tag: tags.monospace, fontFamily: "monospace" }
     ])),
-    keymap.of([
-      { key: "Mod-b", run: (view) => wrapEditorSelection(view, "**") },
-      { key: "Mod-i", run: (view) => wrapEditorSelection(view, "*") },
-      { key: "Mod-k", run: (view) => wrapEditorSelection(view, "[", "](url)", false) },
-      { key: "Mod-Enter", run: toggleEditorTask },
-      ...markdownKeymap, ...defaultKeymap, ...historyKeymap
-    ]),
+    options.formattingKeys === false ? [] : createFormattingBindings(),
+    keymap.of([...markdownKeymap, ...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,
     EditorView.theme({
       "&": {
@@ -80,27 +77,6 @@ export function createSlateMarkdownExtensions(): Extension[] {
       }
     })
   ];
-}
-
-export function wrapEditorSelection(view: EditorView, before: string, after = before, allowEmpty = true): boolean {
-  if (view.state.readOnly) return false;
-  const { from, to } = view.state.selection.main;
-  if (from === to && !allowEmpty) return false;
-  const text = view.state.sliceDoc(from, to);
-  const wrapped = text.startsWith(before) && text.endsWith(after) && text.length >= before.length + after.length;
-  const insert = wrapped ? text.slice(before.length, -after.length) : `${before}${text}${after}`;
-  view.dispatch({ changes: { from, to, insert }, selection: { anchor: from + (wrapped ? 0 : before.length), head: from + insert.length - (wrapped ? 0 : after.length) }, userEvent: "input.format" });
-  return true;
-}
-
-export function toggleEditorTask(view: EditorView): boolean {
-  if (view.state.readOnly) return false;
-  const line = view.state.doc.lineAt(view.state.selection.main.head);
-  const match = /^(\s*[-*+] \[)([ xX])(\])/.exec(line.text);
-  if (!match) return false;
-  const from = line.from + match[1]!.length;
-  view.dispatch({ changes: { from, to: from + 1, insert: match[2] === " " ? "x" : " " }, userEvent: "input.task" });
-  return true;
 }
 
 export function createInvisibleMarkdownExtension(): Extension {

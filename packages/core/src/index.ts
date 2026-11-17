@@ -3,6 +3,8 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { parse as parseYaml } from "yaml";
 
+export * from "./commands.js";
+
 export type SheetId = string;
 
 export type GoalType = "words" | "characters" | "readingTimeMinutes";
