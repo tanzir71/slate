@@ -3,11 +3,12 @@
 ## Current Status
 
 - Current phase: Slate 2.0 handover implementation, in release order (v0.2 through v1.1).
-- Current task: Landing priority (F-120) and v0.2.0 are published. Ship the reproduced two-tab recovery fix as v0.2.1, then continue v0.3–v1.1.
-- Gate: v0.2.0 tag CI 44120169808 passes on Linux, Windows and macOS. Pages run 44120169768 deployed the tag and passed live save/reopen; the preceding publication gate passed 66 browser checks and Lighthouse 100 in all categories (LCP 1205 ms). The v0.2.1 candidate passes strict types, lint/clippy, 82 unit tests plus the new read-only-flush case, 8 Rust tests, 3 metadata tests and 71 supported Windows browser cases (4 capability skips). Final patch checks and tag publication follow.
+- Current task: Landing priority (F-120) and v0.2.1 are live. Continue v0.3–v1.1; the broader handover goal remains active.
+- Gate: v0.2.1 Pages run 44124925201 passed 69 three-engine browser checks (6 capability skips), Lighthouse 100 in all categories, LCP 1249 ms and CLS 0.001, deployed commit e0e1a51 and created the release after a live save/reopen smoke. A separate public-origin fault-injection check confirmed latest-draft recovery after write revocation and writer-tab closure. Local patch checks cover 83 unit cases, 8 Rust tests, 3 metadata tests and 71 supported Windows browser cases (4 skips). v0.2.0 tag CI passed all three native platforms; v0.2.1's full native matrix remains in progress/queued, with macOS runner capacity constraints.
 
 ## Loop Notes
 
+- 2026-11-17: Published [v0.2.1](https://github.com/tanzir71/slate/releases/tag/v0.2.1) from e0e1a51 through successful [Pages run 44124925201](https://github.com/tanzir71/slate/actions/runs/44124925201). Public release.json and the rendered version label both match 0.2.1; the real public-origin recovery regression passes after a failed write, writer-tab closure, takeover, save and reload. The landing and app are rebuilt, gated and published together on every release tag. The current user priority is fulfilled; v0.3 foundations are on codex/v0.3-foundations and its typing-performance work remains stashed/unfinished. No later handover milestones have been marked complete.
 - 2026-11-17: v0.2.1's local gate passes types, lint/clippy, unit/Rust/release checks, site/performance budgets and 71 supported Windows browser cases (4 skips). Added one further unit case proving that a read-only flush leaves both the writer's recovery entry and source file untouched; all eight store cases pass. The final targeted ownership checks run against the rebuilt patch before push/publication. No journal or Markdown migration is involved.
 - 2026-11-17: v0.2.0 is published at tag `3007df2` after successful Pages run 44120169768, 66 publication browser checks and live save/reopen verification. A subsequent ownership/recovery regression exposed a data-loss edge case: a read-only tab could flush its stale snapshot after the writer disappeared, replacing the latest shared recovery entry. Added a failing unit case, then synchronously re-read the journal and refreshed the buffer before enabling input on ownership gain. Seven store cases now pass, including the prior writer already having saved. Preparing an immediate v0.2.1 safety patch with a real two-tab failed-write regression; v0.3 remains isolated.
 - 2026-11-17: macOS diagnostics confirm the remaining scroll failure was a test precondition race: it had already recorded 1585 before navigation and correctly restored 1585, but the assertion still compared against a hardcoded 350. The test now lets font/selection measurements settle and compares the actual captured offset within the same 28 px tolerance. The root-entry selection regression passes in all supported Windows engines; final verification and push follow.
@@ -77,8 +78,8 @@
 - [x] Finish verification of SW update activation/flush flow
 - [x] Linux WebKit OPFS/worker/offline verification
 - [x] Complete manifest shortcut/file-handler behavior and capability matrix
-- [ ] Final v0.2 performance/installability, `pnpm verify`, release notes/version and commit
-- [ ] Tag/deploy/release validation
+- [x] Final v0.2 performance/installability, verification, release notes/version and commit (platform workarounds above)
+- [x] Tag/deploy/release validation, including v0.2.1 recovery safety patch
 
 ### Slate 2.0 — remaining releases
 
