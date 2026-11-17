@@ -75,7 +75,6 @@ input:focus-visible {
 }
 
 .topbar nav button,
-.windowControls,
 .toolButtons button,
 .sidebarFooter button,
 .sectionHeader button,
@@ -97,19 +96,6 @@ input:focus-visible {
 .sidebarFooter button:hover,
 .sectionHeader button:hover {
   background: var(--slate-panel-muted);
-}
-
-.windowControls {
-  display: flex;
-  gap: 18px;
-  padding-right: 18px;
-}
-
-.windowControls span {
-  width: 11px;
-  height: 11px;
-  border: 1.5px solid var(--text-primary);
-  border-radius: 2px;
 }
 
 .workspace {
@@ -263,8 +249,7 @@ input:focus-visible {
   font-weight: 650;
 }
 
-.searchBox,
-.commandSearch {
+.searchBox {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -278,8 +263,7 @@ input:focus-visible {
   color: var(--slate-muted);
 }
 
-.searchBox input,
-.commandSearch input {
+.searchBox input {
   width: 100%;
   min-width: 0;
   border: 0;
@@ -539,40 +523,6 @@ input:focus-visible {
   min-height: 100vh;
 }
 
-.commandPalette {
-  position: absolute;
-  z-index: 20;
-  top: 52px;
-  left: 50%;
-  width: min(426px, calc(100% - 44px));
-  padding: 12px;
-  border: 1px solid var(--slate-border);
-  border-radius: 8px;
-  background: var(--bg-canvas);
-  box-shadow: 0 20px 54px rgba(18, 30, 46, 0.2);
-  transform: translateX(-50%);
-}
-
-.commandSearch {
-  margin: 0 0 10px;
-}
-
-kbd {
-  color: var(--slate-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.commandLabel {
-  display: block;
-  padding: 6px 10px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 720;
-}
-
-.commandRow,
-.showAll,
 .outlineRow,
 .backlinkRow {
   width: 100%;
@@ -580,26 +530,6 @@ kbd {
   border-radius: 6px;
   background: transparent;
   text-align: left;
-}
-
-.commandRow {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px;
-}
-
-.commandRow.active,
-.commandRow:hover,
-.showAll:hover {
-  background: var(--slate-accent-soft);
-}
-
-.showAll {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 10px 8px;
-  color: var(--slate-muted);
 }
 
 .inspector {
@@ -613,6 +543,16 @@ kbd {
   height: 56px;
   padding: 0 16px;
   border-bottom: 1px solid var(--slate-border);
+}
+
+.inspectorHeader button {
+  display: grid;
+  place-items: center;
+  inline-size: 32px;
+  min-block-size: 32px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
 }
 
 .tabs {
@@ -753,6 +693,16 @@ kbd {
   .inspector {
     display: none;
   }
+
+  .slateApp:not(.inspectorHidden) .inspector {
+    display: block;
+    position: absolute;
+    inset-block: 43px 0;
+    inset-inline-end: 0;
+    inline-size: 288px;
+    z-index: 5;
+    box-shadow: -12px 0 32px #0002;
+  }
 }
 
 @media (max-width: 820px) {
@@ -761,10 +711,6 @@ kbd {
   }
 
   .topbar nav {
-    display: none;
-  }
-
-  .windowControls {
     display: none;
   }
 
@@ -793,7 +739,6 @@ kbd {
 
 @media (prefers-reduced-motion: no-preference) {
   button,
-  .commandPalette,
   .sheetRow {
     transition:
       background-color 160ms ease-out,

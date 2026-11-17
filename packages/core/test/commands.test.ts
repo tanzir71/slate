@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   commandAvailable,
+  commandsForSurface,
   matchCommand,
   parseShortcut,
   resolveCommandKeymap,
@@ -24,6 +25,17 @@ const profile = { os: "windows", surface: "web" } as const;
 const editor = { editor: true, selection: false };
 
 describe("shared command registry", () => {
+  it("keeps desktop-only actions and their custom bindings out of browser profiles", () => {
+    expect(commandsForSurface("web").some((command) => command.id === "view.focus")).toBe(false);
+    const desktop = resolveCommandKeymap({ os: "windows", surface: "desktop" });
+    expect(matchCommand(desktop.bindings, input("."), editor)).toBe("view.focus");
+    expect(matchCommand(desktop.bindings, input("F11", { ctrlKey: false }), editor)).toBe("view.fullscreen");
+    expect(matchCommand(desktop.bindings, input("2", { altKey: true }), editor)).toBe("space.activate2");
+    const custom = resolveCommandKeymap(profile, { version: 1, bindings: { "view.focus": "Mod+j" } });
+    expect(custom.issues).toHaveLength(1);
+    expect(matchCommand(custom.bindings, input("j"), editor)).toBeUndefined();
+  });
+
   it("has unique IDs, labels and conflict-free defaults for every profile", () => {
     expect(new Set(slateCommands.map((command) => command.id)).size).toBe(
       slateCommands.length,

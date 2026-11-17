@@ -12,13 +12,14 @@
     "lint:design": "stylelint \"packages/ui/src/**/*.css\" \"docs/landing.css\" --max-warnings 0 && node scripts/check-design.mjs",
     "test": "vitest run --coverage && cargo test --manifest-path crates/slate-core/Cargo.toml && node --test scripts/test/*.test.mjs",
     "e2e": "playwright test",
+    "e2e:desktop": "playwright test --config=playwright.desktop.config.ts",
     "build": "pnpm -r --if-present build && pnpm --filter @slate/desktop tauri:build",
     "build:site": "node scripts/build-site.mjs && node scripts/verify-site.mjs",
     "shots": "node scripts/shots.mjs",
     "perf:site": "node scripts/perf-site.mjs",
     "perf": "node scripts/perf-budgets.mjs",
     "perf:typing": "playwright test --config=playwright.performance.config.ts",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e && pnpm perf:typing",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e:desktop && pnpm e2e && pnpm perf:typing",
     "format": "prettier --write ."
   },
   "devDependencies": {

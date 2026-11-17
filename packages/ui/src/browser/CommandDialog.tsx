@@ -2,11 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { Keyboard, Search, X } from "lucide-react";
 import {
   commandAvailable,
+  commandsForSurface,
   slateCommands,
+  type CommandDefinition,
   type ResolvedKeymap,
+  type ShortcutProfile,
   type ShortcutOS,
 } from "@slate/core";
 import { commandShortcut } from "../commands";
+import "../commandDialog.css";
 
 interface CommandDialogProps {
   kind: "palette" | "shortcuts";
@@ -16,6 +20,8 @@ interface CommandDialogProps {
   selection: boolean;
   onClose: () => void;
   onCommand: (id: string) => void;
+  surface?: ShortcutProfile["surface"];
+  registry?: readonly CommandDefinition[];
 }
 
 export function CommandDialog({
@@ -26,13 +32,16 @@ export function CommandDialog({
   selection,
   onClose,
   onCommand,
+  surface = "web",
+  registry = slateCommands,
 }: CommandDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const shortcuts = kind === "shortcuts";
   const title = shortcuts ? "Keyboard shortcuts" : "Command palette";
-  const commands = slateCommands.filter((command) =>
+  const available = commandsForSurface(surface, registry);
+  const commands = available.filter((command) =>
     `${command.label} ${command.group}`
       .toLowerCase()
       .includes(query.toLowerCase()),
@@ -107,7 +116,7 @@ export function CommandDialog({
           {title}
         </h1>
         <span className="shortcutProfile">
-          {os === "mac" ? "macOS" : "Windows · Linux"} · Browser
+          {os === "mac" ? "macOS" : os === "windows" ? "Windows" : "Linux"} · {surface === "web" ? "Browser" : "Desktop"}
         </span>
         <button aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>
           <X size={18} />
@@ -120,7 +129,7 @@ export function CommandDialog({
           aria-label={shortcuts ? "Search shortcuts" : "Search commands"}
           placeholder={
             shortcuts
-              ? `Search ${slateCommands.length} commands`
+              ? `Search ${available.length} commands`
               : "What would you like to do?"
           }
           value={query}
@@ -158,7 +167,7 @@ export function CommandDialog({
         <p className="commandEmpty">No commands match. Try another search.</p>
       )}
       <footer>
-        Shortcuts for this browser<span>Esc to close</span>
+        Shortcuts for this {surface === "web" ? "browser" : "desktop app"}<span>Esc to close</span>
       </footer>
     </dialog>
   );

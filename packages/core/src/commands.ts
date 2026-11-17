@@ -11,6 +11,7 @@ export interface CommandDefinition {
   context?: CommandContext;
   shortcut?: string;
   webShortcut?: string;
+  surfaces?: readonly ShortcutProfile["surface"][];
 }
 
 const format = (
@@ -88,7 +89,24 @@ export const slateCommands: readonly CommandDefinition[] = [
   format("quote", "Blockquote", "Mod+Shift+."),
   format("codeblock", "Code block", "Mod+Shift+`"),
   format("toggleTask", "Toggle task", "Mod+Enter"),
+  { id: "view.focus", label: "Toggle focus mode", group: "View", shortcut: "Mod+.", surfaces: ["desktop"] },
+  { id: "view.typewriter", label: "Toggle typewriter mode", group: "View", surfaces: ["desktop"] },
+  { id: "view.fullscreen", label: "Toggle full-screen mode", group: "View", shortcut: "F11", surfaces: ["desktop"] },
+  ...Array.from({ length: 9 }, (_, index): CommandDefinition => ({
+    id: `space.activate${index + 1}`,
+    label: `Switch to Space ${index + 1}`,
+    group: "Workspace",
+    shortcut: `Mod+Alt+${index + 1}`,
+    surfaces: ["desktop"],
+  })),
 ];
+
+export function commandsForSurface(
+  surface: ShortcutProfile["surface"],
+  commands: readonly CommandDefinition[] = slateCommands,
+): readonly CommandDefinition[] {
+  return commands.filter((command) => !command.surfaces || command.surfaces.includes(surface));
+}
 
 export interface KeyChord {
   key: string;
@@ -206,6 +224,7 @@ export function resolveCommandKeymap(
   custom: unknown = undefined,
   commands = slateCommands,
 ): ResolvedKeymap {
+  commands = commandsForSurface(profile.surface, commands);
   const defaults = commands.flatMap((command) => {
     const shortcut =
       profile.surface === "web"

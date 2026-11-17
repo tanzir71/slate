@@ -84,16 +84,21 @@ The performance hook checks the 50k-word open path, typing HUD stats on a large 
 
 After `pnpm build`, the debug desktop executable is at `apps/desktop/src-tauri/target/debug/slate-desktop.exe`.
 
+`pnpm e2e:desktop` checks the built desktop frontend's commands, formatting, shortcut sheet, modal accessibility and focus. These browser-driven checks use an explicit test IPC adapter; they do not replace the native disk tests or OS package smoke checks.
+
 ## Keyboard shortcuts
 
 | Action | Shortcut |
 |---|---|
 | Command palette | `Ctrl+K` / `Cmd+K` |
-| New sheet | `Ctrl+N` / `Cmd+N` |
+| New sheet | Browser: `Alt+N` / `Option+N`; desktop: `Ctrl+N` / `Cmd+N` |
 | Focus sheet search | `Ctrl+Shift+F` / `Cmd+Shift+F` |
-| Toggle inspector | `Ctrl+I` / `Cmd+I` |
-| Focus mode | `Ctrl+.` / `Cmd+.` |
-| Switch Spaces | `Ctrl+Alt+1..9` / `Cmd+Alt+1..9` |
+| Italic | `Ctrl+I` / `Cmd+I` |
+| Toggle inspector | `Ctrl+Shift+I` / `Cmd+Shift+I` |
+| Keyboard shortcuts | `Ctrl+/` / `Cmd+/` |
+| Focus mode (desktop preview) | `Ctrl+.` / `Cmd+.` |
+| Full-screen mode (desktop preview) | `F11` |
+| Switch Spaces (desktop preview) | `Ctrl+Alt+1..9` / `Cmd+Alt+1..9` |
 | Toggle sidebar | `Ctrl+\` / `Cmd+\` |
 | Toggle sheet list | `Ctrl+Alt+\` / `Cmd+Alt+\` |
 | Close palette / exit focus or full-screen | `Esc` |

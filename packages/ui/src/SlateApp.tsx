@@ -22,10 +22,10 @@ import {
   Plus,
   Search,
   Settings,
-  Sparkles,
-  TextCursorInput
+  TextCursorInput,
+  X
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CSSProperties,
   Dispatch,
@@ -34,6 +34,7 @@ import type {
   MutableRefObject,
   SetStateAction
 } from "react";
+import { matchCommand, resolveCommandKeymap } from "@slate/core";
 import { computeEditorHud } from "@slate/editor";
 import { slateTokens } from "@slate/tokens";
 import {
@@ -43,11 +44,16 @@ import {
   type SheetAutosaveWriter
 } from "./autosave";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { commandShortcut, keyboardInput, shortcutOS, type MarkdownEditorHandle } from "./commands";
+import { desktopPreviewCommands } from "./desktopCommands";
+import { CommandDialog } from "./browser/CommandDialog";
 import { AppearanceControl, useAppearance } from "./appearance";
 import { notebooks, sheets as seedSheets, spaces, type NotebookSeed, type SheetSeed } from "./sampleData";
 import "./styles.css";
 
 type InspectorTab = "Backlinks" | "Outline" | "Metadata";
+
+const previewCommands = desktopPreviewCommands(spaces.length);
 
 const inspectorTabs: InspectorTab[] = ["Backlinks", "Outline", "Metadata"];
 
@@ -75,14 +81,19 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   const [sheets, setSheets] = useState<SheetSeed[]>(seedSheets);
   const [selectedId, setSelectedId] = useState(seedSheets[0]?.id ?? "");
   const [query, setQuery] = useState("");
-  const [commandOpen, setCommandOpen] = useState(true);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const os = shortcutOS();
+  const keymap = useMemo(() => resolveCommandKeymap({ os, surface: "desktop" }, undefined, previewCommands), [os]);
+  const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
+  const receiveEditor = useCallback((handle: MarkdownEditorHandle | undefined) => { editorHandle.current = handle; }, []);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("Backlinks");
   const [focusMode, setFocusMode] = useState(false);
   const [typewriterMode, setTypewriterMode] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [sheetListVisible, setSheetListVisible] = useState(true);
-  const [inspectorVisible, setInspectorVisible] = useState(true);
+  const [inspectorVisible, setInspectorVisible] = useState(false);
   const [draggedSheetId, setDraggedSheetId] = useState<string | undefined>(undefined);
   const [dropTargetNotebook, setDropTargetNotebook] = useState<string | undefined>(undefined);
   const [moveError, setMoveError] = useState<string | undefined>(undefined);
@@ -106,90 +117,57 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
     };
   }, [autosaveWriter]);
 
+  function toggleInspector() {
+    const opening = !inspectorVisible;
+    setInspectorVisible(opening);
+    if (opening) requestAnimationFrame(() => inspectorTabRefs.current[inspectorTab]?.focus());
+  }
+
+  function dispatchCommand(id: string) {
+    if (id.startsWith("format.")) { editorHandle.current?.runFormat(id); return; }
+    const spaceIndex = id.match(/^space\.activate([1-9])$/);
+    if (spaceIndex) {
+      const space = spaces[Number(spaceIndex[1]) - 1];
+      if (space) setActiveSpace(space.id);
+      return;
+    }
+    const actions: Record<string, () => void> = {
+      "app.palette": () => setCommandOpen((open) => !open),
+      "app.shortcuts": () => setShortcutsOpen(true),
+      "sheet.new": createSheet,
+      "sheet.search": () => { setSheetListVisible(true); requestAnimationFrame(() => searchInputRef.current?.focus()); },
+      "sheet.save": () => { void autosaveRef.current?.flush().catch((error: unknown) => setMoveError(error instanceof Error ? error.message : "Could not save. Keep this window open.")); },
+      "view.sidebar": () => setSidebarVisible((visible) => !visible),
+      "view.sheets": () => setSheetListVisible((visible) => !visible),
+      "view.inspector": toggleInspector,
+      "view.focus": () => setFocusMode((enabled) => !enabled),
+      "view.typewriter": () => setTypewriterMode((enabled) => !enabled),
+      "view.fullscreen": () => setFullscreenMode((enabled) => !enabled),
+      "appearance.light": () => appearance.change("light"),
+      "appearance.dark": () => appearance.change("dark"),
+      "appearance.system": () => appearance.change("system"),
+    };
+    actions[id]?.();
+  }
+
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
-      const commandKey = event.metaKey || event.ctrlKey;
-      const key = event.key.toLowerCase();
-
-      if (event.key === "Escape") {
-        if (commandOpen) {
-          event.preventDefault();
-          setCommandOpen(false);
-          return;
-        }
-
-        if (focusMode || fullscreenMode) {
-          event.preventDefault();
-          setFocusMode(false);
-          setFullscreenMode(false);
-        }
-      }
-
-      if (!commandKey) {
-        return;
-      }
-
-      if (event.altKey && /^[1-9]$/.test(event.key)) {
-        const nextSpace = spaces[Number(event.key) - 1];
-        if (nextSpace) {
-          event.preventDefault();
-          setActiveSpace(nextSpace.id);
-        }
-        return;
-      }
-
-      if (key === "k") {
+      if (event.defaultPrevented || event.isComposing || event.getModifierState("AltGraph")) return;
+      if (event.key === "Escape" && !commandOpen && !shortcutsOpen && (focusMode || fullscreenMode)) {
         event.preventDefault();
-        setCommandOpen((open) => !open);
+        setFocusMode(false);
+        setFullscreenMode(false);
         return;
       }
-
-      if (key === "n" && !event.shiftKey && !event.altKey) {
-        event.preventDefault();
-        createSheet();
-        return;
-      }
-
-      if (key === "f" && event.shiftKey) {
-        event.preventDefault();
-        setCommandOpen(false);
-        window.requestAnimationFrame(() => searchInputRef.current?.focus());
-        return;
-      }
-
-      if (key === "i" && !event.shiftKey && !event.altKey) {
-        event.preventDefault();
-        setInspectorVisible((visible) => {
-          const nextVisible = !visible;
-          if (nextVisible) {
-            window.requestAnimationFrame(() => inspectorTabRefs.current[inspectorTab]?.focus());
-          }
-          return nextVisible;
-        });
-        return;
-      }
-
-      if (event.key === "." && !event.shiftKey && !event.altKey) {
-        event.preventDefault();
-        setFocusMode((enabled) => !enabled);
-        return;
-      }
-
-      if (event.key === "\\" && event.altKey) {
-        event.preventDefault();
-        setSheetListVisible((visible) => !visible);
-        return;
-      }
-
-      if (event.key === "\\" && !event.altKey) {
-        event.preventDefault();
-        setSidebarVisible((visible) => !visible);
-      }
+      if (commandOpen || shortcutsOpen) return;
+      const editor = editorHandle.current;
+      const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false });
+      if (id) { event.preventDefault(); dispatchCommand(id); }
     };
-
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, [commandOpen, focusMode, fullscreenMode, inspectorTab]);
+    // Explicit workspace bindings take precedence over CodeMirror's fallback keymap.
+    window.addEventListener("keydown", listener, true);
+    return () => window.removeEventListener("keydown", listener, true);
+  });
 
   const filteredSheets = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -308,18 +286,9 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
         <div className="brand">Slate</div>
         <nav aria-label="Application menu">
           <AppearanceControl preference={appearance.preference} onChange={appearance.change} />
-          <button>File</button>
-          <button>Edit</button>
-          <button>View</button>
-          <button>Go</button>
-          <button>Window</button>
-          <button>Help</button>
+          <button title={`Commands (${commandShortcut("app.palette", keymap, os)})`} onClick={() => setCommandOpen(true)}>Commands</button>
+          <button title={`Keyboard shortcuts (${commandShortcut("app.shortcuts", keymap, os)})`} onClick={() => setShortcutsOpen(true)}>Keyboard shortcuts</button>
         </nav>
-        <div className="windowControls" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
       </header>
 
       <section className="workspace">
@@ -486,10 +455,8 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
               <button
                 aria-label="Toggle inspector"
                 aria-pressed={inspectorVisible}
-                onClick={() => {
-                  setInspectorTab("Backlinks");
-                  setInspectorVisible((visible) => !visible);
-                }}
+                title={`Toggle inspector (${commandShortcut("view.inspector", keymap, os)})`}
+                onClick={toggleInspector}
               >
                 <PanelRight size={17} />
               </button>
@@ -510,9 +477,11 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
             </div>
           </div>
 
-          {commandOpen ? <CommandPalette onClose={() => setCommandOpen(false)} onCreate={createSheet} /> : null}
-
           <MarkdownEditor
+            key={selected.id}
+            documentKey={`desktop/${selected.id}`}
+            keymap={keymap}
+            onHandle={receiveEditor}
             value={selected.markdown}
             onChange={updateSelectedMarkdown}
             onNavigateWikiLink={(link) => {
@@ -537,7 +506,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
         <aside className="inspector" aria-label="Inspector" aria-hidden={!inspectorVisible}>
           <div className="inspectorHeader">
             <strong>Inspector</strong>
-            <Pin size={17} />
+            <button aria-label="Close inspector" title="Close inspector" onClick={toggleInspector}><X size={17} /></button>
           </div>
           <div className="tabs" role="tablist" aria-label="Inspector tabs">
             {inspectorTabs.map((tab) => (
@@ -568,6 +537,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           />
         </aside>
       </section>
+      {(commandOpen || shortcutsOpen) && <CommandDialog kind={shortcutsOpen ? "shortcuts" : "palette"} surface="desktop" registry={previewCommands} keymap={keymap} os={os} editor={!!selected} selection={editorHandle.current?.hasSelection() ?? false} onClose={() => { setCommandOpen(false); setShortcutsOpen(false); }} onCommand={(id) => { setCommandOpen(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
     </main>
   );
 }
@@ -644,37 +614,6 @@ function renderNotebook(notebook: NotebookSeed, handlers: NotebookDropHandlers) 
 
 function StatusDot({ status }: { status: SheetSeed["status"] }) {
   return <span className={`statusDot ${status === "At Risk" ? "risk" : status === "Not Started" ? "idle" : ""}`} />;
-}
-
-function CommandPalette({ onClose, onCreate }: { onClose: () => void; onCreate: () => void }) {
-  const commands = [
-    { label: "New Sheet", shortcut: "Ctrl N", action: onCreate },
-    { label: "Search Everything", shortcut: "Ctrl Shift F", action: onClose },
-    { label: "Export Markdown", shortcut: "Ctrl Shift E", action: onClose },
-    { label: "Open Command Palette", shortcut: "Ctrl K", action: onClose },
-    { label: "Toggle Right Inspector", shortcut: "Ctrl I", action: onClose }
-  ];
-
-  return (
-    <div className="commandPalette" role="dialog" aria-label="Command palette">
-      <label className="commandSearch">
-        <Search size={17} />
-        <input autoFocus placeholder="Search Everything" />
-        <kbd>Ctrl K</kbd>
-      </label>
-      <span className="commandLabel">Command</span>
-      {commands.map((command, index) => (
-        <button className={index === 0 ? "commandRow active" : "commandRow"} key={command.label} onClick={command.action}>
-          <span>{command.label}</span>
-          <kbd>{command.shortcut}</kbd>
-        </button>
-      ))}
-      <button className="showAll" onClick={onClose}>
-        <Sparkles size={15} />
-        <span>Show All Commands</span>
-      </button>
-    </div>
-  );
 }
 
 function InspectorPanel({

@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 import { createSheet, openLibrary, workspaceAction } from "./helpers";
-import { slateCommands } from "../packages/core/src/commands";
+import { commandsForSurface, slateCommands } from "../packages/core/src/commands";
 import { AxeBuilder } from "@axe-core/playwright";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
@@ -68,7 +68,7 @@ test("registry labels, shortcut search, palette formatting and focus restoration
     exact: true,
   });
   await expect(sheet).toBeVisible();
-  await expect(sheet.locator(".shortcutRow")).toHaveCount(slateCommands.length);
+  await expect(sheet.locator(".shortcutRow")).toHaveCount(commandsForSurface("web").length);
   const a11y = await new AxeBuilder({ page })
     .include(".commandDialog")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
