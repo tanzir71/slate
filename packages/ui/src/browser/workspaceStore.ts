@@ -85,6 +85,8 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     notifySaved() { onSaved(); },
     setOwned(owned: boolean) { api.setState({ owned, saveState: owned ? drafts.size ? "Unsaved" : "Saved" : "Read-only" }); },
     async load() {
+      let preferredPath: string | null = null;
+      try { preferredPath = localStorage.getItem(`slate.last-sheet.${record.id}`); } catch { /* View preferences are optional. */ }
       await refresh();
       if (record.id !== "sample") {
         const raw = localStorage.getItem(journalKey);
@@ -102,6 +104,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
           }
         }
       }
+      if (preferredPath && api.getState().sheets.some((sheet) => sheet.path === preferredPath)) api.setState({ selectedPath: preferredPath });
     },
     edit(content: string) {
       const { selectedPath, owned } = api.getState();

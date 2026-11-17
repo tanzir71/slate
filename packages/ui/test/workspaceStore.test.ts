@@ -7,6 +7,18 @@ beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
 describe("persistent workspace store", () => {
+  it("restores the last selected file when opening a Space without a sheet URL", async () => {
+    const files = createMemoryFiles({ "A.md": "First", "B.md": "Last selected" });
+    localStorage.setItem(`slate.last-sheet.${record.id}`, "B.md");
+    const store = createWorkspaceStore(record, files);
+    await store.load();
+    expect(store.api.getState().selectedPath).toBe("B.md");
+    await files.remove("B.md");
+    const reopened = createWorkspaceStore(record, files);
+    await reopened.load();
+    expect(reopened.api.getState().selectedPath).toBe("A.md");
+  });
+
   it("reopens saved files and recovers a draft that was not flushed before closing", async () => {
     const files = createMemoryFiles({ "Inbox/note.md": "original" });
     const first = createWorkspaceStore(record, files);
