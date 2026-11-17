@@ -223,16 +223,19 @@ test("starts an OPFS SQLite cache after the editor is ready and searches real FT
   expect(page.workers().filter((worker) => worker.url().includes("index.worker"))).toHaveLength(0);
   await createSheet(page, "# Searchable\n\nAn unusual aardvark.");
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(false);
-  await expect.poll(() => page.evaluate(async () => {
-    try {
-      const id = decodeURIComponent(location.hash.split("/")[2]!);
-      const indexes = await (await navigator.storage.getDirectory()).getDirectoryHandle("indexes");
-      return (await (await indexes.getFileHandle(`${id}.sqlite`)).getFile()).size;
-    } catch { return 0; }
-  })).toBeGreaterThan(0);
-  await expect(page.getByText("Search cache unavailable. Searching files directly.")).toBeHidden();
-  // Reversed tokens match FTS but cannot pass the direct-file substring fallback.
+  // A file snapshot is not a search-readiness signal. Exercise the worker's query path.
   await showSheets(page);
-  await page.getByRole("textbox", { name: "Search sheets" }).fill("aardvark unusual");
-  await expect(page.getByRole("button", { name: /Searchable.*unusual aardvark/ })).toBeVisible();
+  const search = page.getByRole("textbox", { name: "Search sheets", exact: true });
+  await search.fill("no_such_search_word");
+  await expect(page.locator(".browserSheetRow")).toHaveCount(0);
+  // Reversed tokens match FTS but cannot pass the direct-file substring fallback.
+  await search.fill("aardvark unusual");
+  await expect(page.getByRole("button", { name: /Searchable.*unusual aardvark/ })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Search cache unavailable. Searching files directly.")).toBeHidden();
+  expect(page.workers().filter((worker) => worker.url().includes("index.worker"))).toHaveLength(1);
+  expect(await page.evaluate(async () => {
+    const id = decodeURIComponent(location.hash.split("/")[2]!);
+    const indexes = await (await navigator.storage.getDirectory()).getDirectoryHandle("indexes");
+    return (await indexes.getFileHandle(`${id}.sqlite`)).name;
+  })).toMatch(/\.sqlite$/);
 });
