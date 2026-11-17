@@ -4,6 +4,8 @@ import { createDirectoryFiles, createMemoryFiles, type BrowserDirectoryHandle } 
 import { listBrowserSpaces, openBrowserLibrary, rememberBrowserSpace, type BrowserSpaceRecord } from "@slate/storage/browser-catalog";
 import { createBrowserOwnership, type BrowserOwnership } from "@slate/storage/browser-ownership";
 import { createWorkspaceStore, type WorkspaceStore } from "./workspaceStore";
+import { AppearanceControl, useAppearance } from "../appearance";
+import { BrandMark } from "../BrandMark";
 import "./browser.css";
 
 const loadWorkspace = () => import("./BrowserWorkspace");
@@ -28,6 +30,7 @@ export interface BrowserAppProps {
 }
 
 export function BrowserApp({ version, createIndex, updateReady, updateVersion, onReload }: BrowserAppProps) {
+  const appearance = useAppearance();
   const folderAvailable = typeof (window as FolderPickerWindow).showDirectoryPicker === "function";
   const [tier, setTier] = useState<StorageTier>(folderAvailable ? "folder" : "library");
   const [records, setRecords] = useState<BrowserSpaceRecord[]>([]);
@@ -149,15 +152,16 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
     {error && <div className="errorNotice" role="alert">{error}</div>}
     {workspace ? <Suspense fallback={<p role="status">Opening your writing…</p>}>
       <Workspace key={workspace.api.getState().record.id} store={workspace} createIndex={createIndex} onKeepSample={keepSample} onAbout={() => setAboutOpen(true)}
+        appearance={appearance}
         onInstall={install ? () => { void installSlate(); } : undefined}
         onTakeover={async () => { await ownership.current?.acquire(true); await workspace.refresh(); await workspace.flush(); }}
         onSwitchSpace={async () => {
           await workspace.flush(); await ownership.current?.close(); workspaceRef.current = undefined; setWorkspace(undefined); setRecords(await listBrowserSpaces());
         }} />
     </Suspense> : <>
-      <header className="welcomeHeader"><span>Welcome to Slate</span><div className="welcomeHeaderActions"><button onClick={(event) => { event.currentTarget.focus(); setAboutOpen(true); }}><Info size={15} />About Slate</button>{install && <button onClick={() => { void installSlate(); }}><Download size={15} /> Install Slate</button>}</div></header>
+      <header className="welcomeHeader"><span>Welcome to Slate</span><div className="welcomeHeaderActions"><AppearanceControl preference={appearance.preference} onChange={appearance.change} /><button onClick={(event) => { event.currentTarget.focus(); setAboutOpen(true); }}><Info size={15} />About Slate</button>{install && <button onClick={() => { void installSlate(); }}><Download size={15} /> Install Slate</button>}</div></header>
       <main className="onboarding">
-        <div className="welcomeBrand"><img src="./brand/logo-mark.svg" width="30" height="30" alt="" /><span>Slate</span><small>Web{version ? ` · v${version}` : ""}</small></div>
+        <div className="welcomeBrand"><BrandMark size={30} /><span>Slate</span><small>Web{version ? ` · v${version}` : ""}</small></div>
         <h1>Where should your writing live?</h1>
         <p className="welcomeDescription">Slate runs entirely in your browser from GitHub Pages — there is no server and no account. Your files never leave this device.</p>
         {records.length > 0 && <div className="reconnectList">{records.map((record) => <button key={record.id} onClick={() => { void reconnect(record); }} disabled={busy}>

@@ -16,7 +16,7 @@ characters = set(range(0x20, 0x7F)) | {ord(character) for character in copy}
 for name, weights in (("geist", (400, 400, 700)), ("newsreader", (450, 450, 550)), ("geist-mono", 400)):
     options = subset.Options()
     options.flavor = "woff2"
-    font = subset.load_font(ROOT / "apps/web/public/fonts" / f"{name}.woff2", options)
+    font = subset.load_font(ROOT / "packages/tokens/node_modules/@fontsource-variable" / name / "files" / f"{name}-latin-wght-normal.woff2", options)
     subsetter = subset.Subsetter(options=options)
     subsetter.populate(unicodes=characters)
     subsetter.subset(font)

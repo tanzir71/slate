@@ -7,6 +7,8 @@ import { addBrowserImportEntry, collectBrowserDrop, type BrowserImportFile } fro
 import type { WorkspaceStore } from "./workspaceStore";
 import type { BrowserAppProps } from "./BrowserApp";
 import { LaunchActions } from "./LaunchActions";
+import { AppearanceControl, type useAppearance } from "../appearance";
+import { BrandMark } from "../BrandMark";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 interface FolderObserver {
@@ -15,6 +17,7 @@ interface FolderObserver {
 }
 interface ObserverWindow extends Window { FileSystemObserver?: new(callback: () => void) => FolderObserver }
 interface WorkspaceProps {
+  appearance: ReturnType<typeof useAppearance>;
   store: WorkspaceStore;
   createIndex: BrowserAppProps["createIndex"];
   onKeepSample: () => Promise<void>;
@@ -24,7 +27,7 @@ interface WorkspaceProps {
   onInstall: (() => void) | undefined;
 }
 
-export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall }: WorkspaceProps) {
+export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance }: WorkspaceProps) {
   const state = useStore(store.api);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
@@ -223,14 +226,14 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
-    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span>{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={17} /></button>}<button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title="Inspector (Ctrl Shift I)" aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
+    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={17} /></button>}<button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title="Inspector (Ctrl Shift I)" aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
     {state.record.id === "sample" && <div className="notice">Sample — nothing is saved <button onClick={() => run(onKeepSample)}>Keep these sheets</button></div>}
     {!state.owned && <div className="notice" role="status">Slate is open in another tab <button onClick={() => run(onTakeover)}>Use here</button></div>}
     {state.error && <div className="errorNotice" role="alert">{state.error}<button onClick={() => run(store.flush)}>Retry saving</button></div>}
     {state.notice && <div className="notice" role="status">{state.notice}<button aria-label="Dismiss notice" onClick={() => store.api.setState({ notice: "" })}>×</button></div>}
     <div className={`browserPanes ${inspector ? "withInspector" : ""}`}>
       <aside className="browserSidebar" aria-label="Workspace navigation">
-        <div className="spaceHeading"><img src="./brand/logo-mark.svg" width="24" height="24" alt="" /><strong>{state.record.name}</strong></div>
+        <div className="spaceHeading"><BrandMark /><strong>{state.record.name}</strong></div>
         <button className={!filter ? "navItem selected" : "navItem"} onClick={() => setFilter("")}><BookOpen size={16} />All sheets<span>{state.sheets.length}</span></button>
         <button className={filter === "Inbox" ? "navItem selected" : "navItem"} onClick={() => setFilter("Inbox")}><Inbox size={16} />Inbox</button>
         <div className="sectionTitle">Notebooks<button aria-label="New notebook" disabled={!state.owned} onClick={() => { setAction("notebook"); setActionValue(""); }}><Plus size={15} /></button></div>
