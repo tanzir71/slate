@@ -72,6 +72,28 @@ test("gives one tab write ownership and transfers it after flushing", async ({ p
   await expect(page.locator(".cm-content")).toContainText("From the other tab.");
 });
 
+test("recovers the writer's latest failed save when another tab takes over", async ({ page, context }) => {
+  await openLibrary(page);
+  await createSheet(page, "Saved base.");
+  await page.evaluate(() => {
+    FileSystemFileHandle.prototype.createWritable = async () => { throw new DOMException("Test write permission revoked", "NotAllowedError"); };
+  });
+  await page.locator(".cm-content").fill("Early recovery draft.");
+  await expect(page.getByRole("alert")).toContainText("Test write permission revoked");
+  const reader = await context.newPage();
+  await reader.goto("./");
+  await expect(reader.locator(".cm-content")).toContainText("Early recovery draft.");
+  await expect(reader.locator(".cm-content")).toHaveAttribute("contenteditable", "false");
+  await page.locator(".cm-content").fill("Latest words before the writer disappeared.");
+  await expect.poll(() => page.evaluate(() => Object.values(localStorage).some((value) => typeof value === "string" && value.includes("Latest words before the writer disappeared.")))).toBe(true);
+  await page.close();
+  await reader.getByRole("button", { name: "Use here", exact: true }).click();
+  await expect(reader.locator(".cm-content")).toContainText("Latest words before the writer disappeared.");
+  await expect(reader.locator(".workspaceStatus [role=status]")).toHaveText("Saved");
+  await reader.reload();
+  await expect(reader.locator(".cm-content")).toContainText("Latest words before the writer disappeared.");
+});
+
 test("exports and reimports a Space without changing Markdown bytes", async ({ page }) => {
   await openLibrary(page);
   await createSheet(page, "# বাংলা\n\nMy words, my files.\n");

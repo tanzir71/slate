@@ -216,6 +216,12 @@ The header/palette About action always reviews the running release. Only the wai
 
 Browser Markdown editing accepts UTF-8. Replacement decoding could silently change legacy file bytes on save, so decoding is strict. Unsupported files stay visible but read-only; raw downloads and zip exports preserve them. A recovered pending draft is written into a separate UTF-8 conflict copy, preserving both the original bytes and the user's words.
 
+## 2026-11-17 - Refresh recovery at write ownership, before enabling input
+
+A read-only tab's recovery snapshot can become stale while another tab writes. Reproduced a lost-draft case after the writer disappears: the reader's old snapshot replaced the newer journal entry. On ownership gain, read the current journal synchronously, replace the stale snapshot and overlay the editor buffer before changing editability. An empty journal discards stale reader drafts after the previous writer saved. No journal or Markdown format changes are needed. Unit cases cover both paths; a browser fault-injection test revokes writes in the first tab, closes it and verifies the second tab persists the latest draft.
+
+Read-only flush requests leave the writer's journal and files untouched. This also allows a read-only tab to switch Spaces or reload an update without attempting to save another tab's recovery snapshot.
+
 ## 2026-11-17 - Prioritize the editor and isolate CI browser cases
 
 Start the rebuildable SQLite cache after the editor's first frame, rather than opening/writing an empty index during first-run file operations. Files and recovery writes keep priority; the worker still builds a real OPFS FTS cache and receives subsequent saved changes. An empty Space does not need a worker.

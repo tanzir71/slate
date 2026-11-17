@@ -34,18 +34,38 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     }
   }
 
+  function readRecovery() {
+    const recovered = new Map<string, Draft>();
+    if (record.id === "sample") return recovered;
+    const raw = localStorage.getItem(journalKey);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (typeof parsed === "object" && parsed !== null) {
+      for (const [path, draft] of Object.entries(parsed)) {
+        if (typeof draft === "object" && draft !== null && "content" in draft && typeof draft.content === "string" &&
+            (!("baseContent" in draft) || typeof draft.baseContent === "string")) {
+          recovered.set(path, { content: draft.content, baseContent: "baseContent" in draft ? draft.baseContent as string : undefined });
+        }
+      }
+    }
+    return recovered;
+  }
+
+  function overlayDrafts(sheets: BrowserSheet[]) {
+    const overlaid = sheets.map((sheet) => drafts.has(sheet.path) ? { ...sheet, content: drafts.get(sheet.path)!.content } : sheet);
+    for (const [path, draft] of drafts) if (!overlaid.some((sheet) => sheet.path === path)) overlaid.push({ path, content: draft.content });
+    return overlaid;
+  }
+
   async function refresh() {
     const disk = await space.sheets();
-    const sheets = disk.map((sheet) => {
-      bases.set(sheet.path, sheet.content);
-      return drafts.has(sheet.path) ? { ...sheet, content: drafts.get(sheet.path)!.content } : sheet;
-    });
-    for (const [path, draft] of drafts) if (!sheets.some((sheet) => sheet.path === path)) sheets.push({ path, content: draft.content });
+    for (const sheet of disk) bases.set(sheet.path, sheet.content);
+    const sheets = overlayDrafts(disk);
     const selected = api.getState().selectedPath;
     api.setState({ sheets, selectedPath: sheets.some((sheet) => sheet.path === selected) ? selected : sheets[0]?.path ?? "" });
   }
 
   async function flush(): Promise<void> {
+    if (!api.getState().owned) return;
     clearTimeout(timer);
     if (saving) { await saving; if (drafts.size) return flush(); return; }
     if (!drafts.size) return;
@@ -83,25 +103,26 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     api, space, refresh, flush,
     setOnSaved(callback: () => void) { onSaved = callback; },
     notifySaved() { onSaved(); },
-    setOwned(owned: boolean) { api.setState({ owned, saveState: owned ? drafts.size ? "Unsaved" : "Saved" : "Read-only" }); },
+    setOwned(owned: boolean) {
+      if (owned && !api.getState().owned && record.id !== "sample") {
+        // A reader's snapshot may predate the writer's final edits or completed save.
+        // Read the current journal and update the buffer before enabling input.
+        const recovered = readRecovery();
+        drafts.clear();
+        for (const [path, draft] of recovered) drafts.set(path, draft);
+      }
+      api.setState((state) => ({ owned, sheets: overlayDrafts(state.sheets), saveState: owned ? drafts.size ? "Unsaved" : "Saved" : "Read-only" }));
+    },
     async load() {
       let preferredPath: string | null = null;
       try { preferredPath = localStorage.getItem(`slate.last-sheet.${record.id}`); } catch { /* View preferences are optional. */ }
       await refresh();
       if (record.id !== "sample") {
-        const raw = localStorage.getItem(journalKey);
-        if (raw) {
-          const parsed: unknown = JSON.parse(raw);
-          if (typeof parsed === "object" && parsed !== null) {
-            for (const [path, draft] of Object.entries(parsed)) {
-              if (typeof draft === "object" && draft !== null && "content" in draft && typeof draft.content === "string" &&
-                  (!("baseContent" in draft) || typeof draft.baseContent === "string")) {
-                drafts.set(path, { content: draft.content, baseContent: "baseContent" in draft ? draft.baseContent as string : undefined });
-              }
-            }
-            await refresh();
-            if (drafts.size) api.setState({ saveState: "Unsaved", notice: "Recovered an unsaved draft from your last visit." });
-          }
+        const recovered = readRecovery();
+        for (const [path, draft] of recovered) drafts.set(path, draft);
+        if (recovered.size) {
+          await refresh();
+          api.setState({ saveState: "Unsaved", notice: "Recovered an unsaved draft from your last visit." });
         }
       }
       if (preferredPath && api.getState().sheets.some((sheet) => sheet.path === preferredPath)) api.setState({ selectedPath: preferredPath });

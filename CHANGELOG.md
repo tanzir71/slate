@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-17
+
+### Fixed
+- Re-read the latest recovery journal before granting write ownership, so a tab taking over after the writer disappears keeps its latest unsaved words.
+- Discard stale reader drafts when the previous writer has already saved, and update the editor buffer before enabling input.
+
 ## [0.2.0] - 2026-11-17
 
 ### Added
