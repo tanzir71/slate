@@ -104,7 +104,7 @@ export function createMemoryFiles(initial: Record<string, string> = {}): Browser
 }
 
 export const encodeText = (text: string): Uint8Array => new TextEncoder().encode(text);
-export const decodeText = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
+export const decodeText = (bytes: Uint8Array): string => new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 
 function isNotFound(error: unknown): boolean {
   return typeof error === "object" && error !== null && "name" in error && error.name === "NotFoundError";

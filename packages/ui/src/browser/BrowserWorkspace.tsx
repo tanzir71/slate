@@ -2,13 +2,18 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { Folder, Hash, Inbox, Plus, Search, PanelRight, ArrowLeft, Download, Upload, Trash2, Pencil, BookOpen, Info } from "lucide-react";
 import { parseSheet } from "@slate/core";
-import { safeBrowserPath } from "@slate/storage/browser-files";
+import { safeBrowserPath, type BrowserDirectoryHandle } from "@slate/storage/browser-files";
 import { addBrowserImportEntry, collectBrowserDrop, type BrowserImportFile } from "@slate/storage/browser-import";
 import type { WorkspaceStore } from "./workspaceStore";
 import type { BrowserAppProps } from "./BrowserApp";
 import { LaunchActions } from "./LaunchActions";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
+interface FolderObserver {
+  observe(handle: BrowserDirectoryHandle, options: { recursive: boolean }): Promise<void>;
+  disconnect(): void;
+}
+interface ObserverWindow extends Window { FileSystemObserver?: new(callback: () => void) => FolderObserver }
 interface WorkspaceProps {
   store: WorkspaceStore;
   createIndex: BrowserAppProps["createIndex"];
@@ -16,9 +21,10 @@ interface WorkspaceProps {
   onTakeover: () => Promise<void>;
   onSwitchSpace: () => Promise<void>;
   onAbout: () => void;
+  onInstall: (() => void) | undefined;
 }
 
-export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout }: WorkspaceProps) {
+export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall }: WorkspaceProps) {
   const state = useStore(store.api);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
@@ -87,9 +93,20 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }, [query, state.saveState]);
 
   useEffect(() => {
+    let active = true;
     const refresh = () => {
-      if (window.document.visibilityState === "visible") run(store.refresh);
+      if (active && window.document.visibilityState === "visible") run(store.refresh);
     };
+    let observer: FolderObserver | undefined;
+    const Observer = (window as ObserverWindow).FileSystemObserver;
+    const handle = store.api.getState().record.handle;
+    if (Observer && handle) {
+      try {
+        observer = new Observer(refresh);
+        const subscribing = observer;
+        void subscribing.observe(handle, { recursive: true }).then(() => { if (!active) subscribing.disconnect(); }).catch(() => subscribing.disconnect());
+      } catch { /* The visible polling fallback remains available. */ }
+    }
     const interval = setInterval(refresh, 5000);
     const save = () => run(store.flush);
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -105,6 +122,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     window.addEventListener("beforeunload", beforeUnload);
     void navigator.storage?.estimate?.().then((estimate) => setUsage(`${((estimate.usage ?? 0) / 1024 / 1024).toFixed(1)} MB`)).catch(() => undefined);
     return () => {
+      active = false;
+      observer?.disconnect();
       clearInterval(interval);
       window.removeEventListener("focus", refresh);
       window.document.removeEventListener("visibilitychange", save);
@@ -171,6 +190,13 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     download(`${state.record.name}.zip`, new Blob([new Uint8Array(bytes)], { type: "application/zip" }));
   }
 
+  async function downloadOriginal() {
+    if (!selected) return;
+    const bytes = await store.space.files.read(selected.path);
+    if (bytes === undefined) throw new Error("File no longer exists. Refresh your Space.");
+    download(selected.path.split("/").pop()!, new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" }));
+  }
+
   async function performAction() {
     const path = state.selectedPath;
     if (action === "trash") await store.trash(path);
@@ -197,7 +223,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
-    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title="Inspector (Ctrl Shift I)" aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
+    <header className="workspaceHeader"><button onClick={() => run(onSwitchSpace)} title="Switch Space"><ArrowLeft size={15} /><span>{state.record.name}</span></button><span className="headerBreadcrumb">{selected?.path ?? "Your writing"}</span>{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={17} /></button>}<button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={17} /></button><button title="Inspector (Ctrl Shift I)" aria-label="Toggle inspector" aria-pressed={inspector} onClick={() => setInspector((open) => !open)}><PanelRight size={17} /></button></header>
     {state.record.id === "sample" && <div className="notice">Sample — nothing is saved <button onClick={() => run(onKeepSample)}>Keep these sheets</button></div>}
     {!state.owned && <div className="notice" role="status">Slate is open in another tab <button onClick={() => run(onTakeover)}>Use here</button></div>}
     {state.error && <div className="errorNotice" role="alert">{state.error}<button onClick={() => run(store.flush)}>Retry saving</button></div>}
@@ -228,11 +254,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <section className="browserEditor" aria-label="Editor">
         <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span><div>
-          <button title="Rename sheet" aria-label="Rename sheet" disabled={!selected || !state.owned} onClick={() => { setAction("rename"); setActionValue(selected?.path.split("/").pop()?.replace(/\.md$/i, "") ?? ""); }}><Pencil size={16} /></button>
-          <button title="Move sheet" aria-label="Move sheet" disabled={!selected || !state.owned} onClick={() => { setAction("move"); setActionValue(notebookFor(state.selectedPath)); }}><Folder size={16} /></button>
-          <button title="Move to trash" aria-label="Delete sheet" disabled={!selected || !state.owned} onClick={() => setAction("trash")}><Trash2 size={16} /></button>
+          <button title="Rename sheet" aria-label="Rename sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => { setAction("rename"); setActionValue(selected?.path.split("/").pop()?.replace(/\.md$/i, "") ?? ""); }}><Pencil size={16} /></button>
+          <button title="Move sheet" aria-label="Move sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => { setAction("move"); setActionValue(notebookFor(state.selectedPath)); }}><Folder size={16} /></button>
+          <button title="Move to trash" aria-label="Delete sheet" disabled={!selected || selected.unsupportedEncoding || !state.owned} onClick={() => setAction("trash")}><Trash2 size={16} /></button>
         </div></div>
-        {selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onReady={() => setEditorReady(true)} onChange={(content) => {
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onReady={() => setEditorReady(true)} onChange={(content) => {
           store.edit(content);
         }} onNavigateWikiLink={(link) => {
           const target = documents.find((sheet) => sheet.id === link.targetId || sheet.title.toLowerCase() === link.target.toLowerCase());
@@ -241,7 +267,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </section>
       {inspector && <aside className="browserInspector" aria-label="Inspector"><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>
-    <footer className="workspaceStatus"><span role="status">{state.saveState}</span><span>{document?.stats.words ?? 0} words</span><span>{document?.stats.readingTimeMinutes ?? 0} min read</span><span>Markdown</span><div />
+    <footer className="workspaceStatus"><span role="status">{selected?.unsupportedEncoding ? "Read-only" : state.saveState}</span><span>{selected?.unsupportedEncoding ? "—" : document?.stats.words ?? 0} words</span><span>{selected?.unsupportedEncoding ? "—" : document?.stats.readingTimeMinutes ?? 0} min read</span><span>Markdown</span><div />
       <input ref={input} type="file" aria-label="Import files" multiple accept=".md,.zip" className="visuallyHidden" onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
       <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
       <button disabled={!state.owned} onClick={() => input.current?.click()}><Upload size={14} />Import</button><button disabled={!state.owned} onClick={() => folderInput.current?.click()}>Import folder</button><button onClick={() => run(exportZip)}><Download size={14} />Export .zip</button>

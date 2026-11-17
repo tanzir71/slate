@@ -1,6 +1,31 @@
 import { expect, test } from "./fixtures";
 import { openLibrary } from "./helpers";
 
+test("Today uses the local calendar date and reopens existing words unchanged", async ({ createContext, baseURL }) => {
+  const context = await createContext({ timezoneId: "Asia/Dhaka", ...(baseURL ? { baseURL } : {}) });
+  const page = await context.newPage();
+  await page.clock.setFixedTime(new Date("2026-11-17T21:30:00Z"));
+  await openLibrary(page);
+  await page.goto("./?action=today");
+  const dialog = page.getByRole("dialog", { name: "Open in Slate" });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator(".browserSheetRow")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.locator(".headerBreadcrumb")).toHaveText("Daily/2026-11-18.md");
+  const editor = page.locator(".cm-content");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.insertText("# Today\n\nWords I already wrote.");
+  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText("Saved");
+  const original = await editor.innerText();
+  await page.goto("./?action=today");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.locator(".headerBreadcrumb")).toHaveText("Daily/2026-11-18.md");
+  await expect.poll(() => editor.innerText()).toBe(original);
+  await expect(page.locator(".browserSheetRow")).toHaveCount(1);
+});
+
 test("Capture asks before appending and keeps the supplied words", async ({ page }) => {
   await openLibrary(page);
   await page.goto("./?action=capture&text=Words%20from%20my%20share");

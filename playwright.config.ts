@@ -4,7 +4,8 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   fullyParallel: true,
-  workers: process.env.CI ? 1 : 3,
+  // The suite includes a <1 s first-paint budget, which needs dedicated resources.
+  workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:4175/slate/app/",

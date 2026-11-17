@@ -19,13 +19,14 @@ export interface BrowserIndex {
   close(): void;
 }
 export interface BrowserAppProps {
+  version?: string;
   createIndex?: (spaceId: string) => BrowserIndex;
   updateReady?: boolean;
   updateVersion?: string | undefined;
   onReload?: () => Promise<void>;
 }
 
-export function BrowserApp({ createIndex, updateReady, updateVersion, onReload }: BrowserAppProps) {
+export function BrowserApp({ version, createIndex, updateReady, updateVersion, onReload }: BrowserAppProps) {
   const folderAvailable = typeof (window as FolderPickerWindow).showDirectoryPicker === "function";
   const [tier, setTier] = useState<StorageTier>(folderAvailable ? "folder" : "library");
   const [records, setRecords] = useState<BrowserSpaceRecord[]>([]);
@@ -78,7 +79,9 @@ export function BrowserApp({ createIndex, updateReady, updateVersion, onReload }
   useEffect(() => {
     let active = true;
     const prompt = (event: Event) => { event.preventDefault(); setInstall(event as InstallPrompt); };
+    const installed = () => setInstall(undefined);
     window.addEventListener("beforeinstallprompt", prompt);
+    window.addEventListener("appinstalled", installed);
     void (async () => {
       const saved = await listBrowserSpaces();
       if (!active) return;
@@ -91,7 +94,7 @@ export function BrowserApp({ createIndex, updateReady, updateVersion, onReload }
         else setBusy(false);
       }
     })().catch((failure: unknown) => { if (active) { setError(errorMessage(failure)); setBusy(false); } });
-    return () => { active = false; window.removeEventListener("beforeinstallprompt", prompt); };
+    return () => { active = false; window.removeEventListener("beforeinstallprompt", prompt); window.removeEventListener("appinstalled", installed); };
   }, []);
 
   async function continueOnboarding() {
@@ -128,6 +131,13 @@ export function BrowserApp({ createIndex, updateReady, updateVersion, onReload }
     await open(record);
   }
 
+  async function installSlate() {
+    const offered = install;
+    if (!offered) return;
+    setInstall(undefined);
+    try { await offered.prompt(); } catch (failure) { setError(errorMessage(failure)); }
+  }
+
   return <div className="browserSlate">
     {updateReady && <div className="notice" role="status">{updateVersion ? `Slate ${updateVersion} is ready` : "A Slate update is ready"} <button onClick={(event) => { event.currentTarget.focus(); setAboutOpen(true); }}>What’s new</button><button onClick={() => {
       void (async () => { await workspaceRef.current?.flush(); await onReload?.(); })().catch((failure: unknown) => setError(errorMessage(failure)));
@@ -135,14 +145,15 @@ export function BrowserApp({ createIndex, updateReady, updateVersion, onReload }
     {error && <div className="errorNotice" role="alert">{error}</div>}
     {workspace ? <Suspense fallback={<p role="status">Opening your writing…</p>}>
       <Workspace key={workspace.api.getState().record.id} store={workspace} createIndex={createIndex} onKeepSample={keepSample} onAbout={() => setAboutOpen(true)}
+        onInstall={install ? () => { void installSlate(); } : undefined}
         onTakeover={async () => { await ownership.current?.acquire(true); await workspace.refresh(); await workspace.flush(); }}
         onSwitchSpace={async () => {
           await workspace.flush(); await ownership.current?.close(); workspaceRef.current = undefined; setWorkspace(undefined); setRecords(await listBrowserSpaces());
         }} />
     </Suspense> : <>
-      <header className="welcomeHeader"><span>Welcome to Slate</span><div className="welcomeHeaderActions"><button onClick={(event) => { event.currentTarget.focus(); setAboutOpen(true); }}><Info size={15} />About Slate</button>{install && <button onClick={() => { void install.prompt(); }}><Download size={15} /> Install Slate</button>}</div></header>
+      <header className="welcomeHeader"><span>Welcome to Slate</span><div className="welcomeHeaderActions"><button onClick={(event) => { event.currentTarget.focus(); setAboutOpen(true); }}><Info size={15} />About Slate</button>{install && <button onClick={() => { void installSlate(); }}><Download size={15} /> Install Slate</button>}</div></header>
       <main className="onboarding">
-        <div className="welcomeBrand"><img src="./brand/logo-mark.svg" width="30" height="30" alt="" /><span>Slate</span><small>Web · v0.2</small></div>
+        <div className="welcomeBrand"><img src="./brand/logo-mark.svg" width="30" height="30" alt="" /><span>Slate</span><small>Web{version ? ` · v${version}` : ""}</small></div>
         <h1>Where should your writing live?</h1>
         <p className="welcomeDescription">Slate runs entirely in your browser from GitHub Pages — there is no server and no account. Your files never leave this device.</p>
         {records.length > 0 && <div className="reconnectList">{records.map((record) => <button key={record.id} onClick={() => { void reconnect(record); }} disabled={busy}>

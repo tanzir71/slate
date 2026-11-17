@@ -1,6 +1,6 @@
 import { decodeText, encodeText, safeBrowserPath, type BrowserFiles } from "./browserFiles";
 
-export interface BrowserSheet { path: string; content: string }
+export interface BrowserSheet { path: string; content: string; unsupportedEncoding?: boolean }
 export interface BrowserWriteResult extends BrowserSheet { conflict: boolean }
 
 /** All mutations are serialized; callers supply their last disk content for optimistic concurrency. */
@@ -32,25 +32,34 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
     await files.write(target, bytes);
     return target;
   }
+  async function writeConflict(path: string, content: string): Promise<BrowserWriteResult> {
+    const conflictPath = path.replace(/\.md$/i, ` (conflicted copy ${new Date().toISOString().replaceAll(/[:.]/g, "-")}).md`);
+    return { path: await writeNew(conflictPath, encodeText(content)), content, conflict: true };
+  }
   return {
     files,
     read,
     flush: () => pending,
     async sheets(): Promise<BrowserSheet[]> {
       const paths = (await files.list()).filter((path) => /\.md$/i.test(path));
-      const rows = await Promise.all(paths.map(async (path) => ({ path, content: await read(path) })));
-      return rows.filter((row): row is BrowserSheet => row.content !== undefined);
+      const rows = await Promise.all(paths.map(async (path): Promise<BrowserSheet | undefined> => {
+        const bytes = await files.read(path);
+        if (bytes === undefined) return undefined;
+        try { return { path, content: decodeText(bytes) }; }
+        catch { return { path, content: "", unsupportedEncoding: true }; }
+      }));
+      return rows.filter((row): row is BrowserSheet => row !== undefined);
     },
     create(path: string, content: string): Promise<BrowserSheet> {
       return mutate(async () => ({ path: await writeNew(path, encodeText(content)), content }));
     },
     save(path: string, content: string, baseContent: string | undefined): Promise<BrowserWriteResult> {
       return mutate(async () => {
-        const disk = await read(path);
-        if (disk !== baseContent && disk !== content) {
-          const conflictPath = path.replace(/\.md$/i, ` (conflicted copy ${new Date().toISOString().replaceAll(/[:.]/g, "-")}).md`);
-          return { path: await writeNew(conflictPath, encodeText(content)), content, conflict: true };
-        }
+        const bytes = await files.read(safeBrowserPath(path));
+        let disk: string | undefined;
+        try { disk = bytes === undefined ? undefined : decodeText(bytes); }
+        catch { return writeConflict(path, content); }
+        if (disk !== baseContent && disk !== content) return writeConflict(path, content);
         await files.write(path, encodeText(content));
         return { path, content, conflict: false };
       });

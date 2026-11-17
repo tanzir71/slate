@@ -90,12 +90,37 @@ test("exports and reimports a Space without changing Markdown bytes", async ({ p
   expect(contents[0]).toEqual(contents[1]);
 });
 
+test("keeps unsupported Markdown read-only and downloads its original bytes", async ({ page }) => {
+  await openLibrary(page);
+  const original = Buffer.from([0xff, 0xfe, 0x41, 0, 0x42, 0]);
+  await page.getByLabel("Import files", { exact: true }).setInputFiles({ name: "Legacy.md", mimeType: "text/markdown", buffer: original });
+  await page.locator(".browserSheetRow").filter({ hasText: "Legacy" }).click();
+  await expect(page.getByRole("heading", { name: "This file needs UTF-8." })).toBeVisible();
+  await expect(page.locator(".cm-content")).toHaveCount(0);
+  for (const name of ["Rename sheet", "Move sheet", "Delete sheet"]) await expect(page.getByRole("button", { name, exact: true })).toBeDisabled();
+  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText("Read-only");
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download original" }).click();
+  const download = await downloaded;
+  expect(download.suggestedFilename()).toBe("Legacy.md");
+  expect(await readFile((await download.path())!)).toEqual(original);
+  await createSheet(page, "My new UTF-8 words.");
+  await expect(page.locator(".cm-content")).toContainText("My new UTF-8 words.");
+});
+
 test("writes selected-folder files and reconnects the saved handle", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "Folder editing requires the File System Access picker.");
   await page.addInitScript(() => {
     Object.defineProperty(window, "showDirectoryPicker", { configurable: true, value: async () => {
       const root = await navigator.storage.getDirectory();
       return root.getDirectoryHandle("picked-notes", { create: true });
+    } });
+    let notify: () => void = () => undefined;
+    Object.defineProperty(window, "notifyFolderChange", { value: () => notify() });
+    Object.defineProperty(window, "FileSystemObserver", { configurable: true, value: class {
+      constructor(callback: () => void) { notify = callback; }
+      async observe(_handle: unknown, options: { recursive: boolean }) { document.documentElement.dataset.observingFolder = String(options.recursive); }
+      disconnect() { document.documentElement.dataset.observingFolder = "false"; }
     } });
   });
   await page.goto("./");
@@ -109,9 +134,20 @@ test("writes selected-folder files and reconnects the saved handle", async ({ pa
     return (await (await inbox.getFileHandle("Untitled.md")).getFile()).text();
   });
   expect(diskText).toBe("# Folder writing\n\nSaved in my folder.");
+  await expect(page.locator("html")).toHaveAttribute("data-observing-folder", "true");
+  await page.evaluate(async () => {
+    const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("picked-notes");
+    const inbox = await folder.getDirectoryHandle("Inbox");
+    const writer = await (await inbox.getFileHandle("Untitled.md")).createWritable();
+    await writer.write("# Folder writing\n\nAn external revision.");
+    await writer.close();
+    (window as Window & { notifyFolderChange(): void }).notifyFolderChange();
+  });
+  await expect(page.locator(".cm-content")).toContainText("An external revision.", { timeout: 500 });
+  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText("Saved");
   await page.reload();
   await page.getByRole("button", { name: "Reconnect picked-notes" }).click();
-  await expect(page.locator(".cm-content")).toContainText("Saved in my folder.");
+  await expect(page.locator(".cm-content")).toContainText("An external revision.");
 });
 
 test("starts an OPFS SQLite cache after the editor is ready and searches real FTS", async ({ page }) => {

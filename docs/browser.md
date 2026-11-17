@@ -14,7 +14,9 @@ Open the app at `/slate/app/` on GitHub Pages. It runs locally and works offline
 
 Folder handles are remembered in IndexedDB. On the next visit, choose **Reconnect** to grant access again. Browser libraries contain ordinary Markdown and asset files inside the browser's private file system. Choose **Export .zip** regularly to keep a portable backup. Export includes `.slate/` configuration and trash. Removing site data removes private browser files; it does not remove files in a selected folder.
 
-Only one tab can write a Space. Other tabs show **Use here**, which asks the current tab to finish saving and release ownership. Changes are broadcast to other tabs. External folder changes are also scanned while the app is visible. Conflicting edits become separate files. A failed write keeps the unsaved draft and offers Retry saving.
+Only one tab can write a Space. Other tabs show **Use here**, which asks the current tab to finish saving and release ownership. Changes are broadcast to other tabs. External folder changes use native observation where available, with visible-window scanning as a fallback. Conflicting edits become separate files. A failed write keeps the unsaved draft and offers Retry saving.
+
+Markdown editing uses UTF-8. Files with other encodings remain read-only, with **Download original** and Space export preserving their bytes. Convert a copy to UTF-8 outside Slate and import that copy to edit it.
 
 Use **Alt N** for a new sheet, **Ctrl/Command K** for commands, **Ctrl/Command B/I** for bold/italic, **Ctrl/Command Shift F** for search, and **Ctrl/Command Shift I** for the inspector. Browser-reserved new-window shortcuts keep their browser meaning.
 

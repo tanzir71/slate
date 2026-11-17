@@ -4,6 +4,19 @@ import { createBrowserSpace } from "../src/browserSpace";
 import { exportBrowserArchive, readBrowserArchive } from "../src/browserArchive";
 
 describe("browser Spaces", () => {
+  it("keeps non-UTF8 Markdown read-only and preserves its bytes when saving or exporting", async () => {
+    const original = Uint8Array.from([0xff, 0xfe, 0x41, 0, 0x42, 0]);
+    const files = createMemoryFiles();
+    await files.write("Legacy.md", original);
+    const space = createBrowserSpace(files);
+    expect(await space.sheets()).toEqual([{ path: "Legacy.md", content: "", unsupportedEncoding: true }]);
+    const saved = await space.save("Legacy.md", "New words recovered from a draft.", "stale content");
+    expect(saved.conflict).toBe(true);
+    expect(await files.read("Legacy.md")).toEqual(original);
+    expect(await space.read(saved.path)).toBe("New words recovered from a draft.");
+    const restored = await readBrowserArchive(await exportBrowserArchive(files));
+    expect(restored["Legacy.md"]).toEqual(original);
+  });
   it("persists Markdown in its file source and rebuilds the sheet list from files", async () => {
     const files = createMemoryFiles();
     const space = createBrowserSpace(files);
