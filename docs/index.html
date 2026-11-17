@@ -27,8 +27,10 @@
     />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="preload" as="image" href="./assets/workspace-mobile.avif" media="(max-width: 700px)" fetchpriority="high" />
-    <link rel="preload" as="image" href="./assets/workspace-light.jpg" media="(min-width: 701px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="./assets/workspace-mobile.avif" media="(max-width: 700px) and (prefers-color-scheme: light)" fetchpriority="high" />
+    <link rel="preload" as="image" href="./assets/workspace-mobile-dark.avif" media="(max-width: 700px) and (prefers-color-scheme: dark)" fetchpriority="high" />
+    <link rel="preload" as="image" href="./assets/workspace-light.jpg" media="(min-width: 701px) and (prefers-color-scheme: light)" fetchpriority="high" />
+    <link rel="preload" as="image" href="./assets/workspace-dark.jpg" media="(min-width: 701px) and (prefers-color-scheme: dark)" fetchpriority="high" />
     <link
       rel="preload"
       href="./assets/fonts/newsreader.woff2"
@@ -139,7 +141,9 @@
       <section class="product-section" aria-label="Inside Slate">
         <div class="product-frame">
           <a href="./app/?sample=1" aria-label="Try the Slate Sample Space"
-            ><picture><source media="(max-width: 700px)" srcset="./assets/workspace-mobile.avif" width="604" height="480" />
+            ><picture><source media="(max-width: 700px) and (prefers-color-scheme: dark)" srcset="./assets/workspace-mobile-dark.avif" width="604" height="480" />
+              <source media="(max-width: 700px)" srcset="./assets/workspace-mobile.avif" width="604" height="480" />
+              <source media="(prefers-color-scheme: dark)" srcset="./assets/workspace-dark.jpg" width="1440" height="900" />
               <img
                 class="workspace-shot"
                 src="./assets/workspace-light.jpg"

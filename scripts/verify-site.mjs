@@ -36,7 +36,7 @@ for (const match of html.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)) {
 for (const font of ["geist", "newsreader", "geist-mono"]) await stat(resolve(root, "docs/assets/fonts", `${font}.woff2`));
 const screenshot = JSON.parse(await readFile(resolve(root, "docs/assets/screenshots.json"), "utf8"));
 if (screenshot.source !== "real app" || screenshot.fixture !== "Sample Space") failures.push("Product shot must come from the real app Sample Space");
-for (const image of [screenshot.light, screenshot.mobile]) {
+for (const image of [screenshot.light, screenshot.dark, screenshot.mobile, screenshot.mobileDark]) {
   if (!image || !(await stat(resolve(root, "docs/assets", image))).size) failures.push("Real desktop/mobile product capture is missing");
 }
 const demoHtml = await readFile(

@@ -14,4 +14,4 @@ The landing page and browser app ship together from the same commit. GitHub Page
 
 Publishing a release in GitHub also deploys that release's tag. For an initial landing update or a deliberate redeploy, run the workflow manually against the desired ref. GitHub Pages uses **GitHub Actions** as its build source; the `github-pages` environment permits branch `main` and tags matching `v*`. Preserve both policies so release tags are allowed to deploy.
 
-Do not use Figma exports as product screenshots or advertise unshipped blocks, templates, Tidy, automation or Sync. Re-run `pnpm shots` after app changes. When Dark mode ships, add its real capture to the landing `<picture>`; the current page only presents the implemented Light workspace.
+Do not use Figma exports as product screenshots or advertise unshipped blocks, templates, Tidy, automation or Sync. Re-run `pnpm shots` after app changes. It captures the real Light and Dark workspace plus matching responsive mobile captures; the landing `<picture>` and conditional preloads follow the viewer's system theme without changing image dimensions or fetching both variants.

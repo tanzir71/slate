@@ -36,3 +36,28 @@ test("mobile navigation opens, follows a link and closes", async ({ page }) => {
   await menu.getByRole("link", { name: "Ownership", exact: true }).click();
   await expect(page.getByRole("heading", { name: /Your files. Your folders./ })).toBeVisible();
 });
+
+test("product capture follows the system theme without changing its dimensions", async ({ page, isMobile }) => {
+  await page.setViewportSize({ width: isMobile ? 390 : 1440, height: 900 });
+  await page.emulateMedia({ colorScheme: "dark" });
+  const requested: string[] = [];
+  page.on("request", (request) => { if (/workspace-(?:light|dark|mobile)/.test(request.url())) requested.push(new URL(request.url()).pathname); });
+  await page.goto("../");
+  const image = page.locator(".workspace-shot");
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => new URL(element.currentSrc).pathname))
+    .toMatch(isMobile ? /workspace-mobile-dark\.avif$/ : /workspace-dark\.jpg$/);
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+  expect(await image.evaluate((element: HTMLImageElement) => [element.naturalWidth, element.naturalHeight])).toEqual(isMobile ? [604, 480] : [1440, 900]);
+  expect(requested.some((path) => /workspace-light\.jpg$|workspace-mobile\.avif$/.test(path))).toBe(false);
+  const before = await image.boundingBox();
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => new URL(element.currentSrc).pathname))
+    .toMatch(isMobile ? /workspace-mobile\.avif$/ : /workspace-light\.jpg$/);
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+  const after = await image.boundingBox();
+  expect(after?.width).toBeCloseTo(before!.width, 0);
+  expect(after?.height).toBeCloseTo(before!.height, 0);
+  await page.getByRole("link", { name: "Try the Slate Sample Space", exact: true }).click();
+  await expect(page).toHaveURL(/\/slate\/app\/\?sample=1(?:#.*)?$/);
+  await expect(page.locator(".browserSheetRow")).toHaveCount(7);
+});

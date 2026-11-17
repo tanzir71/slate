@@ -6,10 +6,10 @@
     "height": 900
   },
   "light": "workspace-light.jpg",
+  "dark": "workspace-dark.jpg",
   "mobile": "workspace-mobile.avif",
-  "mobileCrop": {
-    "x": 457,
-    "y": 0,
+  "mobileDark": "workspace-mobile-dark.avif",
+  "mobileViewport": {
     "width": 604,
     "height": 480
   }
