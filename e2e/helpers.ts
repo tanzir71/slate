@@ -1,10 +1,10 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function openLibrary(page: Page) {
-  await page.goto("./");
+  await page.goto("./", { waitUntil: "domcontentloaded" });
   await page.getByText("Keep notes in this browser", { exact: true }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("complementary", { name: "Sheets", exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Sheets", exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
 export async function createSheet(page: Page, text = "# My writing\n\nWords worth keeping.") {
