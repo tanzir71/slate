@@ -5,7 +5,8 @@ import {
   createSlateMarkdownExtensions,
   createFormattingBindings,
   runFormattingCommand,
-  findWikiLinkAtPosition,
+  findEditorWikiLink,
+  knownWikiTargets as wikiTargets,
   type WikiLinkHit
 } from "@slate/editor";
 import type { ResolvedKeymap } from "@slate/core";
@@ -33,9 +34,10 @@ interface MarkdownEditorProps {
   onReady?: () => void;
   keymap?: ResolvedKeymap;
   onHandle?: (handle: MarkdownEditorHandle | undefined) => void;
+  knownWikiTargets?: ReadonlySet<string>;
 }
 
-export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -48,6 +50,8 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
   const [dismissedSelection, setDismissedSelection] = useState<ToolbarRect>();
   const selectionGeometry = useRef<ToolbarRect | undefined>(undefined);
+  const wikiLinks = useRef(new Compartment());
+  const previousWikiTargets = useRef(knownWikiTargets);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -83,6 +87,7 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
           ...createSlateMarkdownExtensions({ formattingKeys: false }),
           formattingKeys.current.of(createFormattingBindings(keymap)),
+          wikiLinks.current.of(wikiTargets.of(knownWikiTargets ?? new Set())),
           observeEditorSelection((rect) => { selectionGeometry.current = rect; setSelectionRect(rect); }, () => toolbarRef.current),
           EditorView.domEventHandlers({
             keydown(event) {
@@ -92,17 +97,25 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
               return true;
             },
             mousedown(event, view) {
+              if (event.button !== 0 || event.altKey || event.shiftKey) return false;
               const navigate = onNavigateWikiLinkRef.current;
-              if (!navigate || !(event.metaKey || event.ctrlKey)) {
-                return false;
+              const target = event.target instanceof Element ? event.target : undefined;
+              if (event.metaKey || event.ctrlKey) {
+                const href = target?.closest<HTMLElement>("[data-slate-href]")?.dataset.slateHref;
+                if (href && /^(https?:|mailto:)/i.test(href)) {
+                  event.preventDefault();
+                  window.open(href, "_blank", "noopener,noreferrer");
+                  return true;
+                }
               }
+              if (!navigate || (!(event.metaKey || event.ctrlKey) && !target?.closest(".cm-slate-unresolved-link"))) return false;
 
               const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
               if (position === null) {
                 return false;
               }
 
-              const link = findWikiLinkAtPosition(view.state.doc.toString(), position);
+              const link = findEditorWikiLink(view, position);
               if (!link) {
                 return false;
               }
@@ -158,6 +171,13 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   useEffect(() => {
     viewRef.current?.dispatch({ effects: formattingKeys.current.reconfigure(createFormattingBindings(keymap)) });
   }, [keymap]);
+
+  useEffect(() => {
+    const previous = previousWikiTargets.current;
+    previousWikiTargets.current = knownWikiTargets;
+    if (previous === knownWikiTargets || previous?.size === knownWikiTargets?.size && [...(previous ?? [])].every((target) => knownWikiTargets?.has(target))) return;
+    viewRef.current?.dispatch({ effects: wikiLinks.current.reconfigure(wikiTargets.of(knownWikiTargets ?? new Set())) });
+  }, [knownWikiTargets]);
 
   useEffect(() => {
     const view = viewRef.current;

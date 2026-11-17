@@ -4,6 +4,7 @@ import { slateCommands } from "../packages/core/src/commands";
 import { AxeBuilder } from "@axe-core/playwright";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
+const altLabel = process.platform === "darwin" ? "⌥" : "Alt";
 
 test("every default web formatting binding reaches the editor and undoes in one step", async ({
   page,
@@ -125,7 +126,7 @@ test("Space keymaps update editor bindings and labels, with complete fallback on
   await writeMap({ "format.bold": "Mod+Shift+b", "sheet.new": "Alt+m" });
   await expect(
     page.getByRole("button", { name: "New Sheet", exact: true }).first(),
-  ).toHaveAttribute("title", "New sheet (Alt M)");
+  ).toHaveAttribute("title", `New sheet (${altLabel} M)`);
   await editor.focus();
   await page.keyboard.press(`${modifier}+a`);
   await page.keyboard.press(`${modifier}+Shift+b`);
@@ -146,7 +147,7 @@ test("Space keymaps update editor bindings and labels, with complete fallback on
   ).toContainText("conflicts with Italic");
   await expect(
     page.getByRole("button", { name: "New Sheet", exact: true }).first(),
-  ).toHaveAttribute("title", "New sheet (Alt N)");
+  ).toHaveAttribute("title", `New sheet (${altLabel} N)`);
   await editor.focus();
   await page.keyboard.press(`${modifier}+a`);
   await page.keyboard.press(`${modifier}+b`);

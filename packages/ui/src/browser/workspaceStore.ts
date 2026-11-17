@@ -2,6 +2,7 @@ import { createStore } from "zustand/vanilla";
 import { createBrowserSpace, type BrowserSheet } from "@slate/storage/browser-space";
 import type { BrowserFiles } from "@slate/storage/browser-files";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
+import type { WikiLink } from "@slate/core";
 
 interface Draft { content: string; baseContent: string | undefined }
 export interface WorkspaceState {
@@ -23,6 +24,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
   let timer: ReturnType<typeof setTimeout> | undefined;
   let saving: Promise<void> | undefined;
   let onSaved: () => void = () => undefined;
+  let linking: Promise<unknown> = Promise.resolve();
 
   function journal() {
     if (record.id === "sample") return;
@@ -144,6 +146,24 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
       await refresh();
       api.setState({ selectedPath: sheet.path });
       onSaved();
+    },
+    followWikiLink(link: Pick<WikiLink, "target" | "targetId" | "display">): Promise<void> {
+      const next = linking.then(async () => {
+        await flush();
+        const [sheets, { findWikiSheet }] = await Promise.all([space.sheets(), import("./wikiSheet")]);
+        const existing = findWikiSheet(sheets, link);
+        if (existing) { await refresh(); api.setState({ selectedPath: existing.path }); return; }
+        const title = (link.targetId ? link.display : link.target).trim().replace(/[\r\n]+/g, " ") || "Untitled";
+        let filename = [...title].map((character) => character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character) ? "-" : character).join("").replace(/[. ]+$/g, "").trim() || "Untitled";
+        if (/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(filename)) filename = `_${filename}`;
+        const metadata = `---\n${link.targetId ? `id: ${JSON.stringify(link.targetId)}\n` : ""}title: ${JSON.stringify(title)}\n---\n\n`;
+        const sheet = await space.create(`Inbox/${filename}.md`, `${metadata}# ${title}\n\n`);
+        await refresh();
+        api.setState({ selectedPath: sheet.path });
+        onSaved();
+      });
+      linking = next.catch(() => undefined);
+      return next;
     },
     async move(path: string, to: string) {
       await flush();

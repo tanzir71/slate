@@ -55,6 +55,7 @@ test("selection toolbar preserves words, stays outside the selection and gives e
 test("selection toolbar is keyboard reachable, accessible in Dark and hidden for a read-only tab", async ({
   page,
   context,
+  browserName,
 }) => {
   await openLibrary(page);
   const editor = await createSheet(page, "words");
@@ -73,7 +74,8 @@ test("selection toolbar is keyboard reachable, accessible in Dark and hidden for
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
   expect(results.violations).toEqual([]);
-  await page.keyboard.press("Tab");
+  // Safari's default macOS navigation uses Option-Tab for buttons and links.
+  await page.keyboard.press(process.platform === "darwin" && browserName === "webkit" ? "Alt+Tab" : "Tab");
   await expect(
     toolbar.getByRole("button", { name: "Bold", exact: true }),
   ).toBeFocused();

@@ -173,6 +173,9 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
+      '@lezer/markdown':
+        specifier: 1.7.1
+        version: 1.7.1
       '@slate/core':
         specifier: workspace:*
         version: link:../core

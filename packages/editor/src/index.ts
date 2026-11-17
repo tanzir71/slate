@@ -3,19 +3,31 @@ import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { search } from "@codemirror/search";
-import { RangeSetBuilder, type Extension } from "@codemirror/state";
-import {
-  Decoration,
-  EditorView,
-  highlightActiveLine,
-  keymap,
-  ViewPlugin,
-  type DecorationSet,
-  type ViewUpdate
-} from "@codemirror/view";
+import type { Extension } from "@codemirror/state";
+import { EditorView, highlightActiveLine, keymap } from "@codemirror/view";
 import { computeStats } from "@slate/core";
 import { createFormattingBindings } from "./formatting.js";
-export { createFormattingBindings, formattingCommandIds, runFormattingCommand, setEditorBlock, toggleEditorTask, wrapEditorSelection } from "./formatting.js";
+import {
+  createLivePreviewExtension,
+  livePreviewSettings,
+} from "./livePreview.js";
+import { slateMarkdownSyntax } from "./markdownSyntax.js";
+export {
+  createFormattingBindings,
+  formattingCommandIds,
+  runFormattingCommand,
+  setEditorBlock,
+  toggleEditorTask,
+  wrapEditorSelection,
+} from "./formatting.js";
+export {
+  buildLivePreviewDecorations,
+  createLivePreviewExtension,
+  findEditorWikiLink,
+  knownWikiTargets,
+  livePreviewSettings,
+} from "./livePreview.js";
+export { findWikiLinkAtPosition, type WikiLinkHit } from "./wikiLinks.js";
 
 export interface EditorHud {
   words: number;
@@ -23,39 +35,37 @@ export interface EditorHud {
   readingTimeMinutes: number;
 }
 
-export interface MarkerRange {
-  from: number;
-  to: number;
-  line: number;
-  kind: "heading" | "emphasis" | "wiki";
-}
-
-export interface WikiLinkHit {
-  from: number;
-  to: number;
-  raw: string;
-  target: string;
-  display: string;
-  targetId: string | undefined;
-}
-
-const wikiLinkPattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
-const ulidLikePattern = /^(?:id:)?01[0-9A-HJKMNP-TV-Z]{24}$/i;
-
-export function createSlateMarkdownExtensions(options: { formattingKeys?: boolean } = {}): Extension[] {
+export function createSlateMarkdownExtensions(
+  options: {
+    formattingKeys?: boolean;
+    hideSyntax?: boolean;
+    highContrastMarkers?: boolean;
+  } = {},
+): Extension[] {
   return [
     history(),
-    markdown(),
+    markdown({ extensions: slateMarkdownSyntax }),
     search(),
-    createInvisibleMarkdownExtension(),
+    livePreviewSettings.of({
+      hideSyntax: options.hideSyntax !== false,
+      highContrastMarkers: options.highContrastMarkers === true,
+    }),
+    createLivePreviewExtension(),
     highlightActiveLine(),
-    syntaxHighlighting(HighlightStyle.define([
-      { tag: tags.heading, fontWeight: "600", color: "inherit" },
-      { tag: tags.strong, fontWeight: "700" },
-      { tag: tags.emphasis, fontStyle: "italic" },
-      { tag: tags.link, color: "var(--slate-accent)" },
-      { tag: tags.monospace, fontFamily: "monospace" }
-    ])),
+    syntaxHighlighting(
+      HighlightStyle.define([
+        {
+          tag: tags.heading,
+          fontWeight: "600",
+          color: "inherit",
+          textDecoration: "none",
+        },
+        { tag: tags.strong, fontWeight: "700" },
+        { tag: tags.emphasis, fontStyle: "italic" },
+        { tag: tags.link, color: "var(--slate-accent)" },
+        { tag: tags.monospace, fontFamily: "monospace" },
+      ]),
+    ),
     options.formattingKeys === false ? [] : createFormattingBindings(),
     keymap.of([...markdownKeymap, ...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,
@@ -63,60 +73,20 @@ export function createSlateMarkdownExtensions(options: { formattingKeys?: boolea
       "&": {
         fontFamily: "var(--font-editor)",
         fontSize: "18px",
-        lineHeight: "1.7"
+        lineHeight: "1.7",
       },
       ".cm-content": {
-        caretColor: "var(--slate-accent)"
+        caretColor: "var(--slate-accent)",
       },
       ".cm-scroller": { fontFamily: "var(--font-editor)" },
       ".cm-focused": {
-        outline: "none"
+        outline: "none",
       },
       ".cm-line": {
-        padding: "0 2px"
-      }
-    })
-  ];
-}
-
-export function createInvisibleMarkdownExtension(): Extension {
-  return [
-    invisibleMarkdownPlugin,
-    EditorView.theme({
-      ".cm-slate-hidden-marker": {
-        opacity: "0.22"
+        padding: "0 2px",
       },
-      ".cm-focused .cm-slate-hidden-marker": {
-        transition: "opacity 120ms ease-out"
-      }
-    })
+    }),
   ];
-}
-
-export function findWikiLinkAtPosition(markdownText: string, position: number): WikiLinkHit | undefined {
-  for (const match of markdownText.matchAll(wikiLinkPattern)) {
-    const raw = match[0];
-    const from = match.index;
-    const to = from + raw.length;
-    if (position < from || position >= to) {
-      continue;
-    }
-
-    const rawTarget = (match[1] ?? "").trim();
-    const display = (match[2] ?? rawTarget).trim();
-    const targetId = normalizeTargetId(rawTarget);
-
-    return {
-      from,
-      to,
-      raw,
-      target: targetId ?? rawTarget,
-      display,
-      targetId
-    };
-  }
-
-  return undefined;
 }
 
 export function computeEditorHud(markdownText: string): EditorHud {
@@ -124,111 +94,8 @@ export function computeEditorHud(markdownText: string): EditorHud {
   return {
     words: stats.words,
     characters: computeVisibleCharacters(markdownText),
-    readingTimeMinutes: stats.readingTimeMinutes
+    readingTimeMinutes: stats.readingTimeMinutes,
   };
-}
-
-export function findInactiveMarkdownMarkerRanges(markdownText: string, activeLine: number): MarkerRange[] {
-  const ranges: MarkerRange[] = [];
-  let offset = 0;
-  const lines = markdownText.split("\n");
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const lineNumber = index + 1;
-    const line = lines[index] ?? "";
-
-    if (lineNumber !== activeLine) {
-      collectHeadingMarkers(line, offset, lineNumber, ranges);
-      collectEmphasisMarkers(line, offset, lineNumber, ranges);
-      collectWikiMarkers(line, offset, lineNumber, ranges);
-    }
-
-    offset += line.length + 1;
-  }
-
-  return ranges.sort((left, right) => left.from - right.from);
-}
-
-function collectHeadingMarkers(
-  line: string,
-  offset: number,
-  lineNumber: number,
-  ranges: MarkerRange[]
-): void {
-  const match = line.match(/^(#{1,6})\s/);
-  if (!match?.[1]) {
-    return;
-  }
-
-  ranges.push({ from: offset, to: offset + match[1].length, line: lineNumber, kind: "heading" });
-}
-
-function collectEmphasisMarkers(
-  line: string,
-  offset: number,
-  lineNumber: number,
-  ranges: MarkerRange[]
-): void {
-  for (const match of line.matchAll(/\*\*|__/g)) {
-    ranges.push({
-      from: offset + match.index,
-      to: offset + match.index + match[0].length,
-      line: lineNumber,
-      kind: "emphasis"
-    });
-  }
-}
-
-function collectWikiMarkers(line: string, offset: number, lineNumber: number, ranges: MarkerRange[]): void {
-  for (const match of line.matchAll(/\[\[[^\]]+\]\]/g)) {
-    const start = offset + match.index;
-    const text = match[0];
-    ranges.push({ from: start, to: start + 2, line: lineNumber, kind: "wiki" });
-
-    const pipe = text.indexOf("|");
-    if (pipe >= 0) {
-      ranges.push({ from: start + pipe, to: start + pipe + 1, line: lineNumber, kind: "wiki" });
-    }
-
-    ranges.push({ from: start + text.length - 2, to: start + text.length, line: lineNumber, kind: "wiki" });
-  }
-}
-
-const invisibleMarkdownPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-
-    constructor(view: EditorView) {
-      this.decorations = buildInvisibleMarkdownDecorations(view);
-    }
-
-    update(update: ViewUpdate): void {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildInvisibleMarkdownDecorations(update.view);
-      }
-    }
-  },
-  {
-    decorations: (plugin) => plugin.decorations
-  }
-);
-
-function buildInvisibleMarkdownDecorations(view: EditorView): DecorationSet {
-  const markdownText = view.state.doc.toString();
-  const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number;
-  const builder = new RangeSetBuilder<Decoration>();
-
-  for (const range of findInactiveMarkdownMarkerRanges(markdownText, activeLine)) {
-    builder.add(
-      range.from,
-      range.to,
-      Decoration.mark({
-        class: `cm-slate-hidden-marker cm-slate-marker-${range.kind}`
-      })
-    );
-  }
-
-  return builder.finish();
 }
 
 function computeVisibleCharacters(markdownText: string): number {
@@ -236,19 +103,17 @@ function computeVisibleCharacters(markdownText: string): number {
     .split(/\r?\n/)
     .filter((line) => !line.trimStart().startsWith("#"))
     .join("\n")
-    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match: string, target: string, display: string | undefined) => {
-      return display ?? target;
-    })
-    .replace(/(^|[\s([>])#([A-Za-z0-9][A-Za-z0-9_-]*(?:\/[A-Za-z0-9][A-Za-z0-9_-]*)*)/g, "$1$2")
+    .replace(
+      /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
+      (_match: string, target: string, display: string | undefined) => {
+        return display ?? target;
+      },
+    )
+    .replace(
+      /(^|[\s([>])#([A-Za-z0-9][A-Za-z0-9_-]*(?:\/[A-Za-z0-9][A-Za-z0-9_-]*)*)/g,
+      "$1$2",
+    )
     .replace(/[*_`~=\-[\]()!?.:,;]/g, "");
 
   return visible.replace(/\s/g, "").length;
-}
-
-function normalizeTargetId(target: string): string | undefined {
-  if (!ulidLikePattern.test(target)) {
-    return undefined;
-  }
-
-  return target.replace(/^id:/i, "").toUpperCase();
 }

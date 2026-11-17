@@ -253,3 +253,11 @@ Each Space may supply `.slate/keymap.json` with `{ "version": 1, "bindings": { "
 ## 2026-11-17 - Measure the selection toolbar without touching the document
 
 The selection observer reads visible CodeMirror coordinates in its measurement phase and emits only changed geometry. Empty or read-only selections perform no layout reads. The toolbar uses the registered formatting actions and resolved shortcut labels, preserves editor selection on pointer activation, supports keyboard focus/arrow navigation and returns focus to the editor after applying an action. Placement clamps to the visual viewport, prefers above the selected lines, falls below when needed and hides if neither side fits. Resize/scroll measurements keep it clear of the selection on mobile as well. Escape dismisses it without altering words; formatting remains one isolated undo transaction.
+
+## 2026-11-17 - Render Markdown from the editor's incremental syntax tree
+
+F-10a uses Lezer's Markdown/GFM tree plus small highlight/wiki/tag extensions. Only visible ranges receive decorations; code, escaped syntax, images and frontmatter stay source text. Caret/selected lines reveal their source markers. Rendering and settings changes never dispatch document edits; task widgets dispatch one checked-state character as an isolated undo action. Reference URLs and wiki aliases retain their source targets. External links open only on a modified primary click and only for HTTP(S)/mailto; document HTML is never interpreted.
+
+Missing wiki targets are created through the existing serialized, conflict-safe file adapter. Link navigation/creation is serialized too, preserving source bytes, resolving existing titles or stable IDs first and using portable filenames. A lazily loaded helper imports only the needed parser export, keeping the initial shell small. Rich widgets and view-mode UI remain in their planned later milestone.
+
+macOS CI's shortcut labels use the same Option glyph as the running app. Safari's toolbar traversal test uses Option-Tab with the default macOS navigation setting, following [Apple's keyboard reference](https://support.apple.com/guide/safari/keyboard-shortcuts-and-gestures-cpsh003/mac); no keyboard checks are skipped. The shortcuts invoker receives explicit focus before its dialog opens so Safari restores focus consistently too.
