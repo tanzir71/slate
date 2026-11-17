@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -10,6 +10,8 @@ import {
 } from "@slate/editor";
 import type { ResolvedKeymap } from "@slate/core";
 import type { MarkdownEditorHandle } from "./commands";
+import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
+import { SelectionToolbar } from "./SelectionToolbar";
 
 const externalValue = Annotation.define<boolean>();
 
@@ -42,6 +44,10 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
   const editable = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
+  const [dismissedSelection, setDismissedSelection] = useState<ToolbarRect>();
+  const selectionGeometry = useRef<ToolbarRect | undefined>(undefined);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -77,7 +83,14 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
           ...createSlateMarkdownExtensions({ formattingKeys: false }),
           formattingKeys.current.of(createFormattingBindings(keymap)),
+          observeEditorSelection((rect) => { selectionGeometry.current = rect; setSelectionRect(rect); }, () => toolbarRef.current),
           EditorView.domEventHandlers({
+            keydown(event) {
+              if (event.key !== "Escape" || !selectionGeometry.current) return false;
+              setDismissedSelection(selectionGeometry.current);
+              event.preventDefault();
+              return true;
+            },
             mousedown(event, view) {
               const navigate = onNavigateWikiLinkRef.current;
               if (!navigate || !(event.metaKey || event.ctrlKey)) {
@@ -159,5 +172,5 @@ export function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly =
     });
   }, [value]);
 
-  return <div ref={hostRef} className="editorHost" aria-label="Markdown editor" />;
+  return <><div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 }
