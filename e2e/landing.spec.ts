@@ -8,6 +8,9 @@ test("landing is accessible, responsive and links to the real app", async ({ pag
   await page.evaluate(async () => { await document.fonts.ready; });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await page.evaluate(() => document.fonts.check("20px Newsreader"))).toBe(true);
+  const lockup = await page.locator(".site-header .brand > svg").boundingBox();
+  expect(lockup?.width).toBeCloseTo(isMobile ? 80 : 104, 0);
+  expect(lockup?.height).toBeCloseTo(isMobile ? 80 * 32 / 86 : 28, 0);
   await expect.poll(() => page.locator(".workspace-shot").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   expect(await page.locator(".workspace-shot").evaluate((image: HTMLImageElement) => new URL(image.currentSrc).pathname)).toMatch(isMobile ? /workspace-mobile\.avif$/ : /workspace-light\.jpg$/);
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();

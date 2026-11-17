@@ -204,7 +204,7 @@ The user explicitly requested that the landing page become first priority and be
 
 ## 2026-11-17 - Keep marketing assets small without remote dependencies
 
-The production site inlines minified landing CSS and serves a responsive crop of the real app on mobile. The committed marketing fonts retain only Latin/punctuation and the weights used by the design; `scripts/subset-landing-fonts.py` reproduces them from the full editor fonts, which remain unchanged for user documents. Every site build regenerates screenshots and checks both marketing and app budgets. Lighthouse audits the production artifact with default mobile throttling before publication.
+The production site inlines minified landing CSS, critical font bytes, shared SVG icons and the header lockup, and serves a responsive AVIF crop of the real app on mobile. Inlining removes connection overhead under the default mobile network simulation; redundant production font preloads are removed. The footer lockup loads lazily. The committed marketing fonts retain only Latin/punctuation and the weights used by the design; `scripts/subset-landing-fonts.py` reproduces them from the full editor fonts, which remain unchanged for user documents. Original SVGs and font files/licenses remain bundled. Every site build regenerates screenshots and checks both marketing and app budgets. Lighthouse audits the production artifact with default mobile throttling before publication; the 1.5-second budget remains unchanged.
 
 ## 2026-11-17 - Read current and waiting release notes separately
 

@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
+import { cp, mkdir, rm, writeFile, readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { transformWithEsbuild } from "vite";
@@ -41,11 +41,27 @@ for (const [filename, loader] of [["landing.css", "css"], ["landing.js", "js"]])
   await writeFile(resolve(output, filename), result.code);
 }
 const landing = await readFile(resolve(output, "index.html"), "utf8");
-const landingCss = await readFile(resolve(output, "landing.css"), "utf8");
-await writeFile(resolve(output, "index.html"), landing.replace('<link rel="stylesheet" href="./landing.css" />', `<style>${landingCss}</style>`).replace(/<img\b([^>]*?)>/g, (tag, attributes) => {
-  let result = /\bwidth=/.test(attributes) ? tag : tag.replace("<img", '<img width="20" height="20"');
-  if (attributes.includes("./assets/icons/") && !/globe|code\.svg|check\.svg|menu\.svg|arrowRight/.test(attributes)) result = result.replace("<img", '<img loading="lazy" decoding="async"');
-  return result;
+let landingCss = await readFile(resolve(output, "landing.css"), "utf8");
+for (const font of ["geist", "newsreader", "geist-mono"]) {
+  const bytes = await readFile(resolve(output, "assets/fonts", `${font}.woff2`));
+  landingCss = landingCss.replace(`./assets/fonts/${font}.woff2`, `data:font/woff2;base64,${bytes.toString("base64")}`);
+}
+const lockup = (await readFile(resolve(output, "assets/brand/logo-lockup.svg"), "utf8"))
+  .replace('<svg width="86" height="32"', '<svg width="104" height="28" aria-hidden="true"');
+const iconFiles = (await readdir(resolve(output, "assets/icons"))).filter((name) => name.endsWith(".svg"));
+const inlineIcons = new Map(await Promise.all(iconFiles.map(async (name) => [name, await readFile(resolve(output, "assets/icons", name), "utf8")])));
+let lockupInlined = false;
+await writeFile(resolve(output, "index.html"), landing.replace(/<link\b(?=[^>]*\brel="preload")(?=[^>]*\bas="font")[^>]*>/g, "").replace('<link rel="stylesheet" href="./landing.css" />', `<style>${landingCss}</style>`).replace(/<img\b([^>]*?)>/g, (tag, attributes) => {
+  if (attributes.includes("./assets/brand/logo-lockup.svg")) {
+    if (!lockupInlined) { lockupInlined = true; return lockup; }
+    return tag.replace("<img", '<img loading="lazy" decoding="async"');
+  }
+  const icon = attributes.match(/src="\.\/assets\/icons\/([^"/]+\.svg)"/)?.[1];
+  if (icon && inlineIcons.has(icon)) {
+    const className = attributes.match(/class="([^"]*)"/)?.[1] ?? "";
+    return inlineIcons.get(icon).replace(/class="([^"]*)"/, `class="$1 ${className}"`);
+  }
+  return /\bwidth=/.test(attributes) ? tag : tag.replace("<img", '<img width="20" height="20"');
 }).replace(/>\s+</g, "><"));
 await cp(resolve(root, "apps/web/dist"), resolve(output, "app"), {
   recursive: true,

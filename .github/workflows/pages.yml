@@ -26,6 +26,16 @@ jobs:
       - run: pnpm build:site
       - run: pnpm e2e --project=chromium --project=firefox --project=webkit
       - run: pnpm perf:site
+      - name: Upload failed browser and performance evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-verification
+          path: |
+            artifacts/lighthouse-landing.json
+            test-results/
+            playwright-report/
+          retention-days: 7
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: site-dist }

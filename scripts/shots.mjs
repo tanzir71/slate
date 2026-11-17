@@ -32,7 +32,7 @@ try {
     animations: "disabled",
   });
   const mobile = await page.screenshot({ type: "png", clip: { x: 457, y: 0, width: 604, height: 480 }, animations: "disabled" });
-  await sharp(mobile).avif({ quality: 60, effort: 7 }).toFile(resolve(directory, "workspace-mobile.avif"));
+  await sharp(mobile).avif({ quality: 55, effort: 7, chromaSubsampling: "4:2:0" }).toFile(resolve(directory, "workspace-mobile.avif"));
   await writeFile(
     resolve(directory, "screenshots.json"),
     `${JSON.stringify({ source: "real app", fixture: "Sample Space", viewport: { width: 1440, height: 900 }, light: "workspace-light.jpg", mobile: "workspace-mobile.avif", mobileCrop: { x: 457, y: 0, width: 604, height: 480 } }, null, 2)}\n`,

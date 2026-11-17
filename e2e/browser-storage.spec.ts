@@ -18,14 +18,33 @@ test("runs under the Pages subpath with CSP and no third-party requests", async 
   expect(failures).toEqual([]);
 });
 
-test("reloads offline with saved files and a working editor", async ({ page, context }) => {
+test("reloads offline with saved files and a working editor", async ({ page, context }, testInfo) => {
   await openLibrary(page);
   await createSheet(page, "# Offline\n\nI keep my words offline.");
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  // Record readiness in the browser; test-runner polling can add half a second.
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      const editor = document.querySelector<HTMLElement>('.cm-content[contenteditable="true"]');
+      if (!editor?.textContent?.includes("I keep my words offline.")) return;
+      observer.disconnect();
+      requestAnimationFrame(() => {
+        const bounds = editor.getBoundingClientRect();
+        if (editor.isConnected && bounds.width && bounds.height) performance.mark("slate.offline-editor-ready");
+      });
+    });
+    observer.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["contenteditable"] });
+  });
   await context.setOffline(true);
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.locator(".cm-content")).toContainText("I keep my words offline.");
+  await expect(page.locator(".cm-content")).toHaveAttribute("contenteditable", "true");
+  await page.waitForFunction(() => performance.getEntriesByName("slate.offline-editor-ready").length > 0);
+  const reopenMs = await page.evaluate(() => performance.getEntriesByName("slate.offline-editor-ready")[0]!.startTime);
+  console.log(`Offline reopen (${testInfo.project.name}): ${Math.round(reopenMs)} ms`);
+  await testInfo.attach("offline-reopen", { body: JSON.stringify({ reopenMs }), contentType: "application/json" });
+  expect(reopenMs, "Offline return to an editable sheet must take less than 1 second").toBeLessThan(1000);
   await page.locator(".cm-content").click();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.insertText(" Still writing.");

@@ -120,7 +120,7 @@ summary:focus-visible,
   flex-shrink: 0;
   min-block-size: 44px;
 }
-.brand img {
+.brand img, .brand svg {
   object-fit: contain;
 }
 .desktop-links {
@@ -1067,9 +1067,12 @@ tbody tr:last-child > * {
   .navigation {
     justify-content: space-between;
   }
-  .brand img {
+  .brand img, .brand svg {
     inline-size: 80px;
     block-size: auto;
+  }
+  .brand svg {
+    aspect-ratio: 86 / 32;
   }
   .desktop-links,
   .nav-actions {
@@ -1235,7 +1238,7 @@ tbody tr:last-child > * {
     background: #fff;
     border: 1px solid var(--line);
   }
-  .feature-card > .feature-icon img {
+  .feature-card > .feature-icon img, .feature-card > .feature-icon svg {
     inline-size: 18px;
     block-size: 18px;
   }

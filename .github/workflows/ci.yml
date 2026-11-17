@@ -36,4 +36,14 @@ jobs:
       - name: Verify Windows (WebKit storage is checked on Linux and macOS)
         if: matrix.os == 'windows-latest'
         run: pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e --project=chromium --project=firefox --project=mobile
+      - name: Upload failed verification evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-${{ matrix.os }}
+          path: |
+            artifacts/lighthouse-landing.json
+            test-results/
+            playwright-report/
+          retention-days: 7
 
