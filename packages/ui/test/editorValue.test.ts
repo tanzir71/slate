@@ -53,3 +53,22 @@ it("opens a shortened CRLF file with an out-of-range remembered caret without wr
     localStorage.removeItem(key);
   }
 });
+
+it("flushes the latest view position on pagehide before queued scroll events", async () => {
+  const key = "slate.editor.leaving";
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => { root.render(createElement(MarkdownEditor, { value: "My words", documentKey: "leaving", onChange: vi.fn() })); });
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)!;
+    view.dispatch({ selection: { anchor: 3 } });
+    view.scrollDOM.scrollTop = 350;
+    window.dispatchEvent(new Event("pagehide"));
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({ anchor: 3, scroll: 350 });
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    localStorage.removeItem(key);
+  }
+});
