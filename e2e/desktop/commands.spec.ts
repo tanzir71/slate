@@ -15,6 +15,19 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator(".cm-content")).toBeVisible();
 });
 
+test("desktop migration notice is dismissible and is shown only once", async ({ page }) => {
+  const notice = page.locator(".shortcutMigrationNotice");
+  await expect(notice).toContainText("Default shortcuts changed.");
+  const mac = await page.evaluate(() => /Mac/.test(navigator.platform));
+  await expect(notice).toContainText(mac ? "Italic: ⌘ I. Inspector: ⌘ ⇧ I." : "Italic: Ctrl I. Inspector: Ctrl ⇧ I.");
+  expect((await new AxeBuilder({ page }).include(".shortcutMigrationNotice").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await notice.getByRole("button", { name: "Dismiss shortcut notice", exact: true }).click();
+  await expect(notice).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator(".cm-content")).toBeVisible();
+  await expect(notice).toHaveCount(0);
+});
+
 test("desktop formatting, registry shortcuts and IPC saves agree", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("complementary", { name: "Inspector" })).toBeHidden();

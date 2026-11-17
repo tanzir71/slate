@@ -46,6 +46,7 @@ import {
 import { MarkdownEditor } from "./MarkdownEditor";
 import { commandShortcut, keyboardInput, shortcutOS, type MarkdownEditorHandle } from "./commands";
 import { desktopPreviewCommands } from "./desktopCommands";
+import { takeShortcutMigrationNotice } from "./shortcutMigrationNotice";
 import { CommandDialog } from "./browser/CommandDialog";
 import { AppearanceControl, useAppearance } from "./appearance";
 import { notebooks, sheets as seedSheets, spaces, type NotebookSeed, type SheetSeed } from "./sampleData";
@@ -83,6 +84,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [shortcutNotice, setShortcutNotice] = useState<string>();
   const os = shortcutOS();
   const keymap = useMemo(() => resolveCommandKeymap({ os, surface: "desktop" }, undefined, previewCommands), [os]);
   const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
@@ -106,6 +108,11 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   });
   const selected = sheets.find((sheet) => sheet.id === selectedId) ?? sheets[0];
   const selectedSpace = spaces.find((space) => space.id === activeSpace) ?? spaces[0];
+
+  useEffect(() => {
+    const notice = takeShortcutMigrationNotice(os, "desktop");
+    if (notice) setShortcutNotice(notice);
+  }, [os]);
 
   useEffect(() => {
     const writer = autosaveWriter ?? createBrowserDraftAutosaveWriter();
@@ -290,6 +297,8 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           <button title={`Keyboard shortcuts (${commandShortcut("app.shortcuts", keymap, os)})`} onClick={() => setShortcutsOpen(true)}>Keyboard shortcuts</button>
         </nav>
       </header>
+
+      {shortcutNotice && <div className="shortcutMigrationNotice" role="status"><span>{shortcutNotice}</span><button aria-label="Dismiss shortcut notice" onClick={() => setShortcutNotice(undefined)}><X size={16} /></button></div>}
 
       <section className="workspace">
         <aside className="sidebar" aria-label="Workspace navigation">

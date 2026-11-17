@@ -105,6 +105,35 @@ input:focus-visible {
   min-height: 677px;
 }
 
+.shortcutMigrationNotice {
+  position: fixed;
+  inset-inline-end: 16px;
+  inset-block-end: 20px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-inline-size: min(440px, calc(100% - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  box-shadow: 0 6px 24px #0002;
+  font: 12px/1.6 var(--font-ui);
+}
+
+.shortcutMigrationNotice button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--bg-app);
+}
+
 .slateApp.sidebarHidden {
   --sidebar-column: 0px;
 }

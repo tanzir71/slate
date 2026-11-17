@@ -6,6 +6,8 @@ import { createBrowserOwnership, type BrowserOwnership } from "@slate/storage/br
 import { createWorkspaceStore, type WorkspaceStore } from "./workspaceStore";
 import { AppearanceControl, useAppearance } from "../appearance";
 import { BrandMark } from "../BrandMark";
+import { shortcutOS } from "../commands";
+import { takeShortcutMigrationNotice } from "../shortcutMigrationNotice";
 import "./browser.css";
 
 const loadWorkspace = () => import("./BrowserWorkspace");
@@ -75,9 +77,9 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
       workspaceRef.current = store;
       setWorkspace(store);
       if (store.api.getState().owned) await store.flush();
-      if (!localStorage.getItem("slate.shortcuts.v2") && !store.api.getState().notice) {
-        store.api.setState({ notice: "Italic is now Ctrl I. Open the inspector with Ctrl Shift I." });
-        localStorage.setItem("slate.shortcuts.v2", "seen");
+      if (!store.api.getState().notice) {
+        const notice = takeShortcutMigrationNotice(shortcutOS(), "web");
+        if (notice) store.api.setState({ notice });
       }
     } catch (failure) { setError(errorMessage(failure)); }
     finally { if (currentGeneration === generation.current) setBusy(false); }

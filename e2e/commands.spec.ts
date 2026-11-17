@@ -3,6 +3,15 @@ import { createSheet, openLibrary, workspaceAction } from "./helpers";
 import { commandsForSurface, slateCommands } from "../packages/core/src/commands";
 import { AxeBuilder } from "@axe-core/playwright";
 
+test("the shortcut migration notice uses macOS labels and appears once", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "platform", { configurable: true, value: "MacIntel" }));
+  await openLibrary(page);
+  await expect(page.getByRole("status").filter({ hasText: "Default shortcuts changed." })).toHaveText(/Italic: ⌘ I\. Inspector: ⌘ ⇧ I\./);
+  await page.reload();
+  await expect(page.getByRole("complementary", { name: "Sheets", exact: true })).toBeVisible();
+  await expect(page.getByText("Default shortcuts changed.", { exact: false })).toHaveCount(0);
+});
+
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 const altLabel = process.platform === "darwin" ? "⌥" : "Alt";
 
