@@ -31,13 +31,24 @@ jobs:
       - name: Linux desktop prerequisites
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
-      - run: pnpm verify
+      - name: Verify types, lint, tests, native builds and core budgets
+        run: pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf
+      - name: Landing performance budget (Linux reference runner)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm perf:site
+      - name: macOS landing diagnostic (budget enforced on Linux)
+        id: lighthouse-diagnostic
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: pnpm perf:site
+      - name: Verify every browser engine
         if: matrix.os != 'windows-latest'
+        run: pnpm e2e
       - name: Verify Windows (WebKit storage is checked on Linux and macOS)
         if: matrix.os == 'windows-latest'
-        run: pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e --project=chromium --project=firefox --project=mobile
+        run: pnpm e2e --project=chromium --project=firefox --project=mobile
       - name: Upload failed verification evidence
-        if: failure()
+        if: failure() || steps.lighthouse-diagnostic.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: verification-${{ matrix.os }}
