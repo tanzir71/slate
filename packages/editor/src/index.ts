@@ -1,5 +1,5 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
+import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { search } from "@codemirror/search";
@@ -12,6 +12,8 @@ import {
   livePreviewSettings,
 } from "./livePreview.js";
 import { slateMarkdownSyntax } from "./markdownSyntax.js";
+import { createSmartListBindings, type SmartListOptions } from "./smartLists.js";
+export { createSmartListBindings, indentEditorListItem, moveEditorListItem, type SmartListOptions } from "./smartLists.js";
 export {
   createFormattingBindings,
   formattingCommandIds,
@@ -41,11 +43,12 @@ export function createSlateMarkdownExtensions(
     formattingKeys?: boolean;
     hideSyntax?: boolean;
     highContrastMarkers?: boolean;
+    smartLists?: false | SmartListOptions;
   } = {},
 ): Extension[] {
   return [
     history(),
-    markdown({ extensions: slateMarkdownSyntax }),
+    markdown({ extensions: slateMarkdownSyntax, addKeymap: false }),
     search(),
     livePreviewSettings.of({
       hideSyntax: options.hideSyntax !== false,
@@ -68,7 +71,8 @@ export function createSlateMarkdownExtensions(
       ]),
     ),
     options.formattingKeys === false ? [] : createFormattingBindings(),
-    keymap.of([...markdownKeymap, ...defaultKeymap, ...historyKeymap]),
+    options.smartLists === false ? [] : createSmartListBindings(options.smartLists),
+    keymap.of([...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,
     EditorView.theme({
       "&": {

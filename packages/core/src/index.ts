@@ -8,6 +8,7 @@ export * from "./workspacePreferences.js";
 export * from "./textChanges.js";
 export * from "./blocks.js";
 export * from "./blockSearch.js";
+export * from "./editorPreferences.js";
 
 export type SheetId = string;
 

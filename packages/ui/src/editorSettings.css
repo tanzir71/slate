@@ -1,0 +1,64 @@
+.editorSettings > p {
+  color: var(--text-secondary);
+  margin: 0 0 20px;
+}
+.editorSettings fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 20px;
+  min-inline-size: 0;
+}
+.editorSettings legend {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  margin-block-end: 16px;
+}
+.editorSettings .smartInputRule {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 12px;
+  margin-block-end: 20px;
+  align-items: start;
+  cursor: pointer;
+}
+.editorSettings .smartInputRule input {
+  inline-size: 16px;
+  block-size: 16px;
+  padding: 0;
+  margin: 3px 0 0;
+  accent-color: var(--slate-accent);
+}
+.smartInputRule strong {
+  display: block;
+  font-weight: 500;
+}
+.smartInputRule small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-block-start: 4px;
+}
+.editorSettingsActions {
+  display: flex;
+  justify-content: flex-end;
+}
+.editorSettingsActions button {
+  min-block-size: 36px;
+  padding: 6px 16px;
+  color: var(--text-primary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .editorSettingsActions button {
+    min-block-size: 44px;
+  }
+  .editorSettings .smartInputRule {
+    min-block-size: 44px;
+  }
+}

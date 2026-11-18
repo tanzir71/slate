@@ -49,6 +49,8 @@ import { desktopPreviewCommands } from "./desktopCommands";
 import { takeShortcutMigrationNotice } from "./shortcutMigrationNotice";
 import { CommandDialog } from "./browser/CommandDialog";
 import { AppearanceControl, useAppearance } from "./appearance";
+import { EditorSettingsDialog } from "./EditorSettingsDialog";
+import { useEditorPreferences } from "./editorPreferences";
 import { notebooks, sheets as seedSheets, spaces, type NotebookSeed, type SheetSeed } from "./sampleData";
 import "./styles.css";
 
@@ -78,6 +80,8 @@ const smartFilters = [
 
 export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}) {
   const appearance = useAppearance();
+  const editorPreferences = useEditorPreferences();
+  const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
   const [activeSpace, setActiveSpace] = useState("work");
   const [sheets, setSheets] = useState<SheetSeed[]>(seedSheets);
   const [selectedId, setSelectedId] = useState(seedSheets[0]?.id ?? "");
@@ -141,6 +145,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
     const actions: Record<string, () => void> = {
       "app.palette": () => setCommandOpen((open) => !open),
       "app.shortcuts": () => setShortcutsOpen(true),
+      "app.editorSettings": () => setEditorSettingsOpen(true),
       "sheet.new": createSheet,
       "sheet.search": () => { setSheetListVisible(true); requestAnimationFrame(() => searchInputRef.current?.focus()); },
       "sheet.save": () => { void autosaveRef.current?.flush().catch((error: unknown) => setMoveError(error instanceof Error ? error.message : "Could not save. Keep this window open.")); },
@@ -160,13 +165,13 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.getModifierState("AltGraph")) return;
-      if (event.key === "Escape" && !commandOpen && !shortcutsOpen && (focusMode || fullscreenMode)) {
+      if (event.key === "Escape" && !commandOpen && !shortcutsOpen && !editorSettingsOpen && (focusMode || fullscreenMode)) {
         event.preventDefault();
         setFocusMode(false);
         setFullscreenMode(false);
         return;
       }
-      if (commandOpen || shortcutsOpen) return;
+      if (commandOpen || shortcutsOpen || editorSettingsOpen) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false });
       if (id) { event.preventDefault(); dispatchCommand(id); }
@@ -344,7 +349,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           </div>
 
           <div className="sidebarFooter">
-            <button aria-label="Settings">
+            <button aria-label="Editor settings" title={`Editor settings (${commandShortcut("app.editorSettings", keymap, os)})`} onClick={(event) => { event.currentTarget.focus(); setEditorSettingsOpen(true); }}>
               <Settings size={18} />
             </button>
             <button aria-label="Collapse sidebar">
@@ -487,6 +492,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           </div>
 
           <MarkdownEditor
+            smartLists={editorPreferences.preferences.smartLists}
             key={selected.id}
             documentKey={`desktop/${selected.id}`}
             keymap={keymap}
@@ -547,6 +553,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
         </aside>
       </section>
       {(commandOpen || shortcutsOpen) && <CommandDialog kind={shortcutsOpen ? "shortcuts" : "palette"} surface="desktop" registry={previewCommands} keymap={keymap} os={os} editor={!!selected} selection={editorHandle.current?.hasSelection() ?? false} onClose={() => { setCommandOpen(false); setShortcutsOpen(false); }} onCommand={(id) => { setCommandOpen(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
+      {editorSettingsOpen && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettingsOpen(false)} />}
     </main>
   );
 }

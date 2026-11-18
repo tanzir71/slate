@@ -69,6 +69,7 @@ export const slateCommands: readonly CommandDefinition[] = [
     shortcut: "Mod+/",
   },
   { id: "app.about", label: "About Slate", group: "Help" },
+  { id: "app.editorSettings", label: "Editor settings", group: "Workspace", shortcut: "Mod+," },
   { id: "appearance.light", label: "Use Light appearance", group: "View" },
   { id: "appearance.dark", label: "Use Dark appearance", group: "View" },
   { id: "appearance.system", label: "Follow system appearance", group: "View" },

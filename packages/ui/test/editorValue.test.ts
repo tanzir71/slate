@@ -4,6 +4,42 @@ import { EditorView, runScopeHandlers } from "@codemirror/view";
 import { expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../src/MarkdownEditor";
 
+it("reconfigures smart input without replacing the editor, changing words or losing undo", async () => {
+  const rangeRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");
+  const rangeBounds = Object.getOwnPropertyDescriptor(Range.prototype, "getBoundingClientRect");
+  // jsdom has no text layout. Real list keys and layout are covered in Playwright.
+  Object.defineProperty(Range.prototype, "getClientRects", { configurable: true, value: () => [] });
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: () => new DOMRect() });
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const changed = vi.fn();
+  const value = "- A\n- B";
+  try {
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed, smartLists: { indent: false } })));
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)!;
+    view.dispatch({ selection: { anchor: value.length } });
+    const tab = () => runScopeHandlers(view, new KeyboardEvent("keydown", { key: "Tab" }), "editor");
+    expect(tab()).toBe(false);
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed, smartLists: { indent: true } })));
+    expect(EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)).toBe(view);
+    expect(changed).not.toHaveBeenCalled();
+    await act(async () => { expect(tab()).toBe(true); });
+    expect(view.state.doc.toString()).toBe("- A\n  - B");
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed, smartLists: { indent: false } })));
+    expect(changed).toHaveBeenCalledTimes(1);
+    await act(async () => { runScopeHandlers(view, new KeyboardEvent("keydown", { key: "z", ctrlKey: !/Mac/.test(navigator.platform), metaKey: /Mac/.test(navigator.platform) }), "editor"); });
+    expect(view.state.doc.toString()).toBe(value);
+    expect(view.state.selection.main.head).toBe(value.length);
+  } finally {
+    await act(async () => root.unmount()); host.remove();
+    if (rangeRects) Object.defineProperty(Range.prototype, "getClientRects", rangeRects);
+    else Reflect.deleteProperty(Range.prototype, "getClientRects");
+    if (rangeBounds) Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeBounds);
+    else Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+  }
+});
+
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 it("displays external values without autosave echoes, caret jumps or undoing external words", async () => {

@@ -1,7 +1,7 @@
 import { commandsForSurface, slateCommands } from "@slate/core";
 
 const supported = new Set([
-  "app.palette", "app.shortcuts", "sheet.new", "sheet.search", "sheet.save",
+  "app.palette", "app.shortcuts", "app.editorSettings", "sheet.new", "sheet.search", "sheet.save",
   "view.sidebar", "view.sheets", "view.inspector", "view.focus",
   "view.typewriter", "view.fullscreen", "appearance.light", "appearance.dark",
   "appearance.system",

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X } from "lucide-react";
+import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X, Settings } from "lucide-react";
 import { matchCommand, resolveCommandKeymap } from "@slate/core";
 import { safeBrowserPath, type BrowserDirectoryHandle } from "@slate/storage/browser-files";
 import { addBrowserImportEntry, collectBrowserDrop, type BrowserImportFile } from "@slate/storage/browser-import";
@@ -21,6 +21,8 @@ import { useSheetSummaries } from "./useSheetSummaries";
 import { inspectorContents } from "./inspectorContents";
 import { sheetStructureReady } from "./sheetStructureReady";
 import { importBlockImage } from "./importBlockImage";
+import { EditorSettingsDialog } from "../EditorSettingsDialog";
+import { useEditorPreferences } from "../editorPreferences";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 interface FolderObserver {
@@ -50,6 +52,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   });
   const [palette, setPalette] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
+  const [editorSettings, setEditorSettings] = useState(false);
+  const editorPreferences = useEditorPreferences();
   const [pane, setPane] = useState<"navigation" | "sheets" | "editor">(() => state.selectedPath ? "editor" : "sheets");
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [sheetsVisible, setSheetsVisible] = useState(true);
@@ -125,6 +129,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "space.switch": () => run(onSwitchSpace),
       "view.inspector": () => setInspector((open) => !open),
       "app.shortcuts": () => setShortcuts(true),
+      "app.editorSettings": () => setEditorSettings(true),
       "app.about": onAbout,
       "appearance.light": () => appearance.change("light"),
       "appearance.dark": () => appearance.change("dark"),
@@ -246,7 +251,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") { setPalette(false); setShortcuts(false); if (!actionBusy) setAction(undefined); return; }
-      if (palette || shortcuts || action) return;
+      if (palette || shortcuts || action || editorSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false });
       if (id) { event.preventDefault(); dispatchCommand(id); }
@@ -319,7 +324,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     } }}>
     <WorkspaceTitleBar windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
       onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={focusSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
-      controls={<><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
+      controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); setEditorSettings(true); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
       actions={[
         { label: pinned ? "Unpin sheet" : "Pin sheet", disabled: !selected || !state.owned, run: () => dispatchCommand("sheet.pin") },
@@ -330,6 +335,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         { label: "Import folder", disabled: !state.owned, run: () => folderInput.current?.click() },
         { label: "Export .zip", run: () => dispatchCommand("space.export") },
         { label: "Keyboard shortcuts", run: () => dispatchCommand("app.shortcuts") },
+        { label: "Editor settings", run: () => dispatchCommand("app.editorSettings") },
         { label: "About Slate", run: () => dispatchCommand("app.about") }
       ]} />
     {!!keymap.issues.length && <div className="notice" role="status">Default shortcuts are active. .slate/keymap.json: {keymap.issues.map((issue) => `${issue.commandId ? `${issue.commandId}: ` : ""}${issue.message}`).join(" ")}</div>}
@@ -363,7 +369,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <section className="browserEditor" aria-label="Editor">
         <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} knownWikiTargets={wikiTargets} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} smartLists={editorPreferences.preferences.smartLists} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} knownWikiTargets={wikiTargets} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
       </section>
       {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>
@@ -371,6 +377,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <WorkspaceStatusBar saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.flush)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
     <LaunchActions key={state.record.id} store={store} />
+    {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} />}
     {(palette || shortcuts) && <CommandDialog kind={shortcuts ? "shortcuts" : "palette"} keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} onClose={() => { setPalette(false); setShortcuts(false); }} onCommand={(id) => { setPalette(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
     {action && <WorkspaceDialog title={action === "trash" ? "Move this sheet to trash?" : action === "notebook" ? "New notebook" : action === "rename" ? "Rename sheet" : "Move sheet"} busy={actionBusy} onClose={() => setAction(undefined)}><form onSubmit={(event) => { event.preventDefault(); store.api.setState({ error: "" }); setActionBusy(true); run(async () => { try { await performAction(); } finally { setActionBusy(false); } }); }}>
       {actionPaths.length > 1 && (action === "move" || action === "trash") && <p>{actionPaths.length} selected sheets</p>}

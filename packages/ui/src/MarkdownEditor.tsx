@@ -7,6 +7,8 @@ import {
   runFormattingCommand,
   findEditorWikiLink,
   knownWikiTargets as wikiTargets,
+  createSmartListBindings,
+  type SmartListOptions,
   type WikiLinkHit
 } from "@slate/editor";
 import type { ResolvedKeymap, TextChange } from "@slate/core";
@@ -39,9 +41,10 @@ interface MarkdownEditorProps {
   knownWikiTargets?: ReadonlySet<string>;
   onCursorChange?: (cursor: EditorCursor) => void;
   onImportImage?: ImportBlockImage;
+  smartLists?: SmartListOptions;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange, onImportImage }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange, onImportImage, smartLists }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -50,6 +53,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
+  const smartListKeys = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
@@ -95,7 +99,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
         extensions: [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
-          ...createSlateMarkdownExtensions({ formattingKeys: false }),
+          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false }),
+          smartListKeys.current.of(createSmartListBindings(smartLists)),
           blocks.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
           wikiLinks.current.of(wikiTargets.of(knownWikiTargets ?? new Set())),
@@ -194,6 +199,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     viewRef.current?.dispatch({ effects: formattingKeys.current.reconfigure(createFormattingBindings(keymap)) });
   }, [keymap]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: smartListKeys.current.reconfigure(createSmartListBindings(smartLists)) });
+  }, [smartLists]);
 
   useEffect(() => {
     const previous = previousWikiTargets.current;

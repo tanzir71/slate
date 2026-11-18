@@ -115,3 +115,23 @@ it("creates a new sheet with Mod N and keeps each sheet's undo history separate"
   expect(next.state.doc.toString()).toBe(content);
   expect(host.querySelector('.sheetRow.active .sheetTitleLine')?.textContent).toBe("Untitled Sheet");
 });
+
+it("opens editor settings from the desktop command and remembers disabled smart input", async () => {
+  await mount();
+  expect(desktopPreviewCommands(spaces.length).some((command) => command.id === "app.editorSettings")).toBe(true);
+  const button = host.querySelector<HTMLButtonElement>('[aria-label="Editor settings"]')!;
+  button.focus();
+  await act(async () => button.click());
+  const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="Editor settings"]')!;
+  expect(dialog.open).toBe(true);
+  const checkboxes = dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+  expect(checkboxes).toHaveLength(3);
+  expect(document.activeElement).toBe(checkboxes[0]);
+  await act(async () => checkboxes[0]!.click());
+  expect(checkboxes[0]!.checked).toBe(false);
+  const done = [...dialog.querySelectorAll("button")].find((item) => item.textContent === "Done")!;
+  await act(async () => done.click());
+  expect(document.activeElement).toBe(button);
+  await key(",", mod());
+  expect(host.querySelector<HTMLInputElement>('dialog input[type="checkbox"]')?.checked).toBe(false);
+});
