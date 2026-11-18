@@ -47,18 +47,27 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
 
   async function open(record: BrowserSpaceRecord) {
     const currentGeneration = ++generation.current;
+    const mark = (stage: string) => performance.mark("slate.open." + currentGeneration + "." + stage);
+    mark("start");
     setBusy(true);
     setError("");
     // Load the writing UI alongside disk/catalog reads, rather than after them.
     void loadWorkspace().catch(() => undefined);
     void import("../MarkdownEditor").catch(() => undefined);
     try {
+      mark("previous-flush.start");
       await workspaceRef.current?.flush();
+      mark("previous-flush.ready");
       await ownership.current?.close();
+      mark("previous-owner.closed");
       ownership.current = undefined;
+      mark("files.start");
       const files = record.id === "sample" ? await sampleFiles() : record.tier === "folder" && record.handle ? createDirectoryFiles(record.handle) : await openBrowserLibrary(record.id);
+      mark("files.ready");
       const store = createWorkspaceStore(record, files);
+      mark("store.start");
       await store.load();
+      mark("store.ready");
       if (currentGeneration !== generation.current) return;
       if (record.id !== "sample") {
         const owner = createBrowserOwnership(record.id, store.setOwned, store.flush, () => {
@@ -70,18 +79,23 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
           owner.notify();
           if (!persistenceRequested) { persistenceRequested = true; void navigator.storage.persist?.().catch(() => undefined); }
         });
+        mark("ownership.start");
         await owner.acquire();
+        mark("ownership.ready");
+        mark("catalog.start");
         await rememberBrowserSpace(record);
+        mark("catalog.ready");
         localStorage.setItem("slate.last-space", record.id);
       }
       workspaceRef.current = store;
       setWorkspace(store);
+      mark("workspace.requested");
       if (store.api.getState().owned) await store.flush();
       if (!store.api.getState().notice) {
         const notice = takeShortcutMigrationNotice(shortcutOS(), "web");
         if (notice) store.api.setState({ notice });
       }
-    } catch (failure) { setError(errorMessage(failure)); }
+    } catch (failure) { mark("failed"); setError(errorMessage(failure)); }
     finally { if (currentGeneration === generation.current) setBusy(false); }
   }
 
@@ -92,7 +106,9 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
     window.addEventListener("beforeinstallprompt", prompt);
     window.addEventListener("appinstalled", installed);
     void (async () => {
+      performance.mark("slate.open.catalog-list.start");
       const saved = await listBrowserSpaces();
+      performance.mark("slate.open.catalog-list.ready");
       if (!active) return;
       setRecords(saved);
       if (new URLSearchParams(location.search).get("sample") === "1") {

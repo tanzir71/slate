@@ -21,6 +21,7 @@ test("runs under the Pages subpath with CSP and no third-party requests", async 
 });
 
 test("reloads offline with saved files and a working editor", async ({ page, context }, testInfo) => {
+  try {
   await openLibrary(page);
   await createSheet(page, "# Offline\n\nI keep my words offline.");
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
@@ -53,6 +54,12 @@ test("reloads offline with saved files and a working editor", async ({ page, con
   await expect(page.locator(".workspaceStatus [role=status]")).toHaveText("Saved");
   await page.reload();
   await expect(page.locator(".cm-content")).toContainText("Still writing.");
+  } finally {
+    const stages = await page.evaluate(() => performance.getEntriesByType("mark")
+      .filter((entry) => entry.name.startsWith("slate.open."))
+      .map(({ name, startTime }) => ({ name, startTime }))).catch(() => []);
+    await testInfo.attach("offline-opening-stages", { body: JSON.stringify(stages), contentType: "application/json" });
+  }
 });
 
 test("refreshes an invalidated file snapshot once and surfaces persistent read errors", async ({ page }) => {
