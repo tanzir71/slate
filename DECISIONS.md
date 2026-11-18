@@ -436,3 +436,10 @@ References: [Turndown](https://github.com/mixmark-io/turndown), [GFM plugin](htt
 ## 2026-11-18 — Publication enforces every Linux reference browser profile
 
 The Pages publication workflow must run the same unfiltered functional, block-menu and typing commands as reference Linux CI. Filtering to desktop Chrome/Firefox/WebKit omitted the mobile profile even though the shared configs include it. Remove those filters before artifact upload/deployment; keep strict budgets, failure propagation and fresh-process timing unchanged. Node invariants check the four-profile config inheritance, required unfiltered commands and publication ordering. This tightens publication acceptance without changing the user's strict next-frame typing definition; v0.3 remains unpublished.
+
+
+## 2026-11-18 — Number clipboard assets within the serialized Space writer
+
+Add importNumberedFile to the BrowserSpace mutation boundary. Validate its relative path and snapshot bytes when called; under the same write-ownership/serialization queue, choose the first free stem-N.extension and preserve known existing, empty and interrupted files. A failed read is not evidence that a filename is free. This provides F-23's numbered asset naming without weakening the existing import conflict behavior. The image adapter will keep PNG bytes intact, convert other image formats through an image/canvas context, and store assets beside their note for portable relative links.
+
+References: [Canvas PNG output](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob), [SVG image-context restrictions](https://developer.mozilla.org/en-US/docs/Web/SVG/Guides/SVG_as_an_image). Browser codec and resource isolation still require runtime checks before the full paste feature is complete.

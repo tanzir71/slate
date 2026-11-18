@@ -88,6 +88,20 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
         return target;
       });
     },
+    async importNumberedFile(path: string, bytes: Uint8Array): Promise<string> {
+      const safe = safeBrowserPath(path);
+      const snapshot = bytes.slice();
+      const dot = safe.lastIndexOf(".");
+      const split = dot > safe.lastIndexOf("/") + 1 ? dot : safe.length;
+      const stem = safe.slice(0, split), extension = safe.slice(split);
+      return mutate(async () => {
+        let number = 1, target = `${stem}-${number}${extension}`;
+        while ((await files.read(target)) !== undefined)
+          target = `${stem}-${++number}${extension}`;
+        await files.write(target, snapshot);
+        return target;
+      });
+    },
     importFiles(entries: Record<string, Uint8Array>): Promise<string[]> {
       return mutate(async () => {
         // Validate every path before writing anything. Imported configuration never replaces existing configuration.
