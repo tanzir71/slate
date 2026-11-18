@@ -77,7 +77,8 @@ export function planCustomBlock(
   checkSize(block.source);
   const eol = source.match(/\r\n|\n|\r/)?.[0] ?? "\n";
   const text = block.source.replace(/^\uFEFF/, "").replace(/\r\n?|\n/g, eol);
-  const before = markdownBoundary(source.slice(0, from), text, eol);
+  const prefix = source.slice(0, from);
+  const before = markdownBoundary(prefix === "\uFEFF" ? "" : prefix, text, eol);
   const after = markdownBoundary(text, source.slice(to), eol);
   const cursor = from + before.length + text.length;
   return {

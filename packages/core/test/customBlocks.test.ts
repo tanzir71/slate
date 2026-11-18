@@ -160,3 +160,14 @@ it.each([
     RangeError,
   );
 });
+
+it("keeps the note BOM adjacent to the first inserted content", () => {
+  const source = "\uFEFF---\nname: Kept\n---\n{{date}}\n";
+  const block = readCustomBlock(source, ".slate/blocks/Metadata.md");
+  const plan = planCustomBlock(block, { source: "\uFEFF/q", from: 1, to: 3 });
+  expect(applyTextChanges("\uFEFF/q", plan.changes)).toBe(source);
+  expect(plan.selection).toEqual({
+    anchor: source.length,
+    head: source.length,
+  });
+});

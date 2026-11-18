@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Capture custom-block editor requests before reading files
+
+Custom fragments are loaded on explicit selection. Capture the immutable editor Text and EditorSelection with the eligible slash range or parsed gutter endpoint first. After the read, require the same document and selection, a connected editable view, current write access and no active composition. A stale request produces no edit. Apply the pure plan through one history-isolated transaction and return focus to the editor. Subsequent IME updates keep their own undo group.
+
+Slash capture reuses the bounded query/context checks and excludes multiple carets. Gutter insertion uses the end of the parsed source block, which permits inserting after an entire code fence without changing the code. Metadata and out-of-range targets stay protected. Treat a note's sole leading BOM as a file marker when calculating blank separation; keep that BOM directly before its first inserted content, while removing only the fragment file's BOM.
+
 ## 2026-11-19 - Save custom block edits against exact byte snapshots
 
 Custom fragments retain a UTF-8 BOM and line endings in their editable source. The existing note save path compares decoded strings, which cannot detect a BOM-only external change and conflicts with a BOM-preserving base string. Add saveSnapshot to the same serialized Space mutation queue: capture a defensive copy of the original bytes before waiting, check current ownership when the write executes, and compare the final disk bytes with the base and proposed bytes. A changed primary keeps its bytes and the proposal becomes a conflict copy, including when the primary was deleted or changed encoding. Existing note save behavior stays separate.
