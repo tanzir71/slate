@@ -177,9 +177,11 @@ test("image insertion saves exact asset bytes and a relative Markdown reference"
   const bytes = await page.evaluate(async () => {
     const id = decodeURIComponent(location.hash.split("/")[2]!);
     const root = await navigator.storage.getDirectory();
-    const space = await (
+    let space = await (
       await root.getDirectoryHandle("spaces")
     ).getDirectoryHandle(id);
+    const sheetPath = decodeURIComponent(location.hash.split("/")[4]!).split("/");
+    for (const folder of sheetPath.slice(0, -1)) space = await space.getDirectoryHandle(folder);
     const file = await (
       await (
         await space.getDirectoryHandle("assets")

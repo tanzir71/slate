@@ -49,6 +49,10 @@ it("persists changes, reopens preferences and follows cross-tab changes or remov
       first.current.change("tagCompletion", false);
       first.current.change("dateCompletion", false);
       first.current.change("smartTables", false);
+      first.current.change("pasteRichText", false);
+      first.current.change("pasteLinks", false);
+      first.current.change("pasteImages", false);
+      first.current.change("pasteTables", false);
     });
     expect(first.current.preferences.smartLists).toEqual({
       continuation: false,
@@ -60,6 +64,10 @@ it("persists changes, reopens preferences and follows cross-tab changes or remov
     expect(first.current.preferences.tagCompletion).toBe(false);
     expect(first.current.preferences.dateCompletion).toBe(false);
     expect(first.current.preferences.smartTables).toBe(false);
+    expect(first.current.preferences.pasteRichText).toBe(false);
+    expect(first.current.preferences.pasteLinks).toBe(false);
+    expect(first.current.preferences.pasteImages).toBe(false);
+    expect(first.current.preferences.pasteTables).toBe(false);
     expect(JSON.parse(localStorage.getItem(editorPreferenceKey)!)).toEqual(
       first.current.preferences,
     );

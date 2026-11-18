@@ -8,22 +8,10 @@ import {
 } from "./htmlFormatting.js";
 import { htmlTableMarkdown } from "./htmlTable.js";
 import { inlineCodeDelimiters } from "./codeDelimiters.js";
+import { readClipboardFragment } from "./clipboardFragment.js";
 
 function clipboardFragment(html: string): DocumentFragment {
-  const start = /<!--\s*StartFragment\s*-->/i.exec(html);
-  const end = /<!--\s*EndFragment\s*-->/i.exec(html);
-  const selected =
-    start && end && end.index >= start.index + start[0].length
-      ? html.slice(start.index + start[0].length, end.index)
-      : html;
-  // Template contents stay disconnected and inert, including image/frame resources.
-  const template = document.createElement("template");
-  template.innerHTML = selected;
-  const root = template.content;
-  for (const node of root.querySelectorAll(
-    "script, style, meta, link, base, iframe, object, embed, title, noscript",
-  ))
-    node.remove();
+  const root = readClipboardFragment(html);
   normalizeWordLists(root);
   normalizeHtmlFormatting(root);
   return root;

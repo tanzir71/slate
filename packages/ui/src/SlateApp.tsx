@@ -51,6 +51,8 @@ import { CommandDialog } from "./browser/CommandDialog";
 import { AppearanceControl, useAppearance } from "./appearance";
 import { EditorSettingsDialog } from "./EditorSettingsDialog";
 import { useEditorPreferences } from "./editorPreferences";
+import { importClipboardImage } from "./browser/importClipboardImage";
+import type { NumberedAssetWriter } from "./tauriAssets";
 import { notebooks, sheets as seedSheets, spaces, type NotebookSeed, type SheetSeed } from "./sampleData";
 import "./styles.css";
 
@@ -63,6 +65,7 @@ const inspectorTabs: InspectorTab[] = ["Backlinks", "Outline", "Metadata"];
 export interface SlateAppProps {
   autosaveWriter?: SheetAutosaveWriter;
   sheetMoveWriter?: SheetMoveWriter;
+  assetWriter?: NumberedAssetWriter;
 }
 
 export interface SheetMoveWriter {
@@ -78,7 +81,7 @@ const smartFilters = [
   { label: "Drafts", count: 9, icon: Pencil }
 ];
 
-export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}) {
+export function SlateApp({ autosaveWriter, sheetMoveWriter, assetWriter }: SlateAppProps = {}) {
   const appearance = useAppearance();
   const editorPreferences = useEditorPreferences();
   const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
@@ -111,6 +114,10 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
     Metadata: null
   });
   const selected = sheets.find((sheet) => sheet.id === selectedId) ?? sheets[0];
+  const selectedPath = selected ? sheetToPath(selected) : "";
+  const copyClipboardImage = useMemo(() => assetWriter && selectedPath
+    ? (file: File) => importClipboardImage(assetWriter, file, selectedPath)
+    : undefined, [assetWriter, selectedPath]);
   const completionIdentities = useMemo(() => JSON.stringify(sheets.map((sheet) => ({ id: sheet.id, path: sheetToPath(sheet), title: sheet.title }))), [sheets]);
   const completionSheets = useMemo(() => JSON.parse(completionIdentities) as WikiCompletionTarget[], [completionIdentities]);
   const tagIdentities = useMemo(() => JSON.stringify([...new Set(sheets.flatMap((sheet) => sheet.tags))].sort()), [sheets]);
@@ -502,6 +509,11 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
             wikiCompletion={editorPreferences.preferences.wikiCompletion}
             tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion}
             smartTables={editorPreferences.preferences.smartTables}
+            pasteRichText={editorPreferences.preferences.pasteRichText}
+            pasteLinks={editorPreferences.preferences.pasteLinks}
+            pasteImages={editorPreferences.preferences.pasteImages}
+            pasteTables={editorPreferences.preferences.pasteTables}
+            {...(copyClipboardImage ? { onImportClipboardImage: copyClipboardImage } : {})}
             smartLists={editorPreferences.preferences.smartLists}
             selectionPairs={editorPreferences.preferences.selectionPairs}
             key={selected.id}

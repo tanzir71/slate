@@ -1,7 +1,7 @@
 use serde::Serialize;
 use slate_core::{
     list_markdown_files_in_space, read_markdown_file_from_space, write_sheet_to_space,
-    WriteSheetStatus,
+    WriteSheetStatus, write_numbered_asset_to_space,
 };
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -41,6 +41,12 @@ fn list_markdown_files(app: tauri::AppHandle) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+fn write_numbered_asset(app: tauri::AppHandle, path: String, bytes: Vec<u8>) -> Result<String, String> {
+    write_numbered_asset_to_space(default_space_root(&app)?, &path, &bytes)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn read_markdown_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
     let root = default_space_root(&app)?;
     read_markdown_file_from_space(&root, &path).map_err(|error| error.to_string())
@@ -68,6 +74,7 @@ fn main() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             write_sheet,
+            write_numbered_asset,
             list_markdown_files,
             read_markdown_file
         ])

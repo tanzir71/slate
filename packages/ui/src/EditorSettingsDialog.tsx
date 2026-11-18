@@ -52,6 +52,26 @@ const rules: readonly {
     description:
       "Type @ to choose a calendar date and insert it as YYYY-MM-DD.",
   },
+  {
+    id: "pasteRichText",
+    label: "Convert rich text to Markdown",
+    description: "Keep headings, emphasis, lists and links when pasting formatted text.",
+  },
+  {
+    id: "pasteLinks",
+    label: "Link selected text when pasting a URL",
+    description: "Keep the selected words as the link’s label.",
+  },
+  {
+    id: "pasteImages",
+    label: "Save pasted images",
+    description: "Save numbered PNG copies beside the sheet and insert image links.",
+  },
+  {
+    id: "pasteTables",
+    label: "Convert pasted tables",
+    description: "Turn copied CSV and tab-separated cells into Markdown tables.",
+  },
 ];
 
 export function EditorSettingsDialog({

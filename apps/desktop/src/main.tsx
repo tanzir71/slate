@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { SlateApp, createTauriAutosaveWriter } from "@slate/ui";
+import { SlateApp, createTauriAutosaveWriter, createTauriAssetWriter } from "@slate/ui";
 
 const root = document.getElementById("root");
 
@@ -10,6 +10,6 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <SlateApp autosaveWriter={createTauriAutosaveWriter()} />
+    <SlateApp autosaveWriter={createTauriAutosaveWriter()} assetWriter={createTauriAssetWriter()} />
   </StrictMode>
 );

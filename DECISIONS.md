@@ -1,5 +1,17 @@
 # Slate Decisions
 
+## 2026-11-18 - Snapshot Clipboard Requests and Preserve Saved Pixels
+
+F-23 captures clipboard strings and File objects synchronously during the paste event. HTML conversion and image preparation load on demand. Each asynchronous request retains the immutable CodeMirror document and selection it started with; a changed document, caret, ownership, composition or image destination prevents insertion. Retry is explicit at the current caret, and each pending request has its own dismissible notice. Conversion failures with no images can fall back to the complete plain text; image failures retain the whole request so text and pixels are not separated accidentally. Ordinary typing performs no clipboard conversion, document scan or React notice update.
+
+Saved image promises are cached by File and destination callback. Embedded resource promises are also cached by clipboard snapshot and source. A failed promise can retry; a successful copy is reused after a stale result. Undo removes the inserted Markdown and preserves saved files. A new clipboard event reserves a fresh numbered filename. The image importer saves beside the current sheet, returning a portable ./assets reference. The existing image picker also now writes beside nested sheets so its relative reference resolves.
+
+PNG bytes pass through unchanged when their signature is present. Other image formats decode in the browser's image context and encode to PNG through canvas; copied HTML and SVG markup are never attached as live documents. Remote clipboard image URLs are not fetched by conversion. Browser writes use the existing ownership-controlled serial queue. Native IPC accepts binary bytes and reserves numbered files with create_new, then writes and syncs them; collisions, empty files and interrupted reserved copies are preserved. Native asset paths use a portable restricted grammar and reject symlink parents. This guards existing paths; it does not promise race-free traversal against an external process replacing parent directories during a write.
+
+Four independent version-1 preferences default on for older settings: rich text, URL-over-selection, images and delimited tables. Reconfiguring them preserves the editor instance and undo history. Disable CodeMirror's upstream URL-paste handler so plain paste and the URL setting control all automatic wrapping; retain its www-to-https behavior and existing XMPP/mailto/HTTPS targets.
+
+Opening-stage performance marks contain stage names and sequence numbers only. Offline tests attach them to locate the unexplained Windows second-reload stall without changing readiness deadlines, ownership semantics or the strict typing budget.
+
 ## 2026-11-18 - Bound Input Queries and Resolve Wiki Paths Explicitly
 
 Inspect only a bounded suffix before invoking the Markdown syntax tree: 67 UTF-16 units for the existing 64-character slash query and 131 for wiki/tag queries. Verify the actual preceding character when a suffix begins midway through a line. Ordinary typing does not materialize the entire caret line. The shared syntax guard excludes code, links, URLs, HTML comments and front matter; wiki completion may inspect its own existing wiki token without treating nested links as eligible.

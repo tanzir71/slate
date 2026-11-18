@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      "@slate/storage/browser-files": fromRoot("../../packages/storage/src/browserFiles.ts"),
       "@slate/core": fromRoot("../../packages/core/src/index.ts"),
       "@slate/editor": fromRoot("../../packages/editor/src/index.ts"),
       "@slate/export": fromRoot("../../packages/export/src/index.ts"),

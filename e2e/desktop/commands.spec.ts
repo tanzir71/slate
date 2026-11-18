@@ -5,6 +5,14 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     Reflect.set(window, "__TAURI_INTERNALS__", {
       async invoke(command: string, args: Record<string, unknown>) {
+        if (command === "write_numbered_asset") {
+          let number = 1;
+          const prefix = String(args.path).slice(0, -4);
+          while (localStorage.getItem("native-asset:" + prefix + "-" + number + ".png") !== null) number++;
+          const path = prefix + "-" + number + ".png";
+          localStorage.setItem("native-asset:" + path, JSON.stringify(args.bytes));
+          return path;
+        }
         if (command !== "write_sheet") throw new Error(`Unexpected native command: ${command}`);
         localStorage.setItem(`native-test:${String(args.path)}`, String(args.content));
         return { status: "written", path: args.path };
@@ -13,6 +21,30 @@ test.beforeEach(async ({ page }) => {
   });
   await page.goto("./");
   await expect(page.locator(".cm-content")).toBeVisible();
+});
+
+test("desktop image paste sends exact PNG bytes through IPC with numbered paths and one undo", async ({ page }) => {
+  const editor = page.locator(".cm-content");
+  await editor.fill("Start");
+  await editor.press("ControlOrMeta+End");
+  const paste = () => editor.evaluate((element) => {
+    const data = new DataTransfer();
+    data.items.add(new File([new Uint8Array([137,80,78,71,13,10,26,10,0,255])], "Diagram.png", { type: "image/png" }));
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: data });
+    element.dispatchEvent(event);
+  });
+  const saved = () => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("native-test:")).map((key) => localStorage.getItem(key)));
+  await paste();
+  await expect.poll(saved).toContain("Start![Diagram](./assets/diagram-1.png)");
+  const assets = () => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("native-asset:")).map((key) => ({ path: key.slice(13), bytes: JSON.parse(localStorage.getItem(key)!) as number[] })));
+  expect(await assets()).toEqual([{ path: "product/strategy/assets/diagram-1.png", bytes: [137,80,78,71,13,10,26,10,0,255] }]);
+  await editor.press("ControlOrMeta+z");
+  await expect.poll(saved).toContain("Start");
+  expect(await assets()).toHaveLength(1);
+  await paste();
+  await expect.poll(saved).toContain("Start![Diagram](./assets/diagram-2.png)");
+  expect(await assets()).toHaveLength(2);
 });
 
 test("desktop migration notice is dismissible and is shown only once", async ({ page }) => {

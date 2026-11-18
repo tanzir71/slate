@@ -14,6 +14,9 @@ import {
 import { slateMarkdownSyntax } from "./markdownSyntax.js";
 import { createSmartListBindings, type SmartListOptions } from "./smartLists.js";
 import { createSmartTableBindings } from "./smartTables.js";
+import { createSmartPaste, type SmartPasteOptions } from "./smartPaste.js";
+export { createSmartPaste, type SmartPasteOptions, type PasteNotice } from "./smartPaste.js";
+export type { ClipboardImageReference, SaveClipboardImage } from "./clipboardImages.js";
 export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEditorTable, editorTableColumns, runTableCommand } from "./smartTables.js";
 import { createSelectionPairs } from "./selectionPairs.js";
 export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
@@ -56,11 +59,12 @@ export function createSlateMarkdownExtensions(
     smartLists?: false | SmartListOptions;
     selectionPairs?: boolean;
     smartTables?: boolean;
+    smartPaste?: false | SmartPasteOptions;
   } = {},
 ): Extension[] {
   return [
     history(),
-    markdown({ extensions: slateMarkdownSyntax, addKeymap: false }),
+    markdown({ extensions: slateMarkdownSyntax, addKeymap: false, pasteURLAsLink: false }),
     search(),
     livePreviewSettings.of({
       hideSyntax: options.hideSyntax !== false,
@@ -86,6 +90,7 @@ export function createSlateMarkdownExtensions(
     createSmartTableBindings(options.smartTables !== false),
     options.smartLists === false ? [] : createSmartListBindings(options.smartLists),
     createSelectionPairs(options.selectionPairs !== false),
+    options.smartPaste === false ? [] : createSmartPaste(options.smartPaste),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,
     EditorView.theme({

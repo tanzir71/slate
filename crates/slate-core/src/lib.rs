@@ -4,6 +4,8 @@ use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+mod assets;
+pub use assets::write_numbered_asset_to_space;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CryptoError {

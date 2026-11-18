@@ -12,6 +12,10 @@ export interface EditorPreferences {
   readonly tagCompletion: boolean;
   readonly dateCompletion: boolean;
   readonly smartTables: boolean;
+  readonly pasteRichText: boolean;
+  readonly pasteLinks: boolean;
+  readonly pasteImages: boolean;
+  readonly pasteTables: boolean;
 }
 
 export type EditorPreferenceRule =
@@ -20,7 +24,11 @@ export type EditorPreferenceRule =
   | "wikiCompletion"
   | "tagCompletion"
   | "dateCompletion"
-  | "smartTables";
+  | "smartTables"
+  | "pasteRichText"
+  | "pasteLinks"
+  | "pasteImages"
+  | "pasteTables";
 
 export const defaultEditorPreferences: EditorPreferences = Object.freeze({
   version: 1,
@@ -30,6 +38,10 @@ export const defaultEditorPreferences: EditorPreferences = Object.freeze({
   tagCompletion: true,
   dateCompletion: true,
   smartTables: true,
+  pasteRichText: true,
+  pasteLinks: true,
+  pasteImages: true,
+  pasteTables: true,
 });
 
 /** Optional preferences never prevent a document from opening. */
@@ -47,7 +59,15 @@ export function parseEditorPreferences(value: unknown): EditorPreferences {
       typeof value.tagCompletion === "boolean" ? value.tagCompletion : true,
     dateCompletion:
       typeof value.dateCompletion === "boolean" ? value.dateCompletion : true,
-    smartTables: typeof value.smartTables === "boolean" ? value.smartTables : true,
+    smartTables:
+      typeof value.smartTables === "boolean" ? value.smartTables : true,
+    pasteRichText:
+      typeof value.pasteRichText === "boolean" ? value.pasteRichText : true,
+    pasteLinks: typeof value.pasteLinks === "boolean" ? value.pasteLinks : true,
+    pasteImages:
+      typeof value.pasteImages === "boolean" ? value.pasteImages : true,
+    pasteTables:
+      typeof value.pasteTables === "boolean" ? value.pasteTables : true,
     smartLists: {
       continuation:
         typeof lists.continuation === "boolean" ? lists.continuation : true,

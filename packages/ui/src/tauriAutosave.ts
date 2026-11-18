@@ -30,7 +30,7 @@ export function createTauriAutosaveWriter({
   };
 }
 
-async function invokeTauri<Result>(
+export async function invokeTauri<Result>(
   command: string,
   args?: Record<string, unknown>
 ): Promise<Result> {

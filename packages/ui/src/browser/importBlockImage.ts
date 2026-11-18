@@ -1,4 +1,5 @@
 import type { createBrowserSpace } from "@slate/storage/browser-space";
+import { safeBrowserPath } from "@slate/storage/browser-files";
 
 const imageExtensions: Readonly<Record<string, string>> = {
   "image/png": "png",
@@ -14,7 +15,10 @@ const imageExtensions: Readonly<Record<string, string>> = {
 export async function importBlockImage(
   space: Pick<ReturnType<typeof createBrowserSpace>, "importFiles">,
   file: Pick<File, "type" | "name" | "arrayBuffer">,
+  sheetPath?: string,
 ) {
+  const safe = sheetPath === undefined ? "" : safeBrowserPath(sheetPath);
+  const directory = safe.includes("/") ? safe.slice(0, safe.lastIndexOf("/") + 1) : "";
   const extension = imageExtensions[file.type];
   if (!extension)
     throw new Error(
@@ -30,8 +34,8 @@ export async function importBlockImage(
       .toLowerCase() || "image";
   const bytes = new Uint8Array(await file.arrayBuffer());
   const [saved] = await space.importFiles({
-    [`assets/${name}.${extension}`]: bytes,
+    [`${directory}assets/${name}.${extension}`]: bytes,
   });
   if (!saved) throw new Error("The image could not be saved. Try again.");
-  return { path: saved, alt };
+  return { path: saved.slice(directory.length), alt };
 }

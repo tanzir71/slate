@@ -15,6 +15,7 @@ import {
   createSelectionPairs,
   createMarkdownCompletions,
   type SmartListOptions,
+  type SaveClipboardImage,
   type WikiLinkHit
 } from "@slate/editor";
 import { createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget } from "@slate/core";
@@ -23,6 +24,7 @@ import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { useBlockMenu } from "./useBlockMenu";
 import { useDatePicker } from "./useDatePicker";
+import { useSmartPaste } from "./useSmartPaste";
 import type { ImportBlockImage } from "./BlockResourcePicker";
 
 const externalValue = Annotation.define<boolean>();
@@ -63,11 +65,17 @@ interface MarkdownEditorProps {
   smartLists?: SmartListOptions;
   selectionPairs?: boolean;
   smartTables?: boolean;
+  pasteRichText?: boolean;
+  pasteLinks?: boolean;
+  pasteImages?: boolean;
+  pasteTables?: boolean;
+  onImportClipboardImage?: SaveClipboardImage;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const dates = useDatePicker(dateCompletion);
+  const paste = useSmartPaste({ richText: pasteRichText, links: pasteLinks, images: pasteImages, tables: pasteTables, importImage: onImportClipboardImage });
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -78,6 +86,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const smartListKeys = useRef(new Compartment());
   const tableKeys = useRef(new Compartment());
   const pairs = useRef(new Compartment());
+  const pasteRules = useRef(new Compartment());
   const completions = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
@@ -125,7 +134,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
         extensions: [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
-          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false }),
+          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false }),
+          pasteRules.current.of(paste.extension),
           tableKeys.current.of(createSmartTableBindings(smartTables)),
           smartListKeys.current.of(createSmartListBindings(smartLists)),
           pairs.current.of(createSelectionPairs(selectionPairs)),
@@ -248,6 +258,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   }, [completionSheets, completionTags, wikiCompletion, tagCompletion, dateCompletion, dates.open]);
 
   useEffect(() => {
+    viewRef.current?.dispatch({ effects: pasteRules.current.reconfigure(paste.extension) });
+  }, [paste.extension]);
+
+  useEffect(() => {
     const previous = previousWikiTargets.current;
     const previousSheets = previousCompletionSheets.current;
     previousWikiTargets.current = knownWikiTargets;
@@ -271,5 +285,5 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     });
   }, [value]);
 
-  return <>{blocks.menu}{dates.dialog}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
+  return <>{blocks.menu}{dates.dialog}{paste.notices}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 });
