@@ -99,12 +99,17 @@ test("fence and front-matter settings disable independently and persist", async 
   await editor.press("ControlOrMeta+End");
   await editor.press("Enter");
   await saved(page, "---\n");
+  await expect(editor.locator(".cm-slate-rule")).toBeVisible();
   await workspaceAction(page, "Editor settings");
   await settings
     .getByRole("checkbox", { name: "Close code fences", exact: true })
     .uncheck();
   await settings.getByRole("button", { name: "Done", exact: true }).click();
-  await editor.fill(fence);
+  // DOM fill cannot reliably select source hidden by live-preview widgets.
+  // Use the editor's select-all command to replace its complete document.
+  await editor.press("ControlOrMeta+a");
+  await page.keyboard.insertText(fence);
+  await saved(page, fence);
   await editor.press("ControlOrMeta+End");
   await editor.press("Enter");
   await saved(page, fence + "\n");

@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-18 - Guard Rapid Android Fence Completion Before Platform Deferral
+
+CodeMirror defers Chrome/Android Enter before extension keymaps and can suppress its replay immediately after input. The macOS mobile CI trace leaves the typed opening fence with no picker. A capture-phase regression reproduces a platform listener consuming the key before the fence keymap. On Chrome/Android only, complete an eligible short fence/front-matter line before that deferral when the collapsed DOM selection, complete rendered line and source range agree. Pending DOM input, composition, modifiers, protected source and disabled preferences remain with the platform handler. Other platforms retain the normal keymap. Do not access private observer state or flush an IME session.
+
+The settings browser fixture now replaces the document through CodeMirror Select All and keyboard input, rather than DOM fill over an inactive horizontal-rule widget. Await the rendered rule and exact replacement file before the next Enter. CI traces establish retained source on all three platforms, but the original fill failure has not reproduced locally. Keep that distinction and the unrelated Windows setup timeouts in PROGRESS.md.
+
 ## 2026-11-18 - Complete Fences and Keep Smart Edits Apart from New Compositions
 
 F-24 handles an empty selection at the end of an opening fence or the first-line YAML boundary. It preserves the typed marker, whitespace, quote/list continuation and following source. Closed fences, code/HTML interiors, existing front matter, multiple selections and composition remain literal. Bare code fences open the existing language picker after completion; cancellation keeps the closed plain fence. Independent fence/front-matter preferences default on and reconfigure the current view.

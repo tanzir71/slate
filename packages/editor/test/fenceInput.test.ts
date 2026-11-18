@@ -140,6 +140,54 @@ it("amends language after a long picker delay as one edit and emits one combined
   expect(chooseEditorFenceLanguage(view, request, "go")).toBe(false);
 });
 
+it("handles a synchronized rapid Enter before a platform listener defers the key", () => {
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Linux; Android 13) Chrome/150.0 Mobile",
+  );
+  const view = editor(fence);
+  view.focus();
+  const platform = vi.fn((event: Event) => {
+    if (!event.defaultPrevented) event.stopImmediatePropagation();
+  });
+  view.contentDOM.addEventListener("keydown", platform, true);
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    keyCode: 13,
+    bubbles: true,
+    cancelable: true,
+  });
+  view.contentDOM.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+  expect(view.state.doc.toString()).toBe(fence + "\n\n" + fence);
+  expect(undo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe(fence);
+});
+
+it("leaves unobserved DOM input for the platform instead of overwriting newer words", () => {
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Linux; Android 13) Chrome/150.0 Mobile",
+  );
+  const view = editor(fence);
+  view.focus();
+  const line = view.contentDOM.querySelector(".cm-line")!;
+  line.append(" keep pending words");
+  view.contentDOM.addEventListener(
+    "keydown",
+    (event) => event.stopImmediatePropagation(),
+    true,
+  );
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    keyCode: 13,
+    bubbles: true,
+    cancelable: true,
+  });
+  view.contentDOM.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
+  expect(view.state.doc.toString()).toBe(fence);
+  expect(line.textContent).toBe(fence + " keep pending words");
+});
+
 it("rejects stale or invalid language choices without replacing later writing", () => {
   const view = editor(fence);
   let request!: EditorFenceRequest;

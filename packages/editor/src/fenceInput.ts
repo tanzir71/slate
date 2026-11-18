@@ -7,7 +7,7 @@ import {
   type Text,
   type Transaction,
 } from "@codemirror/state";
-import { keymap, type EditorView } from "@codemirror/view";
+import { keymap, ViewPlugin, type EditorView } from "@codemirror/view";
 import { insideEditorFrontmatter } from "./markdownInputContext.js";
 
 interface FencePlan {
@@ -155,9 +155,66 @@ export function chooseEditorFenceLanguage(
 }
 
 export function createFenceInput(options: FenceInputOptions = {}) {
-  return Prec.highest(
-    keymap.of([
-      { key: "Enter", run: (view) => enterEditorFence(view, options) },
-    ]),
+  const capture = ViewPlugin.fromClass(
+    class {
+      constructor(readonly view: EditorView) {
+        const agent =
+          view.dom.ownerDocument.defaultView?.navigator.userAgent ?? "";
+        if (/Android\b/.test(agent) && /Chrome\//.test(agent))
+          view.contentDOM.addEventListener("keydown", this.keydown, true);
+      }
+      keydown = (event: KeyboardEvent) => {
+        if (
+          event.key !== "Enter" ||
+          event.defaultPrevented ||
+          event.isComposing ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey ||
+          event.shiftKey ||
+          this.view.compositionStarted
+        )
+          return;
+        const { state } = this.view;
+        const head = state.selection.main.head;
+        const line = state.doc.lineAt(head);
+        if (line.length > 128 || !/[\x60~]{3}|^\uFEFF?---/.test(line.text))
+          return;
+        // Android can swallow a rapid Enter before keymaps. Intercept only when
+        // the live DOM and immutable source agree; leave pending IME/input alone.
+        const selection = this.view.dom.ownerDocument.getSelection();
+        const end = this.view.domAtPos(head);
+        if (
+          !selection?.isCollapsed ||
+          selection.focusNode !== end.node ||
+          selection.focusOffset !== end.offset
+        )
+          return;
+        const element =
+          end.node instanceof Element ? end.node : end.node.parentElement;
+        if (element?.closest(".cm-line")?.textContent !== line.text) return;
+        const start = this.view.domAtPos(line.from);
+        const range = this.view.dom.ownerDocument.createRange();
+        range.setStart(start.node, start.offset);
+        range.setEnd(end.node, end.offset);
+        if (
+          range.toString() !== line.text ||
+          !enterEditorFence(this.view, options)
+        )
+          return;
+        event.preventDefault();
+      };
+      destroy() {
+        this.view.contentDOM.removeEventListener("keydown", this.keydown, true);
+      }
+    },
   );
+  return [
+    capture,
+    Prec.highest(
+      keymap.of([
+        { key: "Enter", run: (view) => enterEditorFence(view, options) },
+      ]),
+    ),
+  ];
 }
