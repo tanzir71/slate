@@ -34,7 +34,7 @@ import type {
   MutableRefObject,
   SetStateAction
 } from "react";
-import { matchCommand, resolveCommandKeymap } from "@slate/core";
+import { findWikiPath, matchCommand, resolveCommandKeymap, type WikiCompletionTarget } from "@slate/core";
 import { computeEditorHud } from "@slate/editor";
 import { slateTokens } from "@slate/tokens";
 import {
@@ -111,6 +111,8 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
     Metadata: null
   });
   const selected = sheets.find((sheet) => sheet.id === selectedId) ?? sheets[0];
+  const completionIdentities = useMemo(() => JSON.stringify(sheets.map((sheet) => ({ id: sheet.id, path: sheetToPath(sheet), title: sheet.title }))), [sheets]);
+  const completionSheets = useMemo(() => JSON.parse(completionIdentities) as WikiCompletionTarget[], [completionIdentities]);
   const selectedSpace = spaces.find((space) => space.id === activeSpace) ?? spaces[0];
 
   useEffect(() => {
@@ -492,6 +494,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           </div>
 
           <MarkdownEditor
+            completionSheets={completionSheets}
             smartLists={editorPreferences.preferences.smartLists}
             selectionPairs={editorPreferences.preferences.selectionPairs}
             key={selected.id}
@@ -798,12 +801,14 @@ export function resolveWikiLinkSheetId(
   targetId?: string
 ): string | undefined {
   if (targetId) {
-    const byId = sheets.find((sheet) => sheet.id === targetId);
+    const byId = sheets.find((sheet) => sheet.id.toLowerCase() === targetId.toLowerCase());
     if (byId) {
       return byId.id;
     }
   }
 
+  const byPath = findWikiPath(sheets.map((sheet) => ({ sheet, path: sheetToPath(sheet) })), target);
+  if (byPath) return byPath.sheet.id;
   const normalizedTarget = normalizeWikiTitle(target);
   return sheets.find((sheet) => normalizeWikiTitle(sheet.title) === normalizedTarget)?.id;
 }

@@ -4,6 +4,46 @@ import { EditorView, runScopeHandlers } from "@codemirror/view";
 import { expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../src/MarkdownEditor";
 
+it("refreshes file identities in place without saving source or discarding undo", async () => {
+  const rangeRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");
+  const rangeBounds = Object.getOwnPropertyDescriptor(Range.prototype, "getBoundingClientRect");
+  // jsdom has no text layout; browser tests cover the actual link surface.
+  Object.defineProperty(Range.prototype, "getClientRects", { configurable: true, value: () => [] });
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: () => new DOMRect() });
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const changed = vi.fn();
+  const value = "[[Home/Alpha.md|Shared]]\n\nActive";
+  const sheets = [{ id: "alpha", path: "Home/Alpha.md", title: "Shared" }];
+  try {
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed })));
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)!;
+    await act(async () => {
+      view.dispatch({ selection: { anchor: value.length } });
+    });
+    expect(host.querySelectorAll(".cm-slate-unresolved-link")).toHaveLength(1);
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed, completionSheets: sheets })));
+    expect(EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)).toBe(view);
+    expect(host.querySelectorAll(".cm-slate-unresolved-link")).toHaveLength(0);
+    expect(changed).not.toHaveBeenCalled();
+    await act(async () => view.dispatch({ changes: { from: value.length, insert: " words" } }));
+    const edited = value + " words";
+    await act(async () => root.render(createElement(MarkdownEditor, { value: edited, onChange: changed, completionSheets: [] })));
+    expect(host.querySelectorAll(".cm-slate-unresolved-link")).toHaveLength(1);
+    expect(changed).toHaveBeenCalledTimes(1);
+    await act(async () => { expect(runScopeHandlers(view, new KeyboardEvent("keydown", { key: "z", ctrlKey: !/Mac/.test(navigator.platform), metaKey: /Mac/.test(navigator.platform) }), "editor")).toBe(true); });
+    expect(view.state.doc.toString()).toBe(value);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    if (rangeRects) Object.defineProperty(Range.prototype, "getClientRects", rangeRects);
+    else Reflect.deleteProperty(Range.prototype, "getClientRects");
+    if (rangeBounds) Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeBounds);
+    else Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+  }
+});
+
 it("reconfigures smart input without replacing the editor, changing words or losing undo", async () => {
   const rangeRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");
   const rangeBounds = Object.getOwnPropertyDescriptor(Range.prototype, "getBoundingClientRect");

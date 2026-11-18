@@ -7,12 +7,13 @@ import {
   runFormattingCommand,
   findEditorWikiLink,
   knownWikiTargets as wikiTargets,
+  knownWikiPaths,
   createSmartListBindings,
   createSelectionPairs,
   type SmartListOptions,
   type WikiLinkHit
 } from "@slate/editor";
-import type { ResolvedKeymap, TextChange } from "@slate/core";
+import { createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget } from "@slate/core";
 import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
@@ -20,6 +21,13 @@ import { useBlockMenu } from "./useBlockMenu";
 import type { ImportBlockImage } from "./BlockResourcePicker";
 
 const externalValue = Annotation.define<boolean>();
+
+function wikiExtensions(targets?: ReadonlySet<string>, sheets: readonly WikiCompletionTarget[] = []) {
+  return [
+    wikiTargets.of(new Set([...targets ?? [], ...sheets.flatMap((sheet) => [sheet.title.toLowerCase(), ...(/^01[0-9A-HJKMNP-TV-Z]{24}$/i.test(sheet.id) ? [sheet.id.toLowerCase()] : [])])])),
+    knownWikiPaths.of(createWikiPathIndex(sheets)),
+  ];
+}
 
 function documentChange(previous: string, next: string) {
   let from = 0;
@@ -40,13 +48,14 @@ interface MarkdownEditorProps {
   keymap?: ResolvedKeymap;
   onHandle?: (handle: MarkdownEditorHandle | undefined) => void;
   knownWikiTargets?: ReadonlySet<string>;
+  completionSheets?: readonly WikiCompletionTarget[];
   onCursorChange?: (cursor: EditorCursor) => void;
   onImportImage?: ImportBlockImage;
   smartLists?: SmartListOptions;
   selectionPairs?: boolean;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -64,6 +73,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const selectionGeometry = useRef<ToolbarRect | undefined>(undefined);
   const wikiLinks = useRef(new Compartment());
   const previousWikiTargets = useRef(knownWikiTargets);
+  const previousCompletionSheets = useRef(completionSheets);
   const onCursorRef = useRef(onCursorChange);
   const lastEmittedValue = useRef<string | undefined>(undefined);
 
@@ -107,7 +117,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
           pairs.current.of(createSelectionPairs(selectionPairs)),
           blocks.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
-          wikiLinks.current.of(wikiTargets.of(knownWikiTargets ?? new Set())),
+          wikiLinks.current.of(wikiExtensions(knownWikiTargets, completionSheets)),
           observeEditorSelection((rect) => { selectionGeometry.current = rect; setSelectionRect(rect); }, () => toolbarRef.current),
           EditorView.domEventHandlers({
             keydown(event) {
@@ -214,10 +224,12 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
 
   useEffect(() => {
     const previous = previousWikiTargets.current;
+    const previousSheets = previousCompletionSheets.current;
     previousWikiTargets.current = knownWikiTargets;
-    if (previous === knownWikiTargets || previous?.size === knownWikiTargets?.size && [...(previous ?? [])].every((target) => knownWikiTargets?.has(target))) return;
-    viewRef.current?.dispatch({ effects: wikiLinks.current.reconfigure(wikiTargets.of(knownWikiTargets ?? new Set())) });
-  }, [knownWikiTargets]);
+    previousCompletionSheets.current = completionSheets;
+    if (previousSheets === completionSheets && (previous === knownWikiTargets || previous?.size === knownWikiTargets?.size && [...(previous ?? [])].every((target) => knownWikiTargets?.has(target)))) return;
+    viewRef.current?.dispatch({ effects: wikiLinks.current.reconfigure(wikiExtensions(knownWikiTargets, completionSheets)) });
+  }, [knownWikiTargets, completionSheets]);
 
   useEffect(() => {
     const view = viewRef.current;

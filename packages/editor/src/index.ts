@@ -30,6 +30,7 @@ export {
   createLivePreviewExtension,
   findEditorWikiLink,
   knownWikiTargets,
+  knownWikiPaths,
   livePreviewSettings,
 } from "./livePreview.js";
 export { findWikiLinkAtPosition, type WikiLinkHit } from "./wikiLinks.js";

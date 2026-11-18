@@ -60,6 +60,7 @@ export function findWikiPath<T extends { readonly path: string }>(
   sheets: readonly T[],
   target: string,
 ): T | undefined {
+  if (!/[/\\]/.test(target) && !/\.md$/i.test(target)) return;
   return resolveWikiPath(createWikiPathIndex(sheets), target);
 }
 

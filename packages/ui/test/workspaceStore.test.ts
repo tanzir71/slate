@@ -8,6 +8,19 @@ beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
 describe("persistent workspace store", () => {
+  it("opens an unreadable canonical wiki target without creating or overwriting any file", async () => {
+    const files = createMemoryFiles({ "source.md": "# Source\n\n[[bad.md]]" });
+    await files.write("bad.md", new Uint8Array([0xff, 0xfe, 0xfd]));
+    const store = createWorkspaceStore(record, files);
+    store.setOwned(true);
+    await store.load();
+    await store.followWikiLink({ target: "bad.md", targetId: undefined, display: "bad.md" });
+    expect(store.api.getState().selectedPath).toBe("bad.md");
+    expect(store.api.getState().sheets.find((sheet) => sheet.path === "bad.md")?.unsupportedEncoding).toBe(true);
+    expect((await store.space.sheets()).map((sheet) => sheet.path).sort()).toEqual(["bad.md", "source.md"]);
+    expect(await files.read("bad.md")).toEqual(new Uint8Array([0xff, 0xfe, 0xfd]));
+    expect(await store.space.read("source.md")).toBe("# Source\n\n[[bad.md]]");
+  });
   it("keeps new recovery, older-app recovery and externally saved words as separate files", async () => {
     const files = createMemoryFiles({ "note.md": "original" });
     const owner = createWorkspaceStore(record, files);

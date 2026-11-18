@@ -367,3 +367,8 @@ Group CI by workflow and Git ref, allowing a newer branch/PR run to cancel its s
 ## 2026-11-18 - Bound derived-summary worker requests to current work
 
 Allow one in-flight summary request and keep only the latest pending immutable snapshot. When a reply arrives, publish it only if it matches the latest requested generation; otherwise send the latest snapshot and skip intermediate work. Ignore duplicate replies, preserve cached-document reuse, and fall back to the newest source if the worker errors or posting fails. Closing cancels pending work and late publication. This removes a worker backlog and unnecessary full-document transfers; it does not defer source-file saves or synchronous recovery, and does not change the typing gate or claim a measured latency improvement before verification.
+
+
+## 2026-11-18 - Resolve canonical wiki paths without rewriting files
+
+Wiki completions use a canonical Space-relative Markdown path and a display title, so equal titles in separate notebooks remain distinguishable. Resolve explicit paths before legacy titles, retaining exact filename case and rejecting ambiguous shortened or case-folded paths. Link identity and completion metadata contain only id, path and title and remain stable across body-only summary updates. Reconfigure the live editor's path index without a source edit or undo entry. Explicit paths can open an existing unsupported-encoding file through its download-original screen; no decoding, replacement file or byte rewrite is needed. Legacy title/id lookup remains unchanged for readable notes.

@@ -11,6 +11,11 @@ import {
 } from "@codemirror/view";
 import { livePreviewTheme } from "./livePreviewTheme.js";
 import { findWikiLinkAtPosition } from "./wikiLinks.js";
+import {
+  createWikiPathIndex,
+  resolveWikiPath,
+  type WikiPathIndex,
+} from "@slate/core";
 
 export interface LivePreviewSettings {
   hideSyntax: boolean;
@@ -21,6 +26,7 @@ const defaults: LivePreviewSettings = {
   highContrastMarkers: false,
 };
 const emptyTargets: ReadonlySet<string> = new Set();
+const emptyPaths = createWikiPathIndex<{ readonly path: string }>([]);
 export const livePreviewSettings = Facet.define<
   LivePreviewSettings,
   LivePreviewSettings
@@ -29,6 +35,10 @@ export const knownWikiTargets = Facet.define<
   ReadonlySet<string>,
   ReadonlySet<string>
 >({ combine: (values) => values.at(-1) ?? emptyTargets });
+export const knownWikiPaths = Facet.define<
+  WikiPathIndex<{ readonly path: string }>,
+  WikiPathIndex<{ readonly path: string }>
+>({ combine: (values) => values.at(-1) ?? emptyPaths });
 type MarkdownNode = ReturnType<typeof syntaxTree>["topNode"];
 
 export function findEditorWikiLink(view: EditorView, position: number) {
@@ -312,9 +322,9 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
           const target = node.getChild("SlateWikiTarget"),
             label = node.getChild("SlateWikiLabel");
           if (link && target && !active(node.from, node.to)) {
-            const resolved = state
-              .facet(knownWikiTargets)
-              .has(link.target.toLowerCase());
+            const resolved =
+              state.facet(knownWikiTargets).has(link.target.toLowerCase()) ||
+              !!resolveWikiPath(state.facet(knownWikiPaths), link.target);
             const from = label?.from ?? target.from,
               to = label?.to ?? target.to;
             mark(

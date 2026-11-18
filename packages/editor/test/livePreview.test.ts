@@ -3,14 +3,37 @@ import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { forceParsing } from "@codemirror/language";
 import { afterEach, describe, expect, it } from "vitest";
+import { createWikiPathIndex } from "@slate/core";
 import {
   createSlateMarkdownExtensions,
   findEditorWikiLink,
   knownWikiTargets,
+  knownWikiPaths,
   livePreviewSettings,
 } from "../src/index";
 
 const mounted: EditorView[] = [];
+
+it("marks indexed canonical wiki paths as resolved without changing source or undo", () => {
+  const raw = "[[Home/Alpha.md|Shared]] [[home/ALPHA.MD|Case]] [[Missing.md]]";
+  const view = editor(raw);
+  expect(view.dom.querySelectorAll(".cm-slate-unresolved-link")).toHaveLength(
+    3,
+  );
+  view.dispatch({
+    effects: StateEffect.appendConfig.of(
+      knownWikiPaths.of(createWikiPathIndex([{ path: "Home/Alpha.md" }])),
+    ),
+  });
+  expect(view.dom.querySelectorAll(".cm-slate-unresolved-link")).toHaveLength(
+    1,
+  );
+  expect(view.dom.querySelector(".cm-slate-unresolved-link")?.textContent).toBe(
+    "Missing.md",
+  );
+  expect(view.state.doc.toString()).toBe(raw + "\n\nActive");
+  expect(undo(view)).toBe(false);
+});
 function editor(text: string, readOnly = false) {
   const parent = document.createElement("div");
   document.body.append(parent);

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X, Settings } from "lucide-react";
-import { matchCommand, resolveCommandKeymap } from "@slate/core";
+import { matchCommand, resolveCommandKeymap, type WikiCompletionTarget } from "@slate/core";
 import { safeBrowserPath, type BrowserDirectoryHandle } from "@slate/storage/browser-files";
 import { addBrowserImportEntry, collectBrowserDrop, type BrowserImportFile } from "@slate/storage/browser-import";
 import type { WorkspaceStore } from "./workspaceStore";
@@ -81,8 +81,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const documents = useSheetSummaries(state.sheets);
   const summariesPending = !sheetStructureReady(state.sheets, documents);
   const document = documents.find((sheet) => sheet.path === state.selectedPath);
-  const wikiTargetNames = useMemo(() => JSON.stringify([...new Set(documents.flatMap((sheet) => [sheet.title.toLowerCase(), ...(/^01[0-9A-HJKMNP-TV-Z]{24}$/i.test(sheet.id) ? [sheet.id.toLowerCase()] : [])]))].sort()), [documents]);
-  const wikiTargets = useMemo(() => new Set(JSON.parse(wikiTargetNames) as string[]), [wikiTargetNames]);
+  const completionIdentities = useMemo(() => JSON.stringify(documents.map(({ id, path, title }) => ({ id, path, title }))), [documents]);
+  const completionSheets = useMemo(() => JSON.parse(completionIdentities) as WikiCompletionTarget[], [completionIdentities]);
   const notebooks = [...new Set([...state.sheets.map((sheet) => notebookFor(sheet.path)).filter(Boolean), ...extraNotebooks])].sort();
   const tags = [...new Set(documents.flatMap((sheet) => sheet.tags.map((tag) => tag.path)))].sort();
   const visible = documents.filter((sheet) => {
@@ -369,7 +369,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <section className="browserEditor" aria-label="Editor">
         <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} knownWikiTargets={wikiTargets} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
       </section>
       {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>
