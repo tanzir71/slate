@@ -3,8 +3,9 @@ import { createBrowserSpace, type BrowserSheet } from "@slate/storage/browser-sp
 import { decodeText, type BrowserFiles } from "@slate/storage/browser-files";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
 import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
-import { notebookTemplate, previousDailyNote, readWorkspacePreferences, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
+import { notebookTemplate, previousDailyNote, readWorkspacePreferences, starterKitRoot, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
 import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
+import type { StarterKitInstallation } from "../templates/starterKits";
 
 interface Draft { content: string; baseContent: string | undefined }
 export interface WorkspaceState {
@@ -30,6 +31,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
   let onSaved: () => void = () => undefined;
   let linking: Promise<unknown> = Promise.resolve();
   let updatingPreferences: Promise<unknown> = Promise.resolve();
+  const pendingKits = new Set<StarterKitInstallation>();
   const preferencesPath = ".slate/view.json";
 
   async function readPreferences() {
@@ -38,17 +40,30 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     return { raw, value: readWorkspacePreferences(raw === undefined ? undefined : JSON.parse(raw)) };
   }
 
-  function updatePreferences(change: (current: WorkspacePreferences) => WorkspacePreferences): Promise<void> {
+  function updatePreferences(change: (current: WorkspacePreferences) => WorkspacePreferences, notify = true): Promise<void> {
     const next = updatingPreferences.then(async () => {
       const current = await readPreferences();
       const preferences = readWorkspacePreferences(change(current.value));
       const saved = await space.save(preferencesPath, `${JSON.stringify(preferences, null, 2)}\n`, current.raw);
       if (saved.conflict) throw new Error(`Workspace preferences changed outside Slate. Your copy is in ${saved.path}.`);
       api.setState({ preferences });
-      onSaved();
+      if (notify) onSaved();
     });
     updatingPreferences = next.catch(() => undefined);
     return next;
+  }
+
+  function rememberCreated(sheet: BrowserSheet, cursor: number) {
+    bases.set(sheet.path, sheet.content);
+    api.setState((state) => ({
+      sheets: overlayDrafts([...state.sheets.filter((row) => row.path !== sheet.path), sheet]),
+      selectedPath: sheet.path, initialCursor: { path: sheet.path, position: cursor }, saveState: "Saved", error: "",
+    }));
+  }
+
+  async function finishCreated(notice: string) {
+    try { onSaved(); await refresh(); }
+    catch { api.setState({ notice }); }
   }
 
   function journal(edit?: RecoveryEdit) {
@@ -168,19 +183,62 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     setNotebookTemplate(notebook: string, reference: string | undefined) {
       return updatePreferences((current) => withNotebookTemplate(current, notebook, reference));
     },
+    prepareStarterKit(id: string, name: string, date = new Date()): Promise<StarterKitInstallation> {
+      const captured = new Date(date.getTime());
+      const next = linking.then(async () => {
+        if (!api.getState().owned) throw new Error("This Space is read-only. Choose Use here to edit.");
+        await flush();
+        const [{ starterKit, planStarterKit }, { captureTemplateContext }, paths, preferences] = await Promise.all([
+          import("../templates/starterKits"), import("../templates/templateSession"), files.list(true), readPreferences(),
+        ]);
+        const reserved = [...Object.keys(preferences.value.notebookTemplates ?? {}), ...preferences.value.collapsedNotebooks,
+          ...preferences.value.pinned, ...[...pendingKits].map((session) => session.plan.root)];
+        const root = starterKitRoot(name, paths, reserved);
+        const session: StarterKitInstallation = {
+          plan: planStarterKit(starterKit(id), root, captureTemplateContext(record.name, root, "", captured)),
+          saved: [], defaultsSaved: false, complete: false,
+        };
+        pendingKits.add(session);
+        return session;
+      });
+      linking = next.catch(() => undefined);
+      return next;
+    },
+    cancelStarterKit(session: StarterKitInstallation) { pendingKits.delete(session); },
+    installStarterKit(session: StarterKitInstallation): Promise<void> {
+      const next = linking.then(async () => {
+        if (session.complete) return;
+        if (!pendingKits.has(session)) throw new Error("Prepare this starter kit again before adding it.");
+        await flush();
+        for (const plan of session.plan.notes.slice(session.saved.length)) {
+          const sheet = await space.create(plan.path, plan.content);
+          session.saved.push(sheet);
+          rememberCreated(sheet, plan.cursor ?? 0);
+        }
+        if (!session.defaultsSaved) {
+          await updatePreferences((current) => {
+            let next = current;
+            for (const [notebook, reference] of Object.entries(session.plan.defaults))
+              if (notebookTemplate(next, notebook) === undefined) next = withNotebookTemplate(next, notebook, reference);
+            return next;
+          }, false);
+          session.defaultsSaved = true;
+        }
+        session.complete = true;
+        pendingKits.delete(session);
+        const first = session.saved[0]!;
+        api.setState({ selectedPath: first.path, initialCursor: { path: first.path, position: 0 }, error: "" });
+        await finishCreated("Your starter kit is saved. Refresh the workspace when available to update its lists.");
+      });
+      linking = next.catch(() => undefined);
+      return next;
+    },
     async createFromTemplate(plan: ReturnType<typeof planTemplateFile>) {
       await flush();
       const sheet = await space.create(plan.path, plan.content);
       // Once written, select the actual collision-resolved path before fallible refresh work.
-      bases.set(sheet.path, sheet.content);
-      api.setState((state) => ({
-        sheets: overlayDrafts([...state.sheets.filter((row) => row.path !== sheet.path), sheet]),
-        selectedPath: sheet.path,
-        initialCursor: { path: sheet.path, position: plan.cursor ?? 0 },
-        saveState: "Saved", error: "",
-      }));
-      try { onSaved(); await refresh(); }
-      catch { api.setState({ notice: "Your new sheet is saved. Refresh the workspace when available to update its lists." }); }
+      rememberCreated(sheet, plan.cursor ?? 0);
+      await finishCreated("Your new sheet is saved. Refresh the workspace when available to update its lists.");
       return sheet;
     },
     async create(notebook = "Inbox") {
@@ -212,14 +270,8 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
           cursor = plan.cursor ?? 0;
         }
         if (created) {
-          const sheet = created;
-          bases.set(path, sheet.content);
-          api.setState((state) => ({
-            sheets: overlayDrafts([...state.sheets.filter((row) => row.path !== path), sheet]),
-            selectedPath: path, initialCursor: { path, position: cursor }, saveState: "Saved", error: "",
-          }));
-          try { onSaved(); await refresh(); }
-          catch { api.setState({ notice: "Your daily note is saved. Refresh the workspace when available to update its lists." }); }
+          rememberCreated(created, cursor);
+          await finishCreated("Your daily note is saved. Refresh the workspace when available to update its lists.");
         } else {
           await refresh();
           const pending = api.getState().initialCursor;

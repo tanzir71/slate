@@ -1,6 +1,6 @@
 # Templates (unreleased v0.5 work)
 
-The core format, browser gallery, safe file creation, notebook defaults, daily carry-over and 12 built-ins are implemented on the unreleased development branch. Native template integration and starter kits are still being connected. Daily carry-over passes the four-profile functional checks; strict publication performance gates remain open.
+The core format, browser gallery, safe file creation, notebook defaults, daily carry-over, starter kits and 12 built-ins are implemented on the unreleased development branch. Native template integration is still pending. Daily carry-over passes the four-profile functional checks; strict publication performance gates still fail.
 
 Templates are Markdown files in a Space's `.slate/templates/` directory or the app's global library. Optional top-level `template:` properties describe the template:
 
@@ -84,3 +84,18 @@ References live in the optional `notebookTemplates` map in `.slate/view.json`, a
 Choose Today or press `Mod+Shift+D` to open `Daily/YYYY-MM-DD.md` using your local calendar date. On first creation, Slate uses the built-in Daily note, places the caret in Focus and copies unfinished tasks from the latest earlier dated daily note. Missed days are allowed. Completed tasks are omitted; parent context and pending subtasks remain. Checkbox examples in metadata, code and HTML are excluded. The earlier file stays unchanged.
 
 Today always opens an existing daily file as it is, even when empty; it never appends carry-over twice. A previous file that cannot be read must be repaired or restored before creation can continue. New Sheet notebook defaults do not change the dedicated Today command. The confirmed Today app shortcut uses the same behavior.
+
+## Starter kits
+
+Choose **Sheet actions → Starter kits**, or **Browse starter kits** before editing a new template source. Work, Writing, Engineering and Personal kits each add an overview, two notes made from the real built-in templates, and two notebook defaults. Preview the contents and choose a top-level notebook name before adding a kit. Existing notes, assets and configured defaults are kept; a used name gets a numbered folder.
+
+| Kit | Notebooks and defaults |
+| --- | --- |
+| Work | Meetings → Meeting notes; Projects → PRD |
+| Writing | Drafts → Blog post; Newsletter → Newsletter issue |
+| Engineering | Projects → README; Issues → Bug report |
+| Personal | Reviews → Weekly review; Reading → Reading notes |
+
+The notes are ordinary Markdown files you can edit, move or export. New Sheet in a kit notebook opens its configured template. To customize a built-in, choose **Edit template → Save template** in the gallery, then set the saved Space copy as that notebook's default.
+
+If a write fails, **Retry** in the open kit dialog continues after completed notes and preserves later external edits. Interrupted files remain and a complete retry may use a numbered copy. Closing keeps the files already saved; adding another kit later creates a separate setup. The dialog can reclaim write ownership with **Use here** if another tab takes over. Kits and their templates are precached for offline use.

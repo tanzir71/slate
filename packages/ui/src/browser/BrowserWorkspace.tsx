@@ -28,6 +28,7 @@ import { useEditorPreferences } from "../editorPreferences";
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
 const NotebookTemplateDialog = lazy(() => import("../templates/NotebookTemplateDialog"));
+const StarterKitDialog = lazy(() => import("../templates/StarterKitDialog"));
 interface TemplateRequest {
   notebook: string; selection: string; returnFocus: HTMLElement | undefined;
   initialTemplateId?: string; initialDestination?: string;
@@ -63,6 +64,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [editorSettings, setEditorSettings] = useState(false);
   const [templateRequest, setTemplateRequest] = useState<TemplateRequest>();
   const [notebookTemplateRequest, setNotebookTemplateRequest] = useState<{ notebook: string; returnFocus: HTMLElement | undefined }>();
+  const [starterKitRequest, setStarterKitRequest] = useState<{ returnFocus: HTMLElement | undefined }>();
   const editorPreferences = useEditorPreferences();
   const [pane, setPane] = useState<"navigation" | "sheets" | "editor">(() => state.selectedPath ? "editor" : "sheets");
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -121,19 +123,19 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const receiveEditor = useCallback((handle: MarkdownEditorHandle | undefined) => { editorHandle.current = handle; }, []);
   const focusCreatedSheet = useCallback(() => {
     const pending = store.api.getState().initialCursor;
-    if (!templateRequest && pending?.path === store.api.getState().selectedPath && editorHandle.current) {
+    if (!templateRequest && !starterKitRequest && pending?.path === store.api.getState().selectedPath && editorHandle.current) {
       editorHandle.current.focus();
       store.clearInitialCursor();
     }
-  }, [store, templateRequest]);
+  }, [store, templateRequest, starterKitRequest]);
   const editorBecameReady = useCallback(() => { setEditorReady(true); focusCreatedSheet(); }, [focusCreatedSheet]);
   useEffect(() => {
-    if (!templateRequest && state.initialCursor) {
+    if (!templateRequest && !starterKitRequest && state.initialCursor) {
       // Native dialog cleanup restores its invoker; focus the new editor after it closes.
       const frame = requestAnimationFrame(focusCreatedSheet);
       return () => cancelAnimationFrame(frame);
     }
-  }, [templateRequest, state.initialCursor, focusCreatedSheet]);
+  }, [templateRequest, starterKitRequest, state.initialCursor, focusCreatedSheet]);
   const navigateWiki = useCallback((link: Parameters<WorkspaceStore["followWikiLink"]>[0]) => run(() => store.followWikiLink(link)), [store, run]);
 
   function shortcut(id: string) { return commandShortcut(id, keymap, os); }
@@ -299,7 +301,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") { setPalette(false); setShortcuts(false); if (!actionBusy) setAction(undefined); return; }
-      if (palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest) return;
+      if (palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { event.preventDefault(); dispatchCommand(id); }
@@ -376,6 +378,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
       actions={[
         { label: "New from template", disabled: !state.owned, run: () => dispatchCommand("sheet.fromTemplate") },
+        { label: "Starter kits", disabled: !state.owned, run: () => setStarterKitRequest(captureTemplateRequest("Inbox")) },
         { label: "Notebook default template", disabled: !state.owned, run: () => openNotebookTemplate(filter && !/^[#@]/.test(filter) ? filter : "Inbox") },
         { label: pinned ? "Unpin sheet" : "Pin sheet", disabled: !selected || !state.owned, run: () => dispatchCommand("sheet.pin") },
         { label: "Rename sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setAction("rename"); setActionValue(selected?.path.split("/").pop()?.replace(/\.md$/i, "") ?? ""); } },
@@ -429,7 +432,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     <LaunchActions key={state.record.id} store={store} />
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} />}
     {(palette || shortcuts) && <CommandDialog kind={shortcuts ? "shortcuts" : "palette"} keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => { setPalette(false); setShortcuts(false); }} onCommand={(id) => { setPalette(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
-    {templateRequest && <Suspense fallback={<WorkspaceDialog title="New from template" returnFocus={templateRequest.returnFocus} onClose={() => setTemplateRequest(undefined)}><p role="status">Opening templates…</p></WorkspaceDialog>}><TemplateGallery store={store} notebook={templateRequest.notebook} selection={templateRequest.selection} returnFocus={templateRequest.returnFocus} initialTemplateId={templateRequest.initialTemplateId} initialDestination={templateRequest.initialDestination} onClose={() => setTemplateRequest(undefined)} /></Suspense>}
+    {templateRequest && <Suspense fallback={<WorkspaceDialog title="New from template" returnFocus={templateRequest.returnFocus} onClose={() => setTemplateRequest(undefined)}><p role="status">Opening templates…</p></WorkspaceDialog>}><TemplateGallery store={store} notebook={templateRequest.notebook} selection={templateRequest.selection} returnFocus={templateRequest.returnFocus} initialTemplateId={templateRequest.initialTemplateId} initialDestination={templateRequest.initialDestination} onClose={() => setTemplateRequest(undefined)} onStarterKits={() => { setStarterKitRequest({ returnFocus: templateRequest.returnFocus }); setTemplateRequest(undefined); }} /></Suspense>}
+    {starterKitRequest && <Suspense fallback={<WorkspaceDialog title="Starter kits" returnFocus={starterKitRequest.returnFocus} onClose={() => setStarterKitRequest(undefined)}><p role="status">Opening starter kits…</p></WorkspaceDialog>}><StarterKitDialog store={store} returnFocus={starterKitRequest.returnFocus} onTakeover={onTakeover} onClose={(root) => { setStarterKitRequest(undefined); if (root) { setFilter(root); setPane("editor"); } }} /></Suspense>}
     {notebookTemplateRequest && <Suspense fallback={<WorkspaceDialog title="Notebook default template" returnFocus={notebookTemplateRequest.returnFocus} onClose={() => setNotebookTemplateRequest(undefined)}><p role="status">Opening notebook preferences…</p></WorkspaceDialog>}><NotebookTemplateDialog store={store} notebook={notebookTemplateRequest.notebook} returnFocus={notebookTemplateRequest.returnFocus} onClose={() => setNotebookTemplateRequest(undefined)} /></Suspense>}
     {action && <WorkspaceDialog title={action === "trash" ? "Move this sheet to trash?" : action === "notebook" ? "New notebook" : action === "rename" ? "Rename sheet" : "Move sheet"} busy={actionBusy} onClose={() => setAction(undefined)}><form onSubmit={(event) => { event.preventDefault(); store.api.setState({ error: "" }); setActionBusy(true); run(async () => { try { await performAction(); } finally { setActionBusy(false); } }); }}>
       {actionPaths.length > 1 && (action === "move" || action === "trash") && <p>{actionPaths.length} selected sheets</p>}

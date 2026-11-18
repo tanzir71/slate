@@ -79,6 +79,7 @@ export default function TemplateGallery({
   initialTemplateId,
   initialDestination,
   onClose,
+  onStarterKits,
 }: {
   store: WorkspaceStore;
   notebook: string;
@@ -87,6 +88,7 @@ export default function TemplateGallery({
   initialTemplateId?: string | undefined;
   initialDestination?: string | undefined;
   onClose(): void;
+  onStarterKits(): void;
 }) {
   const [context] = useState(() =>
     captureTemplateContext(
@@ -536,6 +538,7 @@ export default function TemplateGallery({
                   ? "Save a copy in this Space to customize this built-in."
                   : "Edit plain Markdown and optional template properties."}
               </p>
+              {selectedId === "new" && editing === newSource && <button disabled={busy} onClick={onStarterKits}>Browse starter kits</button>}
               <label className="templateSourceEditor">
                 Template source
                 <textarea

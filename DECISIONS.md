@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-19 - Install Starter Kits as Separate Space Notebooks
+
+F-45 specifies starter kits without a separate contents/design contract. Provide Work, Writing, Engineering and Personal setups: an overview, two notes rendered from the actual bundled Markdown templates, and two notebook defaults referring to those same built-ins. Users can customize a built-in through the existing Edit template/Save template copy flow. The kit picker previews its contents and accepts a portable top-level notebook name. Select a fresh root against current disk files, existing preference paths and pending kit preparations, including case variants. Existing notes, assets and configured defaults stay intact; adding another kit is a separate setup.
+
+Preparation captures the invoking date, flushes drafts and validates settings before kit writes. Serialize preparations/installation through the workspace operation queue and reserve pending roots in memory. Track each completed write before notification or refresh so Retry in the active dialog skips completed files, preserving later external edits. Interrupted reserved files are retained and a retry creates a numbered copy. After notes are saved, re-read workspace preferences and add only missing defaults through the existing optimistic conflict-copy path. Retry after a preference failure does not duplicate notes. Closing after partial failure keeps files and releases the in-memory session; later installation creates another setup rather than promising persisted recovery metadata.
+
+Open the actual overview at completion and retain committed rows if notification/refresh fails. The picker uses the existing WorkspaceDialog, tokens and native controls, with access from Sheet actions and the untouched new-template source view. Keep renderer/catalog/dialog code lazy. Browser integration passes the four-profile functional suite; native workspace template integration remains pending.
+
 ## 2026-11-18 - Carry Daily Tasks Once at Canonical Creation
 
 F-43 captures the local invoking date and opens Daily/YYYY-MM-DD.md. Only first creation uses the built-in Daily note Markdown and the same pure template renderer/caret mapping as the gallery. Today is a dedicated daily command; New Sheet notebook defaults continue to apply only to New Sheet. Select the latest earlier valid canonical daily filename, including across missed days; do not aggregate all historical notes or re-append tasks when today already exists. Read the prior file after flushing drafts. A missing/unreadable prior file stops creation with a repair message rather than silently skipping its work.

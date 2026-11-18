@@ -19,6 +19,7 @@ export * from "./markdownTemplate.js";
 export * from "./templateFile.js";
 export * from "./dailyNote.js";
 export * from "./dailyNotePath.js";
+export * from "./starterKit.js";
 
 export type SheetId = string;
 
