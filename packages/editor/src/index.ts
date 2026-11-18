@@ -18,6 +18,7 @@ import { createSmartPaste, type SmartPasteOptions } from "./smartPaste.js";
 import { createFenceInput, type FenceInputOptions } from "./fenceInput.js";
 import { historyIsolation } from "./historyIsolation.js";
 export { createFenceInput, enterEditorFence, chooseEditorFenceLanguage, type EditorFenceRequest, type FenceInputOptions } from "./fenceInput.js";
+export { requestEditorSnippet, insertEditorSnippet, moveEditorSnippetField, clearEditorSnippet, editorSnippetFields, type EditorSnippetRequest } from "./snippetInsertion.js";
 export { createSmartPaste, type SmartPasteOptions, type PasteNotice } from "./smartPaste.js";
 export type { ClipboardImageReference, SaveClipboardImage } from "./clipboardImages.js";
 export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEditorTable, editorTableColumns, runTableCommand } from "./smartTables.js";
