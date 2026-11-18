@@ -96,6 +96,27 @@ it("keeps later fields after replacing an outer nested placeholder, skipping its
   expect(moveEditorSnippetField(view, 1)).toBe(false);
   expect(view.state.doc.toString()).toBe("Alice then Bob");
 });
+
+it("keeps IME edits in different fields separate from one another and the expansion", () => {
+  const view = editor();
+  expand(view, "${1:hello ${2:world}} then ${3:bye}$0");
+  view.dispatch({
+    ...view.state.replaceSelection("Alice"),
+    userEvent: "input.type.compose",
+  });
+  expect(moveEditorSnippetField(view, 1)).toBe(true);
+  view.dispatch({
+    ...view.state.replaceSelection("Bob"),
+    userEvent: "input.type.compose",
+  });
+  expect(moveEditorSnippetField(view, 1)).toBe(true);
+  expect(undo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe("Alice then bye");
+  expect(undo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe("hello world then bye");
+  expect(undo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe(";x");
+});
 it("visits unchanged nested fields and preserves outer ranges after editing a child", () => {
   const view = editor();
   expand(view, "${1:hello ${2:world}} then ${3:bye}$0");

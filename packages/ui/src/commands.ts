@@ -5,6 +5,7 @@ import {
   type ShortcutInput,
   type ShortcutOS,
 } from "@slate/core";
+import type { SnippetTarget } from "./snippets/snippetTypes";
 
 export function shortcutOS(platform = navigator.platform): ShortcutOS {
   return /Mac|iPhone|iPad/.test(platform)
@@ -66,6 +67,7 @@ export interface MarkdownEditorHandle {
   hasFocus(): boolean;
   hasSelection(): boolean;
   selectedText(): string;
+  snippetTarget(): SnippetTarget | undefined;
   goToLine(line: number): void;
 }
 

@@ -4,7 +4,7 @@ After `pnpm build:site`, run `pnpm visual`. Docker must be running. The command 
 
 The reference is Playwright 1.65.1 Noble, pinned by digest in `scripts/visual-test.mjs`. Tests use bundled fonts, a 1440 × 900 viewport at 1×, en-US/UTC, fixed time, reduced motion and a fixed storage-usage readout. A1/A2/A3/A5 retain the real seven-sheet Sample Space into an OPFS browser library, pin Launch Plan and select its notebook. Service workers are blocked in these visual contexts; offline, updates, installability and each browser engine remain covered by the functional suite.
 
-The twelve committed PNGs in `e2e/visual/__screenshots__/` cover:
+The sixteen committed PNGs in `e2e/visual/__screenshots__/` cover:
 
 | View | Light and Dark coverage |
 |---|---|
@@ -12,6 +12,8 @@ The twelve committed PNGs in `e2e/visual/__screenshots__/` cover:
 | A1 selection | Floating formatting toolbar and selected text |
 | A2 | Actual slash query, built-in results, source preview and rendered 3×3 table |
 | A3 | Browser template gallery, actual 12-item library counts, source preview and fill-in fields |
+| A4 | Dedicated snippet search, real global defaults and original icons |
+| A7 | File-backed snippet settings, actual definitions and scopes |
 | A5 | Read-only shortcut sheet, header search, current browser profile and command labels |
 | A11 | Browser first-run cards, branding, theme and footer |
 
@@ -30,3 +32,6 @@ The unreleased F-22 candidate adds eight manual table actions to the shared regi
 The unreleased F-41 gallery adds A3 Light/Dark baselines and one implemented web command to A5. Review and refresh only A3/A5 after the first comparison; preserve A1/A2/A11 references. A3 uses the real five Work templates in the initial twelve-item library, quoted YAML variables, a real date input and relative notebook paths. It does not add prototype-only templates or fabricated file counts.
 
 Final local F-41 comparison passes all twelve scenes after reviewing A3/A5 Light/Dark. The first comparison passed all ten existing references, including the small A5 change within the existing pixel tolerance; A5 was explicitly refreshed for its new 47-command count and visible New from template row. The threshold and eight other references are unchanged.
+
+
+The unreleased F-50 integration adds A4 snippet picker and A7 snippet settings Light/Dark baselines, plus two actual web commands in A5. The picker adapts the original A4 modal shell for its dedicated Mod-semicolon entry point; it does not claim the later unified palette. A7 shows the real built-in definitions and scopes. Review new A4/A7 images and refresh only the intentionally changed A5 command references; keep A1/A2/A3/A11 images intact. Native snippet integration remains pending.

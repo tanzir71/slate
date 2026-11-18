@@ -68,6 +68,33 @@ for (const theme of ["light", "dark"] as const) {
       }, theme);
     });
 
+    test("A4 snippet picker", async ({ page }) => {
+      await writingFixture(page);
+      await workspaceAction(page, "Insert snippet");
+      await expect(
+        page.getByRole("combobox", { name: "Search snippets", exact: true }),
+      ).toBeFocused();
+      await expect(
+        page
+          .getByRole("dialog", { name: "Insert snippet", exact: true })
+          .getByRole("option"),
+      ).toHaveCount(3);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a4-snippets-${theme}.png`);
+    });
+
+    test("A7 snippet settings", async ({ page }) => {
+      await writingFixture(page);
+      await workspaceAction(page, "Manage snippets");
+      const dialog = page.getByRole("dialog", {
+        name: "Snippets",
+        exact: true,
+      });
+      await expect(dialog.locator("tbody tr")).toHaveCount(3);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a7-snippets-${theme}.png`);
+    });
+
     test("A1 workspace and live Markdown", async ({ page }) => {
       await writingFixture(page);
       await expect(page).toHaveScreenshot(`a1-workspace-${theme}.png`);

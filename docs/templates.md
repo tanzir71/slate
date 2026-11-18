@@ -1,6 +1,6 @@
 # Templates (unreleased v0.5 work)
 
-The core format, browser gallery, safe file creation, notebook defaults, daily carry-over, starter kits and 12 built-ins are implemented on the unreleased development branch. Native template integration is still pending. Daily carry-over passes the four-profile functional checks; strict publication performance gates still fail.
+The core format, browser gallery, safe file creation, notebook defaults, daily carry-over, starter kits and 12 built-ins are implemented on the unreleased development branch. See [snippets](snippets.md) for the separate browser snippet format and controls. Native template and snippet integration is still pending. Daily carry-over passes the four-profile functional checks; strict publication performance gates still fail.
 
 Templates are Markdown files in a Space's `.slate/templates/` directory or the app's global library. Optional top-level `template:` properties describe the template:
 

@@ -33,14 +33,25 @@ afterEach(() => {
   }
 });
 
-it.each(["/", "/ta", "words /table", "words\t/toc", "# Heading /quote"])(
-  "recognizes an eligible query in %s",
+it.each(["/ ", "/  table", "Ada / Ada / Engineer", "words /\tquery"])(
+  "keeps a slash followed by whitespace literal in %s",
   (source) => {
-    const query = editorBlockQuery(editor(source).state)!;
-    expect(source.slice(query.from, query.to)).toBe(`/${query.query}`);
-    expect(query.to).toBe(source.length);
+    expect(editorBlockQuery(editor(source).state)).toBeUndefined();
   },
 );
+
+it.each([
+  "/",
+  "/ta",
+  "/code block",
+  "words /table",
+  "words\t/toc",
+  "# Heading /quote",
+])("recognizes an eligible query in %s", (source) => {
+  const query = editorBlockQuery(editor(source).state)!;
+  expect(source.slice(query.from, query.to)).toBe(`/${query.query}`);
+  expect(query.to).toBe(source.length);
+});
 
 it.each([
   "https://example.com/table",
@@ -153,5 +164,7 @@ it("keeps read-only sheets and nonempty selections out of slash completion", () 
 
 it("keeps block-level slash insertion out of table cells", () => {
   const source = "| Name | Content |\n|---|---|\n| A | /table |";
-  expect(editorBlockQuery(editor(source, source.indexOf("/table") + 6).state)).toBeUndefined();
+  expect(
+    editorBlockQuery(editor(source, source.indexOf("/table") + 6).state),
+  ).toBeUndefined();
 });

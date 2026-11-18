@@ -12,6 +12,7 @@ export function WorkspaceDialog({
   headerActions,
   initialFocus,
   closeIcon,
+  headerContent,
 }: {
   title: string;
   onClose(): void;
@@ -22,6 +23,7 @@ export function WorkspaceDialog({
   headerActions?: ReactNode;
   initialFocus?: { readonly current: HTMLElement | null };
   closeIcon?: ReactNode;
+  headerContent?: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const invoker = useRef(document.activeElement);
@@ -45,13 +47,13 @@ export function WorkspaceDialog({
         if (!busy) onClose();
       }}
     >
-      <header>
+      {headerContent ?? <header>
         <h2>{title}</h2>
         {headerActions}
         <button aria-label={`Close ${title}`} disabled={busy} onClick={onClose}>
           {closeIcon ?? <X size={17} />}
         </button>
-      </header>
+      </header>}
       {children}
     </dialog>
   );

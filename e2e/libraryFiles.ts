@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
-export async function libraryPaths(page: Page) {
-  return page.evaluate(async () => {
+export async function libraryPaths(page: Page, includePrivate = false) {
+  return page.evaluate(async (includePrivate) => {
     const root = await (
       await (
         await navigator.storage.getDirectory()
@@ -10,7 +10,7 @@ export async function libraryPaths(page: Page) {
     const paths: string[] = [];
     async function scan(directory: FileSystemDirectoryHandle, prefix: string) {
       for await (const [name, handle] of directory.entries()) {
-        if (name === ".slate") continue;
+        if (name === ".slate" && !includePrivate) continue;
         if (handle.kind === "directory")
           await scan(handle, prefix + name + "/");
         else paths.push(prefix + name);
@@ -18,7 +18,7 @@ export async function libraryPaths(page: Page) {
     }
     await scan(root, "");
     return paths.sort();
-  });
+  }, includePrivate);
 }
 
 export async function libraryFile(

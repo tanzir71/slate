@@ -14,11 +14,16 @@ import {
   runTableCommand,
   createSelectionPairs,
   createMarkdownCompletions,
+  createSnippetTriggers,
+  editorSnippetFields,
+  requestEditorSnippet,
+  insertEditorSnippet,
   type SmartListOptions,
   type SaveClipboardImage,
   type WikiLinkHit
 } from "@slate/editor";
-import { createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget } from "@slate/core";
+import { createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget, type SnippetIndex, type ScopedSnippet } from "@slate/core";
+import type { SnippetTarget } from "./snippets/snippetTypes";
 import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
@@ -75,9 +80,11 @@ interface MarkdownEditorProps {
   onImportClipboardImage?: SaveClipboardImage;
   fences?: boolean;
   frontmatter?: boolean;
+  snippetIndex?: SnippetIndex | undefined;
+  onSnippet?: ((definition: ScopedSnippet, target: SnippetTarget) => boolean) | undefined;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const gutter = useBlockGutter(({ view, target, rect }) => blocks.openAt(view, target, rect));
   const dates = useDatePicker(dateCompletion);
@@ -96,6 +103,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const pasteRules = useRef(new Compartment());
   const fenceRules = useRef(new Compartment());
   const completions = useRef(new Compartment());
+  const snippetRules = useRef(new Compartment());
+  const onSnippetRef = useRef(onSnippet);
   const onHandleRef = useRef(onHandle);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
@@ -117,6 +126,20 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { onHandleRef.current = onHandle; }, [onHandle]);
   useEffect(() => { onCursorRef.current = onCursorChange; }, [onCursorChange]);
+  useEffect(() => { onSnippetRef.current = onSnippet; }, [onSnippet]);
+
+  function snippetTarget(view: EditorView, request = requestEditorSnippet(view.state)): SnippetTarget | undefined {
+    if (!request) return;
+    const { from, to } = request.selection.main;
+    return { source: request.source.toString(), selection: request.source.sliceString(from, to), element: view.contentDOM,
+      insert: (expansion) => insertEditorSnippet(view, request, expansion) };
+  }
+  function snippetExtensions(index: SnippetIndex | undefined) {
+    return index ? [editorSnippetFields(), createSnippetTriggers({ index, onExpand(view, request, definition) {
+      const target = snippetTarget(view, request);
+      return !!target && (onSnippetRef.current?.(definition, target) ?? false);
+    } })] : [];
+  }
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -153,6 +176,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
           smartListKeys.current.of(createSmartListBindings(smartLists)),
           pairs.current.of(createSelectionPairs(selectionPairs)),
           completions.current.of(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })),
+          snippetRules.current.of(snippetExtensions(snippetIndex)),
           blocks.extension,
           gutter.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
@@ -223,6 +247,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       hasFocus() { return view.hasFocus; },
       hasSelection() { return !view.state.selection.main.empty; },
       selectedText() { const { from, to } = view.state.selection.main; return view.state.sliceDoc(from, to); },
+      snippetTarget() { return snippetTarget(view); },
       goToLine(number) { const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Math.trunc(number)))); view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true }); view.focus(); }
     });
     const initialLine = view.state.doc.lineAt(view.state.selection.main.head);
@@ -274,6 +299,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     viewRef.current?.dispatch({ effects: completions.current.reconfigure(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })) });
   }, [completionSheets, completionTags, wikiCompletion, tagCompletion, dateCompletion, dates.open]);
+  useEffect(() => { viewRef.current?.dispatch({ effects: snippetRules.current.reconfigure(snippetExtensions(snippetIndex)) }); }, [snippetIndex]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: pasteRules.current.reconfigure(paste.extension) });

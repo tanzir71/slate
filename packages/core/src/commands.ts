@@ -78,6 +78,8 @@ export const slateCommands: readonly CommandDefinition[] = [
   },
   { id: "app.about", label: "About Slate", group: "Help" },
   { id: "app.editorSettings", label: "Editor settings", group: "Workspace", shortcut: "Mod+," },
+  { id: "snippet.picker", label: "Insert snippet", group: "Workspace", context: "editor", shortcut: "Mod+;", surfaces: ["web"] },
+  { id: "snippet.settings", label: "Manage snippets", group: "Workspace", surfaces: ["web"] },
   { id: "appearance.light", label: "Use Light appearance", group: "View" },
   { id: "appearance.dark", label: "Use Dark appearance", group: "View" },
   { id: "appearance.system", label: "Follow system appearance", group: "View" },

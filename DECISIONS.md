@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-19 - Integrate snippets through cached file scopes and guarded editor requests
+
+F-50 browser integration keeps the global and Space files as the source of truth. A lazy library reads both scopes, resolves overrides/disabled entries and builds the bounded suffix index outside key handlers. Unchanged source snapshots retain the same index. Missing global configuration supplies three shipped defaults without writing a file; an explicit valid empty file clears them. Invalid or unavailable configuration disables expansion and exposes repair rather than silently replacing it. Focus, visible file polling and optional cross-tab messages refresh definitions; messaging failure must not block a successful file commit or loading.
+
+Capture the document, selection, date, ID and contextual variables once at invocation. Prompt/clipboard forms render literal values and insert only against that captured document/selection; a stale request cannot overwrite newer writing. The picker and settings reuse WorkspaceDialog and design tokens, with original A4 search/file assets and A7 table geometry. Existing native commands do not advertise the unfinished native library.
+
+Keep active completion menus ahead of field Tab navigation; a pending background completion lookup must not consume it. Field navigation creates an explicit history boundary even though it changes only selection. The shared composition observer recognizes this boundary before its document-change guard, preventing Firefox composition edits in separate fields from joining one undo group. This also retains the established atomic undo behavior for smart input and paste. A slash followed immediately by whitespace ends block search, so literal separators inside an expanded snippet cannot steal Tab; multiword queries beginning with a non-whitespace character remain valid.
+
 ## 2026-11-19 - Install Starter Kits as Separate Space Notebooks
 
 F-45 specifies starter kits without a separate contents/design contract. Provide Work, Writing, Engineering and Personal setups: an overview, two notes rendered from the actual bundled Markdown templates, and two notebook defaults referring to those same built-ins. Users can customize a built-in through the existing Edit template/Save template copy flow. The kit picker previews its contents and accepts a portable top-level notebook name. Select a fresh root against current disk files, existing preference paths and pending kit preparations, including case variants. Existing notes, assets and configured defaults stay intact; adding another kit is a separate setup.

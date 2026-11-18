@@ -1,4 +1,8 @@
-import { snippet } from "@codemirror/autocomplete";
+import {
+  acceptCompletion,
+  completionStatus,
+  snippet,
+} from "@codemirror/autocomplete";
 import { isolateHistory } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import {
@@ -274,6 +278,8 @@ export function moveEditorSnippetField(
   view.dispatch({
     selection: fieldSelection(session.fields, next),
     effects: setSession.of(next === 0 ? null : { ...session, active: next }),
+    annotations: isolateHistory.of("full"),
+    userEvent: "select.snippet",
     scrollIntoView: true,
   });
   return true;
@@ -291,7 +297,14 @@ export function editorSnippetFields() {
       keymap.of([
         {
           key: "Tab",
-          run: (view) => moveEditorSnippetField(view, 1),
+          run: (view) => {
+            if (!view.state.field(snippetSession, false)) return false;
+            if (completionStatus(view.state) === "active") {
+              acceptCompletion(view);
+              return true;
+            }
+            return moveEditorSnippetField(view, 1);
+          },
           shift: (view) => moveEditorSnippetField(view, -1),
         },
         { key: "Escape", run: clearEditorSnippet },
