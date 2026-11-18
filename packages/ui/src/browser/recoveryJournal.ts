@@ -1,4 +1,8 @@
-import { applyTextChanges, type TextChange } from "@slate/core";
+import {
+  applyTextChanges,
+  matchesTextChanges,
+  type TextChange,
+} from "@slate/core";
 
 export interface RecoveryDraft {
   content: string;
@@ -161,7 +165,7 @@ export function createRecoveryJournal(
           : undefined;
       if (edit?.path === path) {
         try {
-          if (applyTextChanges(edit.before, edit.changes) === value.content) {
+          if (matchesTextChanges(edit.before, edit.changes, value.content)) {
             let base = prior?.base;
             let edits = prior?.edits;
             if (

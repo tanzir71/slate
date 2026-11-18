@@ -70,6 +70,30 @@ it("reads old journals unchanged and falls back to full snapshots for edits that
   ).toBe("exact new words");
 });
 
+it("keeps exact full snapshots when valid edit coordinates disagree with any output span", () => {
+  for (const content of [
+    "Xrefix WORD suffix",
+    "prefix W0RD suffix",
+    "prefix WORD suffiX",
+  ]) {
+    const { storage } = memoryStorage();
+    const journal = createRecoveryJournal("space", storage);
+    journal.save(drafts(content), {
+      path: "A.md",
+      before: "prefix body suffix",
+      changes: [{ from: 7, to: 11, text: "WORD" }],
+    });
+    expect(
+      storage.setItem.mock.calls.filter(([key]) =>
+        key.startsWith("slate.recovery-base."),
+      ),
+    ).toHaveLength(0);
+    expect(
+      createRecoveryJournal("space", storage).read().get("A.md")?.content,
+    ).toBe(content);
+  }
+});
+
 it("leaves the previous committed draft recoverable if a replacement journal write fails", () => {
   const { values, storage } = memoryStorage();
   const journal = createRecoveryJournal("space", storage);
