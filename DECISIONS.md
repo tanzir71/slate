@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-18 - Complete Fences and Keep Smart Edits Apart from New Compositions
+
+F-24 handles an empty selection at the end of an opening fence or the first-line YAML boundary. It preserves the typed marker, whitespace, quote/list continuation and following source. Closed fences, code/HTML interiors, existing front matter, multiple selections and composition remain literal. Bare code fences open the existing language picker after completion; cancellation keeps the closed plain fence. Independent fence/front-matter preferences default on and reconfigure the current view.
+
+Language selection replaces the still-current completed edit through a captured public undo transaction followed by the chosen edit, dispatched together as one update. Validate both the completed source/selection and restored original text before applying. Adapters see only the combined change; one undo restores the typed opening marker even after a long picker delay, and redo restores the chosen language. A no-history language amendment was rejected because it survives undo outside the inserted fence.
+
+Firefox can deliver a subsequent new text insertion as input.type.compose without a start suffix. CodeMirror's history forcibly joins that label to the previous event, including an isolated smart edit. Track only whether the last document change was isolated or an undo/redo. Normalize the next continuation-labelled composition to input.type.compose.start through public transaction-filter specs; preserve the original transaction's changes, selection, effects and annotations. Later IME updates retain normal grouping. This adds constant state bookkeeping without document scans, private input-state mutation or React work on ordinary typing.
+
 ## 2026-11-18 - Snapshot Clipboard Requests and Preserve Saved Pixels
 
 F-23 captures clipboard strings and File objects synchronously during the paste event. HTML conversion and image preparation load on demand. Each asynchronous request retains the immutable CodeMirror document and selection it started with; a changed document, caret, ownership, composition or image destination prevents insertion. Retry is explicit at the current caret, and each pending request has its own dismissible notice. Conversion failures with no images can fall back to the complete plain text; image failures retain the whole request so text and pixels are not separated accidentally. Ordinary typing performs no clipboard conversion, document scan or React notice update.

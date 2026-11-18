@@ -16,6 +16,8 @@ export interface EditorPreferences {
   readonly pasteLinks: boolean;
   readonly pasteImages: boolean;
   readonly pasteTables: boolean;
+  readonly fences: boolean;
+  readonly frontmatter: boolean;
 }
 
 export type EditorPreferenceRule =
@@ -28,7 +30,9 @@ export type EditorPreferenceRule =
   | "pasteRichText"
   | "pasteLinks"
   | "pasteImages"
-  | "pasteTables";
+  | "pasteTables"
+  | "fences"
+  | "frontmatter";
 
 export const defaultEditorPreferences: EditorPreferences = Object.freeze({
   version: 1,
@@ -42,6 +46,8 @@ export const defaultEditorPreferences: EditorPreferences = Object.freeze({
   pasteLinks: true,
   pasteImages: true,
   pasteTables: true,
+  fences: true,
+  frontmatter: true,
 });
 
 /** Optional preferences never prevent a document from opening. */
@@ -68,6 +74,8 @@ export function parseEditorPreferences(value: unknown): EditorPreferences {
       typeof value.pasteImages === "boolean" ? value.pasteImages : true,
     pasteTables:
       typeof value.pasteTables === "boolean" ? value.pasteTables : true,
+    fences: typeof value.fences === "boolean" ? value.fences : true,
+    frontmatter: typeof value.frontmatter === "boolean" ? value.frontmatter : true,
     smartLists: {
       continuation:
         typeof lists.continuation === "boolean" ? lists.continuation : true,

@@ -72,6 +72,16 @@ const rules: readonly {
     label: "Convert pasted tables",
     description: "Turn copied CSV and tab-separated cells into Markdown tables.",
   },
+  {
+    id: "fences",
+    label: "Close code fences",
+    description: "Enter after an opening code fence adds its closing fence and offers a language.",
+  },
+  {
+    id: "frontmatter",
+    label: "Create front matter",
+    description: "Enter after --- on the first line adds a closing YAML boundary.",
+  },
 ];
 
 export function EditorSettingsDialog({

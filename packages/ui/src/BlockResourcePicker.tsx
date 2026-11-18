@@ -11,11 +11,15 @@ export function BlockResourcePicker({
   onImage,
   onChoose,
   onClose,
+  submitLabel = "Insert code block",
+  errorMessage = "",
 }: {
   kind: "language" | "image";
   onImage: ImportBlockImage | undefined;
   onChoose(context: Pick<BlockContext, "language" | "image">): void;
   onClose(): void;
+  submitLabel?: string;
+  errorMessage?: string;
 }) {
   const [language, setLanguage] = useState("javascript");
   const [busy, setBusy] = useState(false);
@@ -95,7 +99,7 @@ export function BlockResourcePicker({
             </small>
           </label>
         )}
-        {error && <p role="alert">{error}</p>}
+        {(error || errorMessage) && <p role="alert">{error || errorMessage}</p>}
         {busy && <p role="status">Saving image…</p>}
         <footer>
           <button type="button" disabled={busy} onClick={onClose}>
@@ -103,7 +107,7 @@ export function BlockResourcePicker({
           </button>
           {kind === "language" && (
             <button type="submit" className="primaryButton">
-              Insert code block
+              {submitLabel}
             </button>
           )}
         </footer>

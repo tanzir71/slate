@@ -15,6 +15,9 @@ import { slateMarkdownSyntax } from "./markdownSyntax.js";
 import { createSmartListBindings, type SmartListOptions } from "./smartLists.js";
 import { createSmartTableBindings } from "./smartTables.js";
 import { createSmartPaste, type SmartPasteOptions } from "./smartPaste.js";
+import { createFenceInput, type FenceInputOptions } from "./fenceInput.js";
+import { historyIsolation } from "./historyIsolation.js";
+export { createFenceInput, enterEditorFence, chooseEditorFenceLanguage, type EditorFenceRequest, type FenceInputOptions } from "./fenceInput.js";
 export { createSmartPaste, type SmartPasteOptions, type PasteNotice } from "./smartPaste.js";
 export type { ClipboardImageReference, SaveClipboardImage } from "./clipboardImages.js";
 export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEditorTable, editorTableColumns, runTableCommand } from "./smartTables.js";
@@ -60,10 +63,12 @@ export function createSlateMarkdownExtensions(
     selectionPairs?: boolean;
     smartTables?: boolean;
     smartPaste?: false | SmartPasteOptions;
+    fenceInput?: false | FenceInputOptions;
   } = {},
 ): Extension[] {
   return [
     history(),
+    historyIsolation,
     markdown({ extensions: slateMarkdownSyntax, addKeymap: false, pasteURLAsLink: false }),
     search(),
     livePreviewSettings.of({
@@ -91,6 +96,7 @@ export function createSlateMarkdownExtensions(
     options.smartLists === false ? [] : createSmartListBindings(options.smartLists),
     createSelectionPairs(options.selectionPairs !== false),
     options.smartPaste === false ? [] : createSmartPaste(options.smartPaste),
+    options.fenceInput === false ? [] : createFenceInput(options.fenceInput),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,
     EditorView.theme({

@@ -67,6 +67,8 @@ it.each([
   "pasteLinks",
   "pasteImages",
   "pasteTables",
+    "fences",
+    "frontmatter",
 ] as const)(
   "validates optional %s independently and defaults older settings",
   (rule) => {

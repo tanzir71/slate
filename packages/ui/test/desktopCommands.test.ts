@@ -126,7 +126,7 @@ it("opens editor settings from the desktop command and remembers disabled smart 
   const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="Editor settings"]')!;
   expect(dialog.open).toBe(true);
   const checkboxes = dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-  expect(checkboxes).toHaveLength(12);
+  expect(checkboxes).toHaveLength(14);
   expect(dialog.querySelector('[aria-labelledby="smart-input-smartTables-label"]')).not.toBeNull();
   expect(dialog.querySelector('[aria-labelledby="smart-input-wikiCompletion-label"]')).not.toBeNull();
   expect(dialog.querySelector('[aria-labelledby="smart-input-tagCompletion-label"]')).not.toBeNull();

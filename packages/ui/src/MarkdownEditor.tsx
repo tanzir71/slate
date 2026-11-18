@@ -25,6 +25,7 @@ import { SelectionToolbar } from "./SelectionToolbar";
 import { useBlockMenu } from "./useBlockMenu";
 import { useDatePicker } from "./useDatePicker";
 import { useSmartPaste } from "./useSmartPaste";
+import { useFenceInput } from "./useFenceInput";
 import type { ImportBlockImage } from "./BlockResourcePicker";
 
 const externalValue = Annotation.define<boolean>();
@@ -70,11 +71,14 @@ interface MarkdownEditorProps {
   pasteImages?: boolean;
   pasteTables?: boolean;
   onImportClipboardImage?: SaveClipboardImage;
+  fences?: boolean;
+  frontmatter?: boolean;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const dates = useDatePicker(dateCompletion);
+  const fenceInput = useFenceInput(fences, frontmatter);
   const paste = useSmartPaste({ richText: pasteRichText, links: pasteLinks, images: pasteImages, tables: pasteTables, importImage: onImportClipboardImage });
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -87,6 +91,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const tableKeys = useRef(new Compartment());
   const pairs = useRef(new Compartment());
   const pasteRules = useRef(new Compartment());
+  const fenceRules = useRef(new Compartment());
   const completions = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
@@ -134,7 +139,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
         extensions: [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
-          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false }),
+          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
+          fenceRules.current.of(fenceInput.extension),
           pasteRules.current.of(paste.extension),
           tableKeys.current.of(createSmartTableBindings(smartTables)),
           smartListKeys.current.of(createSmartListBindings(smartLists)),
@@ -260,6 +266,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     viewRef.current?.dispatch({ effects: pasteRules.current.reconfigure(paste.extension) });
   }, [paste.extension]);
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: fenceRules.current.reconfigure(fenceInput.extension) });
+  }, [fenceInput.extension]);
 
   useEffect(() => {
     const previous = previousWikiTargets.current;
@@ -285,5 +294,5 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     });
   }, [value]);
 
-  return <>{blocks.menu}{dates.dialog}{paste.notices}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
+  return <>{blocks.menu}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 });

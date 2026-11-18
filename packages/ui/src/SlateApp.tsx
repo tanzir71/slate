@@ -513,6 +513,8 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter, assetWriter }: Slate
             pasteLinks={editorPreferences.preferences.pasteLinks}
             pasteImages={editorPreferences.preferences.pasteImages}
             pasteTables={editorPreferences.preferences.pasteTables}
+            fences={editorPreferences.preferences.fences}
+            frontmatter={editorPreferences.preferences.frontmatter}
             {...(copyClipboardImage ? { onImportClipboardImage: copyClipboardImage } : {})}
             smartLists={editorPreferences.preferences.smartLists}
             selectionPairs={editorPreferences.preferences.selectionPairs}

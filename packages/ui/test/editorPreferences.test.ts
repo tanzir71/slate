@@ -53,6 +53,8 @@ it("persists changes, reopens preferences and follows cross-tab changes or remov
       first.current.change("pasteLinks", false);
       first.current.change("pasteImages", false);
       first.current.change("pasteTables", false);
+      first.current.change("fences", false);
+      first.current.change("frontmatter", false);
     });
     expect(first.current.preferences.smartLists).toEqual({
       continuation: false,
@@ -68,6 +70,8 @@ it("persists changes, reopens preferences and follows cross-tab changes or remov
     expect(first.current.preferences.pasteLinks).toBe(false);
     expect(first.current.preferences.pasteImages).toBe(false);
     expect(first.current.preferences.pasteTables).toBe(false);
+    expect(first.current.preferences.fences).toBe(false);
+    expect(first.current.preferences.frontmatter).toBe(false);
     expect(JSON.parse(localStorage.getItem(editorPreferenceKey)!)).toEqual(
       first.current.preferences,
     );

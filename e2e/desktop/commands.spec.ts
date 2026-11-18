@@ -47,6 +47,31 @@ test("desktop image paste sends exact PNG bytes through IPC with numbered paths 
   expect(await assets()).toHaveLength(2);
 });
 
+test("desktop fence language and front matter save through IPC with separate typing undo", async ({ page }) => {
+  const editor = page.locator(".cm-content");
+  const fence = String.fromCharCode(96).repeat(3);
+  const saved = () => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("native-test:")).map((key) => localStorage.getItem(key)));
+  await editor.fill(fence);
+  await editor.press("ControlOrMeta+End");
+  await editor.press("Enter");
+  const picker = page.getByRole("dialog", { name: "Code language", exact: true });
+  await expect(picker).toBeVisible();
+  await expect.poll(saved).toContain(fence + "\n\n" + fence);
+  await picker.getByLabel("Code language", { exact: true }).fill("json");
+  await picker.getByRole("button", { name: "Set language", exact: true }).click();
+  await expect.poll(saved).toContain(fence + "json\n\n" + fence);
+  await editor.press("ControlOrMeta+z");
+  await expect.poll(saved).toContain(fence);
+  await editor.fill("---");
+  await editor.press("ControlOrMeta+End");
+  await editor.press("Enter");
+  await expect.poll(saved).toContain("---\n\n---");
+  await page.keyboard.insertText("title: Native");
+  await expect.poll(saved).toContain("---\ntitle: Native\n---");
+  await editor.press("ControlOrMeta+z");
+  await expect.poll(saved).toContain("---\n\n---");
+});
+
 test("desktop migration notice is dismissible and is shown only once", async ({ page }) => {
   const notice = page.locator(".shortcutMigrationNotice");
   await expect(notice).toContainText("Default shortcuts changed.");
