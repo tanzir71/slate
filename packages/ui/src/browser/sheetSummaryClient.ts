@@ -24,6 +24,8 @@ export function createSheetSummaryClient(
   let latest: readonly SummaryInput[] = [];
   let documents: SheetDocument[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let inFlight: number | undefined;
+  let completed = 0;
   const summarize = createSheetSummaryCache();
   function readOnMainThread() {
     clearTimeout(timer);
@@ -35,18 +37,36 @@ export function createSheetSummaryClient(
       }
     }, 0);
   }
+  function useFallback() {
+    if (!active || fallback) return;
+    fallback = true;
+    inFlight = undefined;
+    worker?.terminate();
+    readOnMainThread();
+  }
+  function postLatest() {
+    if (!active || fallback || inFlight !== undefined || completed === id) return;
+    inFlight = id;
+    try {
+      worker!.postMessage({ id, sheets: latest });
+    } catch {
+      useFallback();
+    }
+  }
   if (worker) {
     worker.onmessage = (event) => {
-      if (!active || fallback || event.data.id !== id) return;
-      documents = hydrateSummaries(latest, event.data.summaries, documents);
-      onDocuments(documents);
+      if (!active || fallback || event.data.id !== inFlight) return;
+      inFlight = undefined;
+      completed = event.data.id;
+      if (completed === id) {
+        documents = hydrateSummaries(latest, event.data.summaries, documents);
+        onDocuments(documents);
+      }
+      postLatest();
     };
     worker.onerror = (event) => {
       event.preventDefault();
-      if (!active) return;
-      fallback = true;
-      worker.terminate();
-      readOnMainThread();
+      useFallback();
     };
   }
   return {
@@ -55,15 +75,7 @@ export function createSheetSummaryClient(
       latest = sheets;
       id++;
       if (fallback) readOnMainThread();
-      else {
-        try {
-          worker!.postMessage({ id, sheets });
-        } catch {
-          fallback = true;
-          worker!.terminate();
-          readOnMainThread();
-        }
-      }
+      else postLatest();
     },
     close() {
       active = false;

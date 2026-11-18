@@ -321,3 +321,7 @@ Persist the caret immediately with the last observed scroll offset when CodeMirr
 Cache third-party Cargo dependencies for both standalone workspaces after selecting the Rust toolchain. Keep the action's default exclusion of workspace crates so Slate source and embedded frontend assets rebuild; every test/build/gate command still runs. Save dependency caches even when a later JavaScript or timing check fails, rather than recompiling unchanged dependencies on every attempt. Keys retain the Rust host/toolchain, environment and manifest/lockfile inputs.
 
 Group CI by workflow and Git ref, allowing a newer branch/PR run to cancel its superseded run. Tag verification does not cancel an existing run. Release publication keeps its own required checks and is unaffected by these caches or branch concurrency.
+
+## 2026-11-18 - Bound derived-summary worker requests to current work
+
+Allow one in-flight summary request and keep only the latest pending immutable snapshot. When a reply arrives, publish it only if it matches the latest requested generation; otherwise send the latest snapshot and skip intermediate work. Ignore duplicate replies, preserve cached-document reuse, and fall back to the newest source if the worker errors or posting fails. Closing cancels pending work and late publication. This removes a worker backlog and unnecessary full-document transfers; it does not defer source-file saves or synchronous recovery, and does not change the typing gate or claim a measured latency improvement before verification.

@@ -183,5 +183,6 @@ test("50k-word typing reaches the next frame within the p95 budget", async ({
     (await readCurrentSheet(page)) === `${sampleText}${markdown}`,
     "Every word and measured keystroke must be saved unchanged",
   ).toBe(true);
+  await expect(page.getByRole("button", { name: "Writing statistics", exact: true })).toContainText(/50[,\s]?045 words/);
   expect(p95).toBeLessThan(16);
 });

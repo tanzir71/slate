@@ -93,3 +93,80 @@ it.each(["unavailable", "startup error", "post failure"])(
     expect(changed).toHaveBeenCalledTimes(1);
   },
 );
+
+it("keeps one worker job in flight and replaces queued edits with the latest snapshot", () => {
+  const worker = fakeWorker();
+  const changed = vi.fn<(documents: SheetDocument[]) => void>();
+  const client = createSheetSummaryClient(worker, changed);
+  const first = [{ path: "A.md", content: "# First" }];
+  const skipped = [{ path: "A.md", content: "# Intermediate" }];
+  const latest = [{ path: "B.md", content: "# Latest\n\nExact words #keep" }];
+  client.read(first);
+  client.read(skipped);
+  client.read(latest);
+  expect(worker.postMessage).toHaveBeenCalledTimes(1);
+  reply(worker, 1, first);
+  expect(changed).not.toHaveBeenCalled();
+  expect(worker.postMessage).toHaveBeenCalledTimes(2);
+  expect(worker.postMessage).toHaveBeenLastCalledWith({ id: 3, sheets: latest });
+  reply(worker, 1, first);
+  expect(worker.postMessage).toHaveBeenCalledTimes(2);
+  reply(worker, 3, latest);
+  expect(changed).toHaveBeenCalledTimes(1);
+  expect(changed.mock.calls[0]![0][0]).toMatchObject(parseSheet(latest[0]!.content, "B.md"));
+  client.close();
+});
+
+it("falls back to the newest queued edit when posting the next worker job fails", () => {
+  vi.useFakeTimers();
+  const worker = fakeWorker();
+  vi.mocked(worker.postMessage).mockImplementationOnce(() => undefined).mockImplementation(() => { throw new Error("Worker stopped"); });
+  const changed = vi.fn<(documents: SheetDocument[]) => void>();
+  const client = createSheetSummaryClient(worker, changed);
+  const first = [{ path: "A.md", content: "# Earlier" }];
+  const latest = [{ path: "B.md", content: "# Latest\n\nKeep these words" }];
+  client.read(first);
+  client.read(latest);
+  expect(worker.terminate).not.toHaveBeenCalled();
+  reply(worker, 1, first);
+  expect(worker.terminate).toHaveBeenCalledTimes(1);
+  expect(changed).not.toHaveBeenCalled();
+  vi.runAllTimers();
+  expect(changed).toHaveBeenCalledTimes(1);
+  expect(changed.mock.calls[0]![0][0]?.path).toBe("B.md");
+  client.close();
+});
+
+it("uses the latest queued snapshot after a worker error and ignores late replies", () => {
+  vi.useFakeTimers();
+  const worker = fakeWorker();
+  const changed = vi.fn<(documents: SheetDocument[]) => void>();
+  const client = createSheetSummaryClient(worker, changed);
+  const first = [{ path: "A.md", content: "# Earlier" }];
+  const latest = [{ path: "B.md", content: "# Current\n\nKeep these words" }];
+  client.read(first);
+  client.read(latest);
+  worker.onerror?.(new ErrorEvent("error"));
+  worker.onerror?.(new ErrorEvent("error"));
+  expect(worker.terminate).toHaveBeenCalledTimes(1);
+  reply(worker, 1, first);
+  vi.runAllTimers();
+  expect(changed).toHaveBeenCalledTimes(1);
+  expect(changed.mock.calls[0]![0][0]).toMatchObject(parseSheet(latest[0]!.content, "B.md"));
+  client.close();
+});
+
+it("does not send a queued job or publish a reply after closing", () => {
+  const worker = fakeWorker();
+  const changed = vi.fn<(documents: SheetDocument[]) => void>();
+  const client = createSheetSummaryClient(worker, changed);
+  const first = [{ path: "A.md", content: "# First" }];
+  client.read(first);
+  client.read([{ path: "B.md", content: "# Queued" }]);
+  const lateReply = worker.onmessage!;
+  client.close();
+  lateReply(new MessageEvent<SummaryReply>("message", { data: { id: 1, summaries: summaryMetadata([parseSheet(first[0]!.content, "A.md")]) } }));
+  expect(worker.postMessage).toHaveBeenCalledTimes(1);
+  expect(worker.terminate).toHaveBeenCalledTimes(1);
+  expect(changed).not.toHaveBeenCalled();
+});
