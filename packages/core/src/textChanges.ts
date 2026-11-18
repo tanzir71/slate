@@ -34,13 +34,20 @@ export function matchesTextChanges(
   let resultOffset = 0;
   for (const change of changes) {
     const unchanged = source.slice(sourceOffset, change.from);
-    if (!result.startsWith(unchanged, resultOffset)) return false;
+    if (
+      result.slice(resultOffset, resultOffset + unchanged.length) !== unchanged
+    )
+      return false;
     resultOffset += unchanged.length;
-    if (!result.startsWith(change.text, resultOffset)) return false;
+    if (
+      result.slice(resultOffset, resultOffset + change.text.length) !==
+      change.text
+    )
+      return false;
     resultOffset += change.text.length;
     sourceOffset = change.to;
   }
-  return result.endsWith(source.slice(sourceOffset));
+  return result.slice(resultOffset) === source.slice(sourceOffset);
 }
 
 function validateTextChanges(source: string, changes: readonly TextChange[]) {

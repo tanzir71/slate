@@ -96,3 +96,22 @@ it("agrees with replay across replacements, insertions and deletions in a Unicod
     }
   }
 });
+
+it("compares independently decoded large documents and rejects changed unchanged spans", () => {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const source = decoder.decode(
+    encoder.encode(`😀\r\n${"word ".repeat(70000)}tail`),
+  );
+  const changes = [
+    { from: 2, to: 2, text: "বাংলা" },
+    { from: source.length - 4, to: source.length, text: "END!" },
+  ];
+  const result = decoder.decode(
+    encoder.encode(applyTextChanges(source, changes)),
+  );
+  expect(matchesTextChanges(source, changes, result)).toBe(true);
+  const altered = `${result.slice(0, 100_000)}X${result.slice(100_001)}`;
+  expect(altered.length).toBe(result.length);
+  expect(matchesTextChanges(source, changes, altered)).toBe(false);
+});
