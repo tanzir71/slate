@@ -67,6 +67,9 @@ test("live preview renders basic Markdown, toggles tasks with one undo and prese
 test("an unresolved wiki link creates its target once and later follows the existing sheet", async ({
   page,
 }) => {
+  // Cold onboarding + two file navigations can exhaust 30 s before the final
+  // five-second assertion completes (Windows CI trace 44234770305).
+  test.setTimeout(60_000);
   await openLibrary(page);
   const source = "# Source\n\nSee [[New idea|alias]].\n\nActive.";
   await createSheet(page, source);
