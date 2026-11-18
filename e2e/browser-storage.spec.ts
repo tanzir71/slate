@@ -56,6 +56,8 @@ test("reloads offline with saved files and a working editor", async ({ page, con
 });
 
 test("gives one tab write ownership and transfers it after flushing", async ({ page, context }) => {
+  // Two cold tab loads must leave time for the existing 15 s save assertion.
+  test.setTimeout(60_000);
   await openLibrary(page);
   await createSheet(page);
   const second = await context.newPage();
