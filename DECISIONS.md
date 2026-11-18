@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Save custom block edits against exact byte snapshots
+
+Custom fragments retain a UTF-8 BOM and line endings in their editable source. The existing note save path compares decoded strings, which cannot detect a BOM-only external change and conflicts with a BOM-preserving base string. Add saveSnapshot to the same serialized Space mutation queue: capture a defensive copy of the original bytes before waiting, check current ownership when the write executes, and compare the final disk bytes with the base and proposed bytes. A changed primary keeps its bytes and the proposal becomes a conflict copy, including when the primary was deleted or changed encoding. Existing note save behavior stays separate.
+
+Block directory reads report per-file errors and retain original bytes; unsupported encodings and unavailable reads cannot be saved through the fragment editor. An oversized but valid UTF-8 file may be explicitly shortened against its snapshot. A failed directory listing remains an error, while a file that disappears during listing is omitted. New blocks use portable filenames and the existing numbered collision path. All reads and writes stay inside the canonical private block directory. Menu/editor integration follows these adapters.
+
 ## 2026-11-19 - Custom block files contain literal Markdown fragments
 
 F-32 specifies .slate/blocks/*.md without a second metadata or variable language. Use the file stem as the name and its relative path to distinguish names in nested folders, consistent with Space template directory organization. Preserve its source as ordinary Markdown: YAML, template expressions and numbered snippet syntax remain literal. Templates and snippets retain their separate variable/field behavior. Bound each fragment to 1 MiB of UTF-8, counted without platform APIs. Reading and planning never write its file.

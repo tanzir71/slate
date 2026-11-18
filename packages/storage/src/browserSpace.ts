@@ -1,9 +1,14 @@
 import { decodeText, encodeText, safeBrowserPath, type BrowserFiles } from "./browserFiles";
 export * from "./browserTemplates";
 export * from "./browserSnippets";
+export * from "./browserBlocks";
 
 export interface BrowserSheet { path: string; content: string; unsupportedEncoding?: boolean }
 export interface BrowserWriteResult extends BrowserSheet { conflict: boolean }
+
+function sameBytes(left: Uint8Array | undefined, right: Uint8Array | undefined): boolean {
+  return left === right || (left !== undefined && right !== undefined && left.length === right.length && left.every((value, index) => value === right[index]));
+}
 
 /** All mutations are serialized; callers supply their last disk content for optimistic concurrency. */
 export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean = () => true) {
@@ -73,6 +78,16 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
         if (disk !== baseContent && disk !== content) return writeConflict(path, content);
         await files.write(path, encodeText(content));
         return { path, content, conflict: false };
+      });
+    },
+    /** Private Markdown/configuration edits may retain a file BOM and compare exact disk bytes. */
+    saveSnapshot(path: string, content: string, baseBytes: Uint8Array | undefined): Promise<BrowserWriteResult> {
+      const base = baseBytes?.slice(), proposed = encodeText(content);
+      return mutate(async () => {
+        const target = safeBrowserPath(path), disk = await files.read(target);
+        if (!sameBytes(disk, base) && !sameBytes(disk, proposed)) return writeConflict(target, content);
+        await files.write(target, proposed);
+        return { path: target, content, conflict: false };
       });
     },
     move(from: string, to: string, baseContent: string): Promise<BrowserSheet> {
