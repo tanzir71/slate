@@ -3,7 +3,7 @@ import { createBrowserSpace, type BrowserSheet } from "@slate/storage/browser-sp
 import { decodeText, type BrowserFiles } from "@slate/storage/browser-files";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
 import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
-import { readWorkspacePreferences, type WorkspacePreferences } from "@slate/core";
+import { notebookTemplate, readWorkspacePreferences, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
 import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 
 interface Draft { content: string; baseContent: string | undefined }
@@ -159,6 +159,15 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     },
     async select(path: string) { await flush(); api.setState({ selectedPath: path, initialCursor: undefined }); },
     clearInitialCursor() { api.setState({ initialCursor: undefined }); },
+    async readNotebookTemplate(notebook: string): Promise<string | undefined> {
+      await updatingPreferences;
+      const { value } = await readPreferences();
+      api.setState({ preferences: value });
+      return notebookTemplate(value, notebook);
+    },
+    setNotebookTemplate(notebook: string, reference: string | undefined) {
+      return updatePreferences((current) => withNotebookTemplate(current, notebook, reference));
+    },
     async createFromTemplate(plan: ReturnType<typeof planTemplateFile>) {
       await flush();
       const sheet = await space.create(plan.path, plan.content);

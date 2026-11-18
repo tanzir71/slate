@@ -30,7 +30,8 @@
   flex-direction: column;
   gap: 8px;
 }
-.workspaceDialog input {
+.workspaceDialog input,
+.workspaceDialog select {
   inline-size: 100%;
   padding: 9px 10px;
   border: 1px solid var(--border-strong);

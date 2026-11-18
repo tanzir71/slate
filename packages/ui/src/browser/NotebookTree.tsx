@@ -30,6 +30,7 @@ interface NotebookTreeProps {
   onToggle(path: string): void;
   onSelect(path: string): void;
   onMove(path: string, notebook: string): void;
+  onTemplate?: ((path: string) => void) | undefined;
 }
 export function NotebookTree(props: NotebookTreeProps) {
   return (
@@ -81,7 +82,17 @@ function NotebookBranch({
           aria-label={`Notebook ${node.path}`}
           title={node.path}
           aria-current={props.selected === node.path ? "page" : undefined}
+          aria-description={props.onTemplate ? "Press Shift F10 to set a default template for this notebook." : undefined}
           onClick={() => props.onSelect(node.path)}
+          onContextMenu={(event) => {
+            if (!props.onTemplate) return;
+            event.preventDefault(); event.currentTarget.focus(); props.onTemplate(node.path);
+          }}
+          onKeyDown={(event) => {
+            if (props.onTemplate && (event.key === "ContextMenu" || event.key === "F10" && event.shiftKey)) {
+              event.preventDefault(); event.stopPropagation(); props.onTemplate(node.path);
+            }
+          }}
         >
           <Folder size={16} />
           <span>{node.name}</span>

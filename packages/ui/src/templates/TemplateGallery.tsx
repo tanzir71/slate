@@ -76,12 +76,16 @@ export default function TemplateGallery({
   notebook,
   selection,
   returnFocus,
+  initialTemplateId,
+  initialDestination,
   onClose,
 }: {
   store: WorkspaceStore;
   notebook: string;
   selection: string;
   returnFocus: HTMLElement | undefined;
+  initialTemplateId?: string | undefined;
+  initialDestination?: string | undefined;
   onClose(): void;
 }) {
   const [context] = useState(() =>
@@ -97,12 +101,20 @@ export default function TemplateGallery({
   const [records, setRecords] = useState<SpaceTemplateRecord[]>([]);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState("Work");
+  const [category, setCategory] = useState(
+    () =>
+      builtinTemplates.find((entry) => entry.id === initialTemplateId)?.template
+        .category ?? "Work",
+  );
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(builtinTemplates[0]!.id);
+  const [selectedId, setSelectedId] = useState(
+    initialTemplateId ?? builtinTemplates[0]!.id,
+  );
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(context.clock!.date);
-  const [destination, setDestination] = useState<string>();
+  const [destination, setDestination] = useState<string | undefined>(
+    initialDestination,
+  );
   const [prompts, setPrompts] = useState<Record<string, string>>({});
   const [clipboard, setClipboard] = useState("");
   const [editing, setEditing] = useState<string>();
@@ -113,6 +125,11 @@ export default function TemplateGallery({
   const titleInput = useRef<HTMLInputElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
+  const initialChoicePending = useRef(!!initialTemplateId);
+  const focusInitialTemplate = useRef(
+    !!initialTemplateId &&
+      !builtinTemplates.some((entry) => entry.id === initialTemplateId),
+  );
   const items = useMemo(
     () => [
       ...builtinTemplates,
@@ -132,6 +149,12 @@ export default function TemplateGallery({
     [records],
   );
   const selected = items.find((item) => item.id === selectedId);
+  useEffect(() => {
+    if (!loading && selected && focusInitialTemplate.current) {
+      focusInitialTemplate.current = false;
+      titleInput.current?.focus();
+    }
+  }, [loading, selected]);
   const broken = records.find(
     (record) => record.path === selectedId && record.error,
   );
@@ -212,6 +235,13 @@ export default function TemplateGallery({
       if (alive.current) {
         setRecords(next);
         setLoadError("");
+        if (initialChoicePending.current) {
+          const template = next.find(
+            (record) => record.path === initialTemplateId,
+          )?.template;
+          if (template) setCategory(template.category);
+          initialChoicePending.current = false;
+        }
       }
     } catch (error) {
       if (alive.current) setLoadError(message(error));
@@ -228,12 +258,14 @@ export default function TemplateGallery({
   }, [store]);
 
   function select(id: string) {
+    initialChoicePending.current = false;
+    focusInitialTemplate.current = false;
     setSelectedId(id);
     setEditing(undefined);
     setError("");
     setNotice("");
     setPrompts({});
-    setDestination(undefined);
+    setDestination(initialDestination);
   }
   function chooseCategory(name: string) {
     setCategory(name);
@@ -343,7 +375,10 @@ export default function TemplateGallery({
             aria-label="Search templates"
             placeholder={"Search " + items.length + " templates"}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              focusInitialTemplate.current = false;
+              setQuery(event.target.value);
+            }}
           />
           <kbd>{shortcutOS() === "mac" ? "⌘ F" : "Ctrl F"}</kbd>
         </div>
@@ -471,6 +506,15 @@ export default function TemplateGallery({
           )}
         </section>
         <section className="templateDetail" aria-label="Template details">
+          {!loading &&
+            initialTemplateId === selectedId &&
+            !selected &&
+            !broken && (
+              <p role="alert">
+                This notebook's default template is unavailable. Choose another
+                template or change its notebook default.
+              </p>
+            )}
           <div className="templateDetailTitle">
             <h3>
               {editing !== undefined && selectedId === "new"

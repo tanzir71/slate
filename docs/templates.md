@@ -1,6 +1,6 @@
 # Templates (unreleased v0.5 work)
 
-The core format, browser gallery, safe file creation and 12 built-ins are implemented on the unreleased development branch. Native gallery integration, notebook defaults, daily-note carry-over and starter kits are still being connected.
+The core format, browser gallery, safe file creation, notebook defaults and 12 built-ins are implemented on the unreleased development branch. Native gallery/default integration, daily-note carry-over and starter kits are still being connected.
 
 Templates are Markdown files in a Space's `.slate/templates/` directory or the app's global library. Optional top-level `template:` properties describe the template:
 
@@ -69,3 +69,12 @@ The bundled v0.5 library contains Meeting notes, 1:1, Status update, PRD, Decisi
 **Edit template** saves a Space copy of a built-in. The plus beside **My templates** creates a new template. Existing Space templates are edited against their original source: if another application changes that file, Slate keeps it and saves your edit as a conflict copy. Malformed YAML stays visible for repair; unsupported encodings are reported without changing their bytes. Templates are read from `.slate/templates/`, including nested `.md` files, and stay out of the normal note list.
 
 Creation saves the current draft first. Existing destination files, including empty files, are preserved using numbered names. A failed write keeps the form available. Once the new file is committed, a later refresh or notification failure keeps its actual path and saved content available instead of inviting another creation. The gallery works with both browser libraries and selected Folder Spaces; it does not require a server.
+
+
+## Notebook defaults (unreleased browser work)
+
+Select a notebook, then choose **Notebook default template** in the sheet actions menu. You can also right-click its notebook row or press **Shift F10** while that row has focus. Choose a built-in or a valid Space template and save. Choose **Blank sheet** to clear that notebook's default. Cancelling keeps the current configuration.
+
+Defaults apply to the exact notebook path; child notebooks keep their own choices. **New Sheet** and its web shortcut **Alt N** open the configured template with that notebook as the initial destination, so you can fill in the title and prompts. You may change the destination before creation. The separate **New from template** action continues to browse the library and use the template's configured route. Notebooks without a default continue to create blank sheets.
+
+References live in the optional `notebookTemplates` map in `.slate/view.json`, alongside existing workspace preferences. Built-ins use IDs such as `builtin:meeting-notes`; Space templates use paths such as `.slate/templates/client.md`. Slate reads the latest preferences on each New Sheet action. Missing or malformed templates stay visible for correction, and Slate does not silently create a blank note instead. Invalid preference JSON is reported without replacing that file; the manual gallery remains available. Existing preference edits retain external changes as conflict copies.
