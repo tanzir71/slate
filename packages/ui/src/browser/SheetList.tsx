@@ -88,7 +88,8 @@ export function SheetList({
     <>
       <div className="sheetSelectionControls">
         <button
-          disabled={!owned || pending || !editable.length}
+          disabled={!owned || !editable.length}
+          // Selection mode is view state; file actions below still wait for current paths.
           aria-pressed={selecting}
           onClick={() => {
             setSelecting((value) => !value);

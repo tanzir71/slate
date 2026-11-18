@@ -185,7 +185,12 @@ test("bulk move and trash preserve every selected file and its recoverable copy"
   await showSheets(page);
   // check() can return for an already-checked disabled box while moved rows
   // still refresh. Wait for current file identities before selecting again.
-  await expect(page.getByRole("checkbox", { name: "Select all filtered sheets", exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole("checkbox", {
+      name: "Select all filtered sheets",
+      exact: true,
+    }),
+  ).toBeEnabled();
   await page
     .getByRole("checkbox", { name: "Select all filtered sheets", exact: true })
     .check();
@@ -315,7 +320,9 @@ test("nested notebook collapse persists and Today reopens the same daily file", 
   ).toBeVisible();
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.press(`${modifier}+Shift+d`);
-  await expect(page).toHaveURL(/Daily%2F\d{4}-\d{2}-\d{2}\.md$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/Daily%2F\d{4}-\d{2}-\d{2}\.md$/, {
+    timeout: 15_000,
+  });
   const url = page.url();
   const editor = page.locator(".cm-content");
   await editor.focus();
@@ -539,9 +546,7 @@ test("summary refreshes stay bounded during typing and catch up to exact saved w
   expect(await readCurrentSheet(page)).toBe(`${prefix}${words}`);
 });
 
-test("bulk controls wait for the current file paths after a move", async ({
-  page,
-}) => {
+async function holdableSheetSummaries(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
     const diagnostic = window as Window & {
       holdSheetSummaries: boolean;
@@ -573,6 +578,12 @@ test("bulk controls wait for the current file paths after a move", async ({
       }
     };
   });
+}
+
+test("bulk controls wait for the current file paths after a move", async ({
+  page,
+}) => {
+  await holdableSheetSummaries(page);
   await openLibrary(page);
   await createSheet(page, "# Alpha\n\nFirst exact words.");
   await createSheet(page, "# Beta\n\nSecond exact words.");
@@ -627,4 +638,62 @@ test("bulk controls wait for the current file paths after a move", async ({
   await expect(
     page.locator('.browserSheetRow[data-path^="Archive/"]'),
   ).toHaveCount(2);
+});
+
+test("selection mode survives a summary refresh during a pointer click", async ({
+  page,
+}) => {
+  await holdableSheetSummaries(page);
+  await openLibrary(page);
+  const original = "# Alpha\n\nKeep these exact words.";
+  await createSheet(page, original);
+  await showSheets(page);
+  const toggle = page
+    .locator(".sheetSelectionControls")
+    .getByRole("button")
+    .first();
+  await expect(toggle).toBeEnabled();
+  const box = (await toggle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.evaluate(async () => {
+    (window as Window & { holdSheetSummaries: boolean }).holdSheetSummaries =
+      true;
+    const id = decodeURIComponent(location.hash.split("/")[2]!);
+    const root = await navigator.storage.getDirectory();
+    const directory = await (
+      await root.getDirectoryHandle("spaces")
+    ).getDirectoryHandle(id);
+    const writer = await (
+      await directory.getFileHandle("External.md", { create: true })
+    ).createWritable();
+    await writer.write("External exact words.");
+    await writer.close();
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(page.locator(".browserSheetRows")).toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  await page.mouse.up();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  const alpha = page.getByRole("checkbox", {
+    name: "Select Alpha",
+    exact: true,
+  });
+  await expect(alpha).toBeDisabled();
+  const move = page
+    .locator(".sheetSelectionControls")
+    .getByRole("button", { name: "Move", exact: true });
+  await expect(move).toBeDisabled();
+  await page.evaluate(() =>
+    (
+      window as Window & { releaseSheetSummaries(): void }
+    ).releaseSheetSummaries(),
+  );
+  await expect(alpha).toBeEnabled();
+  await expect(page.locator(".browserSheetRow")).toHaveCount(2);
+  await alpha.check();
+  await expect(move).toBeEnabled();
+  expect(await readCurrentSheet(page)).toBe(original);
 });
