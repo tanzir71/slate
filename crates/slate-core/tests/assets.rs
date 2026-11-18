@@ -1,18 +1,24 @@
 use slate_core::write_numbered_asset_to_space;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Barrier};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 struct Space(PathBuf);
+static NEXT_SPACE: AtomicU64 = AtomicU64::new(0);
 impl Space {
     fn new() -> Self {
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let root =
-            std::env::temp_dir().join(format!("slate-asset-test-{}-{stamp}", std::process::id()));
+        // Wall clocks can return the same timestamp to parallel tests (notably on macOS).
+        let serial = NEXT_SPACE.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "slate-asset-test-{}-{stamp}-{serial}",
+            std::process::id()
+        ));
         fs::create_dir(&root).unwrap();
         Self(root)
     }
