@@ -3,6 +3,34 @@ import { createRoot } from "react-dom/client";
 import { EditorView, runScopeHandlers } from "@codemirror/view";
 import { expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../src/MarkdownEditor";
+import type { MarkdownEditorHandle } from "../src/commands";
+
+it("opens a newly created CRLF note at its source marker and exposes exact selected text", async () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const value = "First\r\nবাংলা 🌿 words";
+  const cursor = value.indexOf("words");
+  localStorage.setItem("slate.editor.template-test", JSON.stringify({ anchor: 1, scroll: 500 }));
+  let handle: MarkdownEditorHandle | undefined;
+  try {
+    await act(async () => root.render(createElement(MarkdownEditor, {
+      value, documentKey: "template-test", initialCursor: cursor, onChange: vi.fn(),
+      onHandle: (next) => { handle = next; },
+    })));
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)!;
+    const normalized = value.replace(/\r\n/g, "\n");
+    expect(view.state.selection.main.head).toBe(normalized.indexOf("words"));
+    await act(async () => view.dispatch({ selection: { anchor: normalized.indexOf("বাংলা"), head: normalized.indexOf("words") } }));
+    expect(handle?.selectedText()).toBe("বাংলা 🌿 ");
+    await act(async () => root.render(createElement(MarkdownEditor, { value, documentKey: "template-test", initialCursor: 0, onChange: vi.fn() })));
+    expect(view.state.selection.main.from).toBe(normalized.indexOf("বাংলা"));
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    localStorage.removeItem("slate.editor.template-test");
+  }
+});
 
 it("refreshes file identities in place without saving source or discarding undo", async () => {
   const rangeRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");

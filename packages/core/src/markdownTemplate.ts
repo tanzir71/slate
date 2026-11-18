@@ -210,6 +210,31 @@ function contentSources(template: MarkdownTemplate) {
     values.push({ scope: "destination", source: template.destination });
   return { parsed, values };
 }
+
+/** Preview exactly the sheet source, retaining variable expressions and cursor markers. */
+export function previewMarkdownTemplate(template: MarkdownTemplate): string {
+  const parsed = header(template.source);
+  if (!parsed) return template.source;
+  stripConfiguration(parsed.document);
+  const contents = parsed.document.contents;
+  if (
+    isMap(contents) &&
+    !contents.items.length &&
+    ![parsed.document, contents].some(
+      (node) => node.comment || node.commentBefore,
+    )
+  ) {
+    return parsed.bom + parsed.body;
+  }
+  return (
+    parsed.opening +
+    parsed.document
+      .toString({ lineWidth: 0, directives: false })
+      .replace(/\n/g, parsed.eol) +
+    parsed.closing +
+    parsed.body
+  );
+}
 export function analyzeMarkdownTemplate(template: MarkdownTemplate): {
   prompts: TemplatePrompt[];
   variables: string[];

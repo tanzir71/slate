@@ -1,6 +1,6 @@
 # Templates (unreleased v0.5 work)
 
-The F-40 core format and renderer are implemented. The gallery, file-creation UI, notebook defaults, daily-note carry-over and starter kits are still being connected.
+The core format, browser gallery, safe file creation and 12 built-ins are implemented on the unreleased development branch. Native gallery integration, notebook defaults, daily-note carry-over and starter kits are still being connected.
 
 Templates are Markdown files in a Space's `.slate/templates/` directory or the app's global library. Optional top-level `template:` properties describe the template:
 
@@ -58,3 +58,14 @@ Dates and times use one supplied wall-clock date, time and UTC offset. The pure 
 Bracketed text is literal: `{{date:GGGG-[W]WW}}` produces an ISO week filename component; `{{time:HHmm}}` produces a time component without a colon.
 
 Destinations are relative to the current Space. Filename patterns produce one filename, with `.md` added when needed. Unicode names retain their spelling. Routing rejects traversal, absolute paths, `.slate` configuration directories, reserved device names, invalid characters and components that exceed portable filename limits. Names follow the relevant [Windows naming rules](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file). The plan proposes a path; the storage adapter must choose a free name and preserve existing files.
+
+
+## Browser gallery
+
+Choose **New from template** in the sheet actions menu or command palette, or press **Alt Shift N** in the web profile. Search the bundled library and your Space templates, choose a starting point, fill in its title, date and named prompts, and choose a notebook path relative to the Space. The preview shows the sheet Markdown with variable expressions; creation resolves them and opens the saved note at its first cursor marker. Clipboard content is supplied manually or read only after clicking **Read clipboard**. If access is unavailable, the manual field remains available. Unknown body variables remain literal and are reported.
+
+The bundled v0.5 library contains Meeting notes, 1:1, Status update, PRD, Decision record, Blog post, Newsletter issue, README, Bug report, Daily note, Weekly review and Reading notes. Category counts reflect the available files. Recent choices are optional local view preferences; templates remain ordinary Markdown.
+
+**Edit template** saves a Space copy of a built-in. The plus beside **My templates** creates a new template. Existing Space templates are edited against their original source: if another application changes that file, Slate keeps it and saves your edit as a conflict copy. Malformed YAML stays visible for repair; unsupported encodings are reported without changing their bytes. Templates are read from `.slate/templates/`, including nested `.md` files, and stay out of the normal note list.
+
+Creation saves the current draft first. Existing destination files, including empty files, are preserved using numbered names. A failed write keeps the form available. Once the new file is committed, a later refresh or notification failure keeps its actual path and saved content available instead of inviting another creation. The gallery works with both browser libraries and selected Folder Spaces; it does not require a server.

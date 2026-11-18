@@ -65,6 +65,7 @@ export interface MarkdownEditorHandle {
   focus(): void;
   hasFocus(): boolean;
   hasSelection(): boolean;
+  selectedText(): string;
   goToLine(line: number): void;
 }
 

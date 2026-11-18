@@ -9,6 +9,9 @@ export function WorkspaceDialog({
   busy = false,
   className = "",
   returnFocus,
+  headerActions,
+  initialFocus,
+  closeIcon,
 }: {
   title: string;
   onClose(): void;
@@ -16,15 +19,16 @@ export function WorkspaceDialog({
   busy?: boolean;
   className?: string;
   returnFocus?: HTMLElement | undefined;
+  headerActions?: ReactNode;
+  initialFocus?: { readonly current: HTMLElement | null };
+  closeIcon?: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const invoker = useRef(document.activeElement);
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
-    element
-      ?.querySelector<HTMLElement>("[autofocus], input, select, textarea")
-      ?.focus();
+    (initialFocus?.current ?? element?.querySelector<HTMLElement>("[autofocus], input, select, textarea"))?.focus();
     return () => {
       element?.close();
       const focus = returnFocus ?? invoker.current;
@@ -43,8 +47,9 @@ export function WorkspaceDialog({
     >
       <header>
         <h2>{title}</h2>
+        {headerActions}
         <button aria-label={`Close ${title}`} disabled={busy} onClick={onClose}>
-          <X size={17} />
+          {closeIcon ?? <X size={17} />}
         </button>
       </header>
       {children}

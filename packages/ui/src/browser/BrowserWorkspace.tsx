@@ -26,6 +26,7 @@ import { EditorSettingsDialog } from "../EditorSettingsDialog";
 import { useEditorPreferences } from "../editorPreferences";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
+const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
 interface FolderObserver {
   observe(handle: BrowserDirectoryHandle, options: { recursive: boolean }): Promise<void>;
   disconnect(): void;
@@ -55,6 +56,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [palette, setPalette] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const [editorSettings, setEditorSettings] = useState(false);
+  const [templateRequest, setTemplateRequest] = useState<{ notebook: string; selection: string; returnFocus: HTMLElement | undefined }>();
   const editorPreferences = useEditorPreferences();
   const [pane, setPane] = useState<"navigation" | "sheets" | "editor">(() => state.selectedPath ? "editor" : "sheets");
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -111,7 +113,21 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     void work().catch((error: unknown) => store.api.setState({ error: error instanceof Error ? error.message : "The operation failed. Your files were kept." }));
   }, [store]);
   const receiveEditor = useCallback((handle: MarkdownEditorHandle | undefined) => { editorHandle.current = handle; }, []);
-  const editorBecameReady = useCallback(() => setEditorReady(true), []);
+  const focusCreatedSheet = useCallback(() => {
+    const pending = store.api.getState().initialCursor;
+    if (!templateRequest && pending?.path === store.api.getState().selectedPath && editorHandle.current) {
+      editorHandle.current.focus();
+      store.clearInitialCursor();
+    }
+  }, [store, templateRequest]);
+  const editorBecameReady = useCallback(() => { setEditorReady(true); focusCreatedSheet(); }, [focusCreatedSheet]);
+  useEffect(() => {
+    if (!templateRequest && state.initialCursor) {
+      // Native dialog cleanup restores its invoker; focus the new editor after it closes.
+      const frame = requestAnimationFrame(focusCreatedSheet);
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [templateRequest, state.initialCursor, focusCreatedSheet]);
   const navigateWiki = useCallback((link: Parameters<WorkspaceStore["followWikiLink"]>[0]) => run(() => store.followWikiLink(link)), [store, run]);
 
   function shortcut(id: string) { return commandShortcut(id, keymap, os); }
@@ -122,6 +138,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const actions: Record<string, () => void> = {
       "app.palette": () => setPalette((open) => !open),
       "sheet.new": () => { if (state.owned) run(() => store.create(filter && !/^[#@]/.test(filter) ? filter : "Inbox")); },
+      "sheet.fromTemplate": () => {
+        if (!state.owned) return;
+        const active = window.document.activeElement;
+        setTemplateRequest({ notebook: filter && !/^[#@]/.test(filter) ? filter : notebookFor(state.selectedPath) || "Inbox", selection: editorHandle.current?.selectedText() ?? "", returnFocus: active instanceof HTMLElement ? active : undefined });
+      },
       "sheet.search": focusSearch,
       "sheet.today": () => run(async () => { await store.openToday(); setFilter("Daily"); setPane("editor"); }),
       "sheet.pin": () => { if (state.selectedPath && state.owned) run(() => store.togglePinned(state.selectedPath)); },
@@ -255,7 +276,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") { setPalette(false); setShortcuts(false); if (!actionBusy) setAction(undefined); return; }
-      if (palette || shortcuts || action || editorSettings) return;
+      if (palette || shortcuts || action || editorSettings || templateRequest) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { event.preventDefault(); dispatchCommand(id); }
@@ -331,6 +352,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); setEditorSettings(true); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
       actions={[
+        { label: "New from template", disabled: !state.owned, run: () => dispatchCommand("sheet.fromTemplate") },
         { label: pinned ? "Unpin sheet" : "Pin sheet", disabled: !selected || !state.owned, run: () => dispatchCommand("sheet.pin") },
         { label: "Rename sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setAction("rename"); setActionValue(selected?.path.split("/").pop()?.replace(/\.md$/i, "") ?? ""); } },
         { label: "Move sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setActionPaths([state.selectedPath]); setAction("move"); setActionValue(notebookFor(state.selectedPath)); } },
@@ -373,7 +395,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <section className="browserEditor" aria-label="Editor">
         <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} completionTags={tags} wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onImportClipboardImage={copyClipboardImage} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks} pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} initialCursor={state.initialCursor?.path === selected.path ? state.initialCursor.position : undefined} value={selected.content} smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} completionTags={tags} wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onImportClipboardImage={copyClipboardImage} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks} pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
       </section>
       {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>
@@ -383,6 +405,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     <LaunchActions key={state.record.id} store={store} />
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} />}
     {(palette || shortcuts) && <CommandDialog kind={shortcuts ? "shortcuts" : "palette"} keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => { setPalette(false); setShortcuts(false); }} onCommand={(id) => { setPalette(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
+    {templateRequest && <Suspense fallback={<WorkspaceDialog title="New from template" returnFocus={templateRequest.returnFocus} onClose={() => setTemplateRequest(undefined)}><p role="status">Opening templates…</p></WorkspaceDialog>}><TemplateGallery store={store} notebook={templateRequest.notebook} selection={templateRequest.selection} returnFocus={templateRequest.returnFocus} onClose={() => setTemplateRequest(undefined)} /></Suspense>}
     {action && <WorkspaceDialog title={action === "trash" ? "Move this sheet to trash?" : action === "notebook" ? "New notebook" : action === "rename" ? "Rename sheet" : "Move sheet"} busy={actionBusy} onClose={() => setAction(undefined)}><form onSubmit={(event) => { event.preventDefault(); store.api.setState({ error: "" }); setActionBusy(true); run(async () => { try { await performAction(); } finally { setActionBusy(false); } }); }}>
       {actionPaths.length > 1 && (action === "move" || action === "trash") && <p>{actionPaths.length} selected sheets</p>}
       {state.error && <p role="alert">{state.error}</p>}

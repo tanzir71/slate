@@ -48,6 +48,14 @@ export const slateCommands: readonly CommandDefinition[] = [
     webShortcut: "Alt+n",
   },
   {
+    id: "sheet.fromTemplate",
+    label: "New from template",
+    group: "Workspace",
+    shortcut: "Mod+Shift+n",
+    webShortcut: "Alt+Shift+n",
+    surfaces: ["web"],
+  },
+  {
     id: "sheet.search",
     label: "Search sheets",
     group: "Workspace",

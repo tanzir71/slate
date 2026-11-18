@@ -1,0 +1,2 @@
+# Bundle identical Markdown assets on every release platform.
+packages/ui/src/templates/builtins/*.md text eol=lf

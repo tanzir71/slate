@@ -4,6 +4,7 @@ import {
   analyzeMarkdownTemplate,
   readMarkdownTemplate,
   renderMarkdownTemplate,
+  previewMarkdownTemplate,
 } from "../src/markdownTemplate";
 
 const source = [
@@ -35,6 +36,38 @@ function properties(content: string) {
     { logLevel: "silent" },
   ) as Record<string, unknown>;
 }
+it("previews sheet Markdown with original variables and no template configuration", () => {
+  const template = readMarkdownTemplate(source, "Meeting");
+  const preview = previewMarkdownTemplate(template);
+  expect(preview).not.toContain("template:");
+  expect(properties(preview)).toEqual({
+    title: "{{title}}",
+    date: "{{date}}",
+    tags: ["meeting"],
+  });
+  expect(preview).toContain("- {{cursor}}");
+  expect(template.source).toBe(source);
+  expect(
+    previewMarkdownTemplate(readMarkdownTemplate("{{cursor}}Plain", "Plain")),
+  ).toBe("{{cursor}}Plain");
+});
+it("keeps preview comments, CRLF and aliases while removing empty configuration headers", () => {
+  expect(
+    previewMarkdownTemplate(
+      readMarkdownTemplate(
+        "---\r\ntemplate: {name: Only}\r\n---\r\n{{cursor}}Body",
+        "Only",
+      ),
+    ),
+  ).toBe("{{cursor}}Body");
+  const raw =
+    '\uFEFF---\r\ntemplate: {name: Only, shared: &value "{{title}}"}\r\n# Keep\r\ntitle: *value\r\n---\r\n{{cursor}}Body';
+  const preview = previewMarkdownTemplate(readMarkdownTemplate(raw, "Only"));
+  expect(preview).toContain("# Keep\r\n");
+  expect(preview).toContain("\r\n{{cursor}}Body");
+  expect(preview.startsWith("\uFEFF---\r\n")).toBe(true);
+  expect(properties(preview)).toEqual({ title: "{{title}}" });
+});
 it("reads the handover format, strips only template configuration and renders a safe sheet", () => {
   const template = readMarkdownTemplate(source, "Fallback");
   expect(template).toEqual({

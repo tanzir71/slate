@@ -2,7 +2,7 @@ import { createStore } from "zustand/vanilla";
 import { createBrowserSpace, type BrowserSheet } from "@slate/storage/browser-space";
 import { decodeText, type BrowserFiles } from "@slate/storage/browser-files";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
-import type { WikiLink, TextChange } from "@slate/core";
+import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
 import { readWorkspacePreferences, type WorkspacePreferences } from "@slate/core";
 import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 
@@ -16,6 +16,7 @@ export interface WorkspaceState {
   error: string;
   notice: string;
   preferences: WorkspacePreferences;
+  initialCursor?: { path: string; position: number } | undefined;
 }
 
 export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserFiles) {
@@ -156,7 +157,23 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
       clearTimeout(timer);
       timer = setTimeout(() => { void flush().catch(() => undefined); }, 250);
     },
-    async select(path: string) { await flush(); api.setState({ selectedPath: path }); },
+    async select(path: string) { await flush(); api.setState({ selectedPath: path, initialCursor: undefined }); },
+    clearInitialCursor() { api.setState({ initialCursor: undefined }); },
+    async createFromTemplate(plan: ReturnType<typeof planTemplateFile>) {
+      await flush();
+      const sheet = await space.create(plan.path, plan.content);
+      // Once written, select the actual collision-resolved path before fallible refresh work.
+      bases.set(sheet.path, sheet.content);
+      api.setState((state) => ({
+        sheets: overlayDrafts([...state.sheets.filter((row) => row.path !== sheet.path), sheet]),
+        selectedPath: sheet.path,
+        initialCursor: { path: sheet.path, position: plan.cursor ?? 0 },
+        saveState: "Saved", error: "",
+      }));
+      try { onSaved(); await refresh(); }
+      catch { api.setState({ notice: "Your new sheet is saved. Refresh the workspace when available to update its lists." }); }
+      return sheet;
+    },
     async create(notebook = "Inbox") {
       await flush();
       const sheet = await space.create(`${notebook}/Untitled.md`, "");

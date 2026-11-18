@@ -20,13 +20,14 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.8",
     "@slate/core": "workspace:*",
-    "@slate/storage": "workspace:*",
     "@slate/editor": "workspace:*",
+    "@slate/storage": "workspace:*",
     "@slate/tokens": "workspace:*",
     "@tauri-apps/api": "^2.10.2",
     "lucide-react": "^0.555.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "ulid": "^3.0.2",
     "zustand": "^5.1.0"
   },
   "devDependencies": {

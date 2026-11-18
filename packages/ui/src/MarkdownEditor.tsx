@@ -54,6 +54,7 @@ interface MarkdownEditorProps {
   readOnly?: boolean;
   documentKey?: string;
   onReady?: () => void;
+  initialCursor?: number | undefined;
   keymap?: ResolvedKeymap;
   onHandle?: (handle: MarkdownEditorHandle | undefined) => void;
   knownWikiTargets?: ReadonlySet<string>;
@@ -76,7 +77,7 @@ interface MarkdownEditorProps {
   frontmatter?: boolean;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const gutter = useBlockGutter(({ view, target, rect }) => blocks.openAt(view, target, rect));
   const dates = useDatePicker(dateCompletion);
@@ -131,6 +132,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
         position = { anchor: Math.min(Math.max(0, Math.trunc(stored.anchor)), initialValue.length), scroll: Math.max(0, stored.scroll) };
       }
     } catch { /* Invalid view preferences never prevent opening a file. */ }
+    if (initialCursor !== undefined && Number.isFinite(initialCursor)) {
+      const before = value.slice(0, Math.max(0, Math.min(value.length, Math.trunc(initialCursor))));
+      position = { anchor: before.replace(/\r\n?/g, "\n").length, scroll: 0 };
+    }
     // Reading scrollTop after a text update can force layout; scroll/pagehide refresh this cache.
     let observedScroll = position.scroll;
     const view = new EditorView({
@@ -217,11 +222,15 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       focus() { view.focus(); },
       hasFocus() { return view.hasFocus; },
       hasSelection() { return !view.state.selection.main.empty; },
+      selectedText() { const { from, to } = view.state.selection.main; return view.state.sliceDoc(from, to); },
       goToLine(number) { const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Math.trunc(number)))); view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true }); view.focus(); }
     });
     const initialLine = view.state.doc.lineAt(view.state.selection.main.head);
     onCursorRef.current?.({ line: initialLine.number, column: view.state.selection.main.head - initialLine.from + 1, lines: view.state.doc.lines });
-    const readyFrame = requestAnimationFrame(() => onReadyRef.current?.());
+    const readyFrame = requestAnimationFrame(() => {
+      if (initialCursor !== undefined) { view.dispatch({ scrollIntoView: true }); view.focus(); }
+      onReadyRef.current?.();
+    });
     const scroll = () => {
       if (preferenceKey) {
         observedScroll = view.scrollDOM.scrollTop;

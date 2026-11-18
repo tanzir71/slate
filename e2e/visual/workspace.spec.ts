@@ -1,31 +1,52 @@
 import { expect, test, type Page } from "@playwright/test";
 import { workspaceAction } from "../helpers";
 
-test.skip(process.platform !== "linux", "Pixel baselines require the pinned Linux Chromium reference image.");
+test.skip(
+  process.platform !== "linux",
+  "Pixel baselines require the pinned Linux Chromium reference image.",
+);
 
 async function stableFrame(page: Page) {
-  await page.evaluate(async () => { await document.fonts.ready; });
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
   await expect(page.getByRole("alert")).toHaveCount(0);
 }
 
 async function writingFixture(page: Page) {
   await page.goto("./?sample=1");
   await expect(page.locator(".browserSheetRow")).toHaveCount(7);
-  await page.getByRole("button", { name: "Keep these sheets", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Keep these sheets", exact: true })).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Keep these sheets", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Keep these sheets", exact: true }),
+  ).toHaveCount(0);
   await expect(page.locator(".browserSheetRow")).toHaveCount(7);
-  await page.locator('.browserSheetRow[data-path="product/strategy/Launch Plan.md"]').click();
-  await expect(page.locator(".cm-content")).toContainText("A focused plan to launch Slate");
+  await page
+    .locator('.browserSheetRow[data-path="product/strategy/Launch Plan.md"]')
+    .click();
+  await expect(page.locator(".cm-content")).toContainText(
+    "A focused plan to launch Slate",
+  );
   await workspaceAction(page, "Pin sheet");
-  await expect(page.locator('.browserSheetRow[aria-current="true"] [aria-label="Pinned"]')).toBeVisible();
-  await page.getByRole("button", { name: "Notebook product/strategy", exact: true }).click();
+  await expect(
+    page.locator('.browserSheetRow[aria-current="true"] [aria-label="Pinned"]'),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Notebook product/strategy", exact: true })
+    .click();
   await expect(page.locator(".browserSheetRow")).toHaveCount(2);
-  await page.evaluate(async () => { await document.fonts.ready; });
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
   const editor = page.locator(".cm-content");
   await editor.focus();
   await page.keyboard.press("Control+Home");
   for (let line = 0; line < 4; line++) await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("button", { name: "Writing statistics", exact: true })).toContainText("words");
+  await expect(
+    page.getByRole("button", { name: "Writing statistics", exact: true }),
+  ).toContainText("words");
   await stableFrame(page);
 }
 
@@ -36,8 +57,14 @@ for (const theme of ["light", "dark"] as const) {
       await page.addInitScript((theme) => {
         localStorage.setItem("slate.appearance", theme);
         localStorage.setItem("slate.shortcuts.v2", "seen");
-        Object.defineProperty(navigator, "platform", { configurable: true, value: "Win32" });
-        Object.defineProperty(navigator.storage, "estimate", { configurable: true, value: async () => ({ usage: 1_572_864, quota: 1_073_741_824 }) });
+        Object.defineProperty(navigator, "platform", {
+          configurable: true,
+          value: "Win32",
+        });
+        Object.defineProperty(navigator.storage, "estimate", {
+          configurable: true,
+          value: async () => ({ usage: 1_572_864, quota: 1_073_741_824 }),
+        });
       }, theme);
     });
 
@@ -51,8 +78,14 @@ for (const theme of ["light", "dark"] as const) {
       await page.keyboard.press("Control+Home");
       await page.keyboard.press("ArrowDown");
       await page.keyboard.press("ArrowDown");
-      for (let word = 0; word < 3; word++) await page.keyboard.press("Control+Shift+ArrowRight");
-      await expect(page.getByRole("toolbar", { name: "Selection formatting", exact: true })).toBeVisible();
+      for (let word = 0; word < 3; word++)
+        await page.keyboard.press("Control+Shift+ArrowRight");
+      await expect(
+        page.getByRole("toolbar", {
+          name: "Selection formatting",
+          exact: true,
+        }),
+      ).toBeVisible();
       await expect(page).toHaveScreenshot(`a1-selection-${theme}.png`);
     });
 
@@ -75,19 +108,55 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page).toHaveScreenshot(`a2-blocks-${theme}.png`);
     });
 
+    test("A3 template gallery and real Markdown preview", async ({ page }) => {
+      await writingFixture(page);
+      await workspaceAction(page, "New from template");
+      const dialog = page.getByRole("dialog", {
+        name: "New from template",
+        exact: true,
+      });
+      const title = dialog.getByRole("textbox", { name: "Title", exact: true });
+      await expect(title).toBeFocused();
+      await title.fill("Design review — editor v2");
+      await expect(dialog.getByText("Reading Space templates…")).toHaveCount(0);
+      await expect(dialog.locator(".templateCard")).toHaveCount(5);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot("a3-templates-" + theme + ".png");
+    });
+
     test("A5 read-only shortcut sheet", async ({ page }) => {
       await writingFixture(page);
-      await page.getByRole("button", { name: "Keyboard shortcuts", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
-      await expect(page.locator(".shortcutDialog > header").getByRole("textbox", { name: "Search shortcuts", exact: true })).toBeVisible();
+      await page
+        .getByRole("button", { name: "Keyboard shortcuts", exact: true })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page
+          .getByRole("dialog", { name: "Keyboard shortcuts", exact: true })
+          .getByText("New from template", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page
+          .locator(".shortcutDialog > header")
+          .getByRole("textbox", { name: "Search shortcuts", exact: true }),
+      ).toBeVisible();
       await stableFrame(page);
       await expect(page).toHaveScreenshot(`a5-shortcuts-${theme}.png`);
     });
 
     test("A11 browser first run", async ({ page }) => {
       await page.goto("./");
-      await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
-      await expect(page.getByRole("heading", { name: "Where should your writing live?", exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Continue", exact: true }),
+      ).toBeEnabled();
+      await expect(
+        page.getByRole("heading", {
+          name: "Where should your writing live?",
+          exact: true,
+        }),
+      ).toBeVisible();
       await stableFrame(page);
       await expect(page).toHaveScreenshot(`a11-first-run-${theme}.png`);
     });

@@ -1,4 +1,5 @@
 import { decodeText, encodeText, safeBrowserPath, type BrowserFiles } from "./browserFiles";
+export * from "./browserTemplates";
 
 export interface BrowserSheet { path: string; content: string; unsupportedEncoding?: boolean }
 export interface BrowserWriteResult extends BrowserSheet { conflict: boolean }
