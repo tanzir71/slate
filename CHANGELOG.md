@@ -17,6 +17,8 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 - Reviewed Light/Dark visual regression baselines and a release typing benchmark using real saved 50k-word files.
 - Unsigned three-platform desktop preview packaging, startup smokes, checksums and source-commit manifests from v0.3.
 - Real Light/Dark landing captures with responsive mobile views and theme-aware image selection.
+- Built-in slash blocks and source-safe block controls, smart lists and tables, rich Markdown/image paste, and fence/frontmatter completion in the browser workspace.
+- Twelve Markdown templates, editable Space templates, per-notebook defaults, and daily-note creation with unfinished-task carry-over. Starter kits, snippets and custom blocks remain in development.
 
 ### Changed
 - Reuse commands, formatting and shortcut notices in the native preview.
