@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## 2026-11-19 - Inject assertion-read failures at the reader boundary
+
+The macOS WebKit paste-regression trace contains three saved-sheet evaluations: the injected NotFoundError, the previous bytes and then the exact pasted bytes. The browser StorageManager override nevertheless reports one read, so its count is not a reliable measure of assertion attempts. Give the test helper an optional reader, defaulting to the unchanged real-file reader. The regression injects one genuine browser DOMException through that boundary, counts attempts in the runner, and then reads real files. Keep the existing5-second deadline, exact content, Saved status, one-failure count and reload assertions. Production paste and storage code are unchanged.
+
 ## 2026-11-19 - Cache custom block search and revalidate the chosen preview
 
 Share the existing block ranking algorithm across built-in metadata and literal custom fragments. Refresh the Space directory on startup, focus, advisory Space-scoped broadcasts and the existing visible polling loop. No file reads happen while filtering or navigating menu results. A failed directory listing clears offered custom entries while reporting its error; individual unsupported files remain visible in management with original-byte downloads. Advisory messaging failures do not undo committed writes.
