@@ -4,6 +4,8 @@ type ContextFactory = (options?: BrowserContextOptions) => Promise<BrowserContex
 
 // WebKit disables OPFS in ephemeral contexts. An empty profile path asks Playwright
 // for a fresh temporary persistent profile, which it removes when the context closes.
+// Tests that change origin-global OPFS files must restore their original bytes;
+// macOS WebKit can retain that storage across these temporary profiles.
 export const test = base.extend<{ createContext: ContextFactory }>({
   createContext: async ({ browser, playwright, browserName, contextOptions, baseURL, viewport, userAgent, isMobile, hasTouch, deviceScaleFactor, locale, colorScheme, timezoneId }, use) => {
     const contexts: BrowserContext[] = [];

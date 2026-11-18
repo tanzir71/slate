@@ -81,6 +81,60 @@ async function globalSource(page: Page) {
   );
 }
 
+async function globalBytes(page: Page): Promise<number[] | undefined> {
+  return page.evaluate(async () => {
+    try {
+      const root = await navigator.storage.getDirectory();
+      const directory = await root.getDirectoryHandle("global");
+      const file = await directory.getFileHandle("snippets.json");
+      return Array.from(
+        new Uint8Array(await (await file.getFile()).arrayBuffer()),
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError")
+        return;
+      throw error;
+    }
+  });
+}
+
+/** WebKit on macOS can retain origin-global OPFS across temporary persistent profiles. */
+async function preserveGlobalFile(page: Page, action: () => Promise<void>) {
+  const original = await globalBytes(page);
+  try {
+    await action();
+  } finally {
+    await page.evaluate(async (bytes) => {
+      const root = await navigator.storage.getDirectory();
+      if (bytes === undefined) {
+        try {
+          await (
+            await root.getDirectoryHandle("global")
+          ).removeEntry("snippets.json");
+        } catch (error) {
+          if (
+            !(error instanceof DOMException) ||
+            error.name !== "NotFoundError"
+          )
+            throw error;
+        }
+      } else {
+        const directory = await root.getDirectoryHandle("global", {
+          create: true,
+        });
+        const stream = await (
+          await directory.getFileHandle("snippets.json", { create: true })
+        ).createWritable();
+        await stream.write(new Uint8Array(bytes));
+        await stream.close();
+      }
+    }, original);
+  }
+  await expect(async () => {
+    expect(await globalBytes(page)).toEqual(original);
+  }).toPass({ timeout: 5000 });
+}
+
 test("normal forms save real definitions; nested Tab/Space expansion, one undo and offline reopen keep exact Markdown", async ({
   page,
   context,
@@ -277,65 +331,70 @@ test("global files work in another Space while local overrides and disabled entr
   page,
 }) => {
   await openLibrary(page);
-  const editor = await createSheet(page, ";scope");
-  const firstSpace = new URL(page.url()).hash.split("/")[2];
-  const dialog = await manage(page);
-  await dialog
-    .getByRole("button", { name: "Edit global JSON", exact: true })
-    .click();
-  const global = JSON.stringify({
-    version: 1,
-    extra: "keep global",
-    snippets: [{ trigger: ";scope", body: "Global" }],
+  await preserveGlobalFile(page, async () => {
+    const editor = await createSheet(page, ";scope");
+    const firstSpace = new URL(page.url()).hash.split("/")[2];
+    const dialog = await manage(page);
+    await dialog
+      .getByRole("button", { name: "Edit global JSON", exact: true })
+      .click();
+    const global = JSON.stringify({
+      version: 1,
+      extra: "keep global",
+      snippets: [{ trigger: ";scope", body: "Global" }],
+    });
+    await dialog
+      .getByRole("textbox", { name: "Snippet configuration", exact: true })
+      .fill(global);
+    await dialog
+      .getByRole("button", { name: "Save snippets", exact: true })
+      .click();
+    await expect(
+      dialog.getByRole("button", {
+        name: "Edit ;scope in All Spaces",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await closeSettings(page);
+    expect(await globalSource(page)).toBe(global);
+    await writeSpace(page, [{ trigger: ";scope", body: "Local" }]);
+    await editor.press("ControlOrMeta+End");
+    await editor.press("Tab");
+    await expectSavedSheet(page, "Local");
+    const headerSwitch = page
+      .getByRole("navigation", { name: "Sheet location", exact: true })
+      .getByTitle("Switch Space", { exact: true });
+    if (await headerSwitch.isVisible()) await headerSwitch.click();
+    else {
+      await page
+        .getByRole("button", { name: "Show navigation", exact: true })
+        .click();
+      await page
+        .getByRole("complementary", {
+          name: "Workspace navigation",
+          exact: true,
+        })
+        .getByTitle("Switch Space", { exact: true })
+        .click();
+    }
+    await page.getByText("Keep notes in this browser", { exact: true }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(
+      page.getByRole("complementary", { name: "Sheets", exact: true }),
+    ).toBeVisible();
+    await createSheet(page, ";scope");
+    expect(new URL(page.url()).hash.split("/")[2]).not.toBe(firstSpace);
+    await manage(page);
+    await closeSettings(page);
+    await editor.press("ControlOrMeta+End");
+    await editor.press("Tab");
+    await expectSavedSheet(page, "Global");
+    await writeSpace(page, [{ trigger: ";scope", body: "", enabled: false }]);
+    await replace(page, ";scope");
+    await editor.press("Tab");
+    await expectSavedSheet(page, ";scope");
+    expect(await globalSource(page)).toBe(global);
   });
-  await dialog
-    .getByRole("textbox", { name: "Snippet configuration", exact: true })
-    .fill(global);
-  await dialog
-    .getByRole("button", { name: "Save snippets", exact: true })
-    .click();
-  await expect(
-    dialog.getByRole("button", {
-      name: "Edit ;scope in All Spaces",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await closeSettings(page);
-  expect(await globalSource(page)).toBe(global);
-  await writeSpace(page, [{ trigger: ";scope", body: "Local" }]);
-  await editor.press("ControlOrMeta+End");
-  await editor.press("Tab");
-  await expectSavedSheet(page, "Local");
-  const headerSwitch = page
-    .getByRole("navigation", { name: "Sheet location", exact: true })
-    .getByTitle("Switch Space", { exact: true });
-  if (await headerSwitch.isVisible()) await headerSwitch.click();
-  else {
-    await page
-      .getByRole("button", { name: "Show navigation", exact: true })
-      .click();
-    await page
-      .getByRole("complementary", { name: "Workspace navigation", exact: true })
-      .getByTitle("Switch Space", { exact: true })
-      .click();
-  }
-  await page.getByText("Keep notes in this browser", { exact: true }).click();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(
-    page.getByRole("complementary", { name: "Sheets", exact: true }),
-  ).toBeVisible();
-  await createSheet(page, ";scope");
-  expect(new URL(page.url()).hash.split("/")[2]).not.toBe(firstSpace);
-  await manage(page);
-  await closeSettings(page);
-  await editor.press("ControlOrMeta+End");
-  await editor.press("Tab");
-  await expectSavedSheet(page, "Global");
-  await writeSpace(page, [{ trigger: ";scope", body: "", enabled: false }]);
-  await replace(page, ";scope");
-  await editor.press("Tab");
-  await expectSavedSheet(page, ";scope");
-  expect(await globalSource(page)).toBe(global);
 });
 
 test("JSON conflicts keep external metadata and the proposal; invalid bytes remain protected", async ({

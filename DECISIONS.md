@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## 2026-11-19 - Restore origin-global files after browser scope stories
+
+F-50 macOS CI showed the global writer's ;scope configuration in a later temporary WebKit profile, where the table trigger was consequently absent. Treat temporary profile teardown as insufficient isolation for origin-global OPFS files. A story that changes global/snippets.json captures its exact original bytes, restores those bytes or the original absence in finally, and verifies the restored file within the existing 5-second assertion deadline. Keep Space files and sibling data intact. The production behavior for an explicitly configured global file remains valid; the regression belongs to test fixture cleanup. Preserve the original keyboard operations and all data/field assertions.
+
 ## 2026-11-19 - Capture custom-block editor requests before reading files
 
 Custom fragments are loaded on explicit selection. Capture the immutable editor Text and EditorSelection with the eligible slash range or parsed gutter endpoint first. After the read, require the same document and selection, a connected editable view, current write access and no active composition. A stale request produces no edit. Apply the pure plan through one history-isolated transaction and return focus to the editor. Subsequent IME updates keep their own undo group.
