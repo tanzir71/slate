@@ -2,6 +2,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import type { TextChange } from "./textChanges.js";
+import { markdownBoundary as boundary } from "./markdownBoundary.js";
 
 interface BlockDefinition {
   id: string;
@@ -244,6 +245,8 @@ export interface BlockContext {
   source: string;
   from: number;
   to: number;
+  /** Gutter insertion creates its own block, including inline catalog entries. */
+  separateBlock?: boolean;
   language?: string;
   image?: { path: string; alt?: string };
   date?: string;
@@ -296,9 +299,11 @@ export function planBuiltinBlock(id: string, context: BlockContext): BlockPlan {
   const text = recipe.text.replace(/\n/g, eol);
   const prefix = context.source.slice(0, context.from);
   const suffix = context.source.slice(context.to);
-  const before = block.placement === "block" ? boundary(prefix, text, eol) : "";
+  const separate = context.separateBlock && block.placement !== "start";
+  const before =
+    block.placement === "block" || separate ? boundary(prefix, text, eol) : "";
   const after =
-    block.placement !== "inline" && !recipe.joinsSuffix
+    (block.placement !== "inline" && !recipe.joinsSuffix) || separate
       ? boundary(text, suffix, eol)
       : "";
   const insert = `${before}${text}${after}`;
@@ -469,15 +474,6 @@ function imageRecipe(
   return { text: `![${label}](${uri})`, anchor: 2, head: 2 + label.length };
 }
 
-function boundary(left: string, right: string, eol: string) {
-  if (!left || !right) return "";
-  let existing = 0;
-  while (existing < 2 && left.endsWith(eol.repeat(existing + 1))) existing++;
-  let leading = 0;
-  while (existing + leading < 2 && right.startsWith(eol.repeat(leading + 1)))
-    leading++;
-  return eol.repeat(Math.max(0, 2 - existing - leading));
-}
 function validateRange({ source, from, to }: BlockContext) {
   if (
     !Number.isSafeInteger(from) ||
@@ -505,6 +501,7 @@ function validDate(value: string) {
 }
 
 export interface MarkdownPreviewNode {
+  position?: { start: { offset?: number }; end: { offset?: number } };
   type: string;
   depth?: number;
   value?: string;

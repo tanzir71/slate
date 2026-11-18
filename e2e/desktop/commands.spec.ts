@@ -245,3 +245,32 @@ test("desktop table keys and palette columns save through IPC with atomic undo",
   await editor.press("ControlOrMeta+z");
   await expect.poll(saved).toContain(source);
 });
+
+test("desktop block controls move whole Markdown and insert through the shared picker with IPC undo", async ({ page }) => {
+  const editor = page.locator(".cm-content");
+  const source = "# First\n\n- Keep\n  - child\n\nLast";
+  const saved = () => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("native-test:")).map((key) => localStorage.getItem(key)));
+  await editor.click();
+  await editor.press("ControlOrMeta+a");
+  await page.keyboard.insertText(source);
+  await expect.poll(saved).toContain(source);
+  await editor.press("ControlOrMeta+Home");
+  const access = page.getByRole("button", { name: "Block actions", exact: true });
+  await access.focus();
+  await page.keyboard.press("Enter");
+  const actions = page.getByRole("dialog", { name: "Block actions", exact: true });
+  await actions.getByRole("button", { name: "Move block down", exact: true }).click();
+  await expect.poll(saved).toContain("- Keep\n  - child\n\n# First\n\nLast");
+  await editor.press("ControlOrMeta+z");
+  await expect.poll(saved).toContain(source);
+  await editor.press("ControlOrMeta+Home");
+  await access.focus();
+  await page.keyboard.press("Enter");
+  await actions.getByRole("button", { name: "Insert block after", exact: true }).click();
+  const search = page.getByRole("combobox", { name: "Find a block", exact: true });
+  await search.fill("quote");
+  await search.press("Enter");
+  await expect.poll(saved).toContain("# First\n\n> \n\n- Keep\n  - child\n\nLast");
+  await editor.press("ControlOrMeta+z");
+  await expect.poll(saved).toContain(source);
+});

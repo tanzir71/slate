@@ -1,4 +1,10 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   Table2,
@@ -52,6 +58,7 @@ export function BlockMenu({
   onKey,
   previewRef,
   previewing,
+  search,
 }: {
   anchor: BlockMenuAnchor;
   results: readonly BlockDefinition[];
@@ -63,8 +70,14 @@ export function BlockMenu({
   onKey(event: KeyboardEvent): void;
   previewRef: React.RefObject<HTMLElement | null>;
   previewing: boolean;
+  search?: { value: string; onChange(value: string): void } | undefined;
 }) {
   const menu = useRef<HTMLDivElement>(null);
+  const searching = Boolean(search);
+  useEffect(() => {
+    if (searching)
+      menu.current?.querySelector<HTMLInputElement>("input")?.focus();
+  }, [searching]);
   const [position, setPosition] = useState({
     left: anchor.rect.left,
     top: anchor.rect.bottom + 8,
@@ -121,6 +134,23 @@ export function BlockMenu({
       style={position}
       onKeyDown={onKey}
     >
+      {search && (
+        <label className="blockMenuSearch">
+          <span>Find a block</span>
+          <input
+            role="combobox"
+            aria-label="Find a block"
+            aria-expanded="true"
+            aria-autocomplete="list"
+            aria-controls={listId}
+            aria-activedescendant={
+              active ? `${listId}-${active.id}` : undefined
+            }
+            value={search.value}
+            onChange={(event) => search.onChange(event.target.value)}
+          />
+        </label>
+      )}
       <div className="blockMenuBody">
         <div
           className="blockMenuResults"

@@ -1,7 +1,12 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { flushSync } from "react-dom";
-import { insertEditorBlock, type BlockQuery } from "@slate/editor";
+import {
+  insertEditorBlock,
+  insertEditorBlockAt,
+  type EditorBlockTarget,
+  type BlockQuery,
+} from "@slate/editor";
 import {
   planBuiltinBlock,
   searchBuiltinBlocks,
@@ -28,17 +33,20 @@ function clockContext() {
     time: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
   };
 }
+interface InsertQuery extends BlockQuery {
+  target?: EditorBlockTarget;
+}
 interface ResourceRequest {
   id: string;
   input: "language" | "image";
   view: EditorView;
-  query: BlockQuery;
+  query: InsertQuery;
   source: string;
 }
 const keyOf = (query: BlockQuery) => `${query.from}:${query.to}:${query.query}`;
 
 export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
-  const [anchor, setAnchor] = useState<BlockMenuAnchor>();
+  const [anchor, setAnchor] = useState<BlockMenuAnchor & InsertQuery>();
   const [choice, setChoice] = useState<{ key: string; id: string }>();
   const choiceRef = useRef(choice);
   const [resource, setResource] = useState<ResourceRequest>();
@@ -105,18 +113,24 @@ export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
   function insert(
     id: string,
     view: EditorView,
-    query: BlockQuery,
+    query: InsertQuery,
     extra: Pick<BlockContext, "language" | "image"> = {},
     source = view.state.doc.toString(),
   ) {
     controller.close(view);
+    setAnchor(undefined);
     if (!view.dom.isConnected) return;
-    const plan = insertEditorBlock(
-      view,
-      id,
-      { from: query.from, to: query.to, ...clockContext(), ...extra },
-      source,
-    );
+    const plan = query.target
+      ? insertEditorBlockAt(view, query.target, id, {
+          ...clockContext(),
+          ...extra,
+        })
+      : insertEditorBlock(
+          view,
+          id,
+          { from: query.from, to: query.to, ...clockContext(), ...extra },
+          source,
+        );
     if (plan.kind === "insert") {
       setError("");
       used(id);
@@ -124,7 +138,11 @@ export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
     else if (plan.input === "language" || plan.input === "image")
       setResource({ id, input: plan.input, view, query, source });
   }
-  function keyboard(event: KeyboardEvent, view: EditorView, query: BlockQuery) {
+  function keyboard(
+    event: KeyboardEvent,
+    view: EditorView,
+    query: InsertQuery,
+  ) {
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing)
       return false;
     const matches = results(query, view);
@@ -134,6 +152,7 @@ export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
         : 0;
     if (event.key === "Escape") {
       controller.close(view);
+      setAnchor(undefined);
       view.focus();
       return true;
     }
@@ -162,9 +181,14 @@ export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
   const previewView = anchor?.view;
   useLayoutEffect(() => {
     if (previewing) preview.current?.focus();
-    else if (preview.current?.contains(document.activeElement))
-      previewView?.focus();
-  }, [previewing, previewView]);
+    else if (preview.current?.contains(document.activeElement)) {
+      if (anchor?.target)
+        document
+          .querySelector<HTMLInputElement>(".blockMenuSearch input")
+          ?.focus();
+      else previewView?.focus();
+    }
+  }, [previewing, previewView, anchor?.target]);
   const matches: BlockDefinition[] = anchor ? results(anchor, anchor.view) : [];
   const active =
     matches.find(
@@ -177,6 +201,7 @@ export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
           source,
           from: anchor.from,
           to: anchor.to,
+          separateBlock: Boolean(anchor.target),
           language: "javascript",
           image: { path: "assets/image.png" },
           ...clockContext(),
@@ -209,6 +234,24 @@ export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
   }, [anchor, active, listId]);
   return {
     extension: controller.extension,
+    openAt(
+      view: EditorView,
+      target: EditorBlockTarget,
+      rect: BlockMenuAnchor["rect"],
+    ) {
+      controller.close(view);
+      setChoice(undefined);
+      choiceRef.current = undefined;
+      setPreviewing(false);
+      setAnchor({
+        view,
+        target,
+        from: target.position,
+        to: target.position,
+        query: "",
+        rect,
+      });
+    },
     menu: (
       <>
         {anchor && (
@@ -220,6 +263,14 @@ export function useBlockMenu(onImportImage: ImportBlockImage | undefined) {
             listId={listId}
             previewRef={preview}
             previewing={previewing}
+            search={
+              anchor.target
+                ? {
+                    value: anchor.query,
+                    onChange: (query) => setAnchor({ ...anchor, query }),
+                  }
+                : undefined
+            }
             onSelect={(id) => choose(id, anchor)}
             onInsert={(id) => insert(id, anchor.view, anchor)}
             onKey={(event) => {

@@ -1,5 +1,15 @@
 # Slate Decisions
 
+## 2026-11-18 - Keep Gutter Controls Outside Markdown and Reuse the Catalog
+
+Resolve top-level Markdown ranges only on explicit pointer/menu actions, cached by CodeMirror Text identity. Protect BOM and complete/unfinished YAML metadata. Move entire source payloads, including nested lists, fences and tables; adjust only joining whitespace and keep the change as one undo transaction. Refuse a bare divider move that would reinterpret the first line as unfinished YAML. The parser and move planner remain pure TypeScript in core.
+
+CodeMirror owns the small plus/grip DOM outside contentDOM. Hover measures the visible row in requestMeasure; typing, scrolling and nonempty text selections hide stale controls without parsing or React updates. An empty-caret move retains the hover target so native pointer-down can start a drag. A same-view drag carries a random token and immutable source snapshot, with a guarded deferred drop. Blank-line drops use their actual document slot. A 44 px Block actions button offers touch and keyboard move/insert/select actions. While words are selected it leaves the Tab sequence to the existing selection toolbar.
+
+Reuse the slash picker, preview, frecency and resource dialogs for a virtual zero-width insertion target. No slash is added to the file. Gutter insertions request separate-block boundaries even for inline entries, so a date cannot attach to a closing fence and headings cannot absorb adjacent paragraphs. Ordinary slash behavior and all Appendix B goldens retain their existing placement. Resource cancellation leaves original source untouched; stale source/ownership checks reject an edit and preserve any saved asset.
+
+F-33 uses the existing tested selection formatter: paragraph, headings1–6, bullet/ordered/task lists, quote and code block. The grip selects the complete source block and exposes that same Turn selection into toolbar. Do not add a second conversion engine or promise semantic conversion between every Markdown AST node type. Block actions return focus to the editor after modal cleanup so the formatter remains reachable.
+
 ## 2026-11-18 - Guard Rapid Android Fence Completion Before Platform Deferral
 
 CodeMirror defers Chrome/Android Enter before extension keymaps and can suppress its replay immediately after input. The macOS mobile CI trace leaves the typed opening fence with no picker. A capture-phase regression reproduces a platform listener consuming the key before the fence keymap. On Chrome/Android only, complete an eligible short fence/front-matter line before that deferral when the collapsed DOM selection, complete rendered line and source range agree. Pending DOM input, composition, modifiers, protected source and disabled preferences remain with the platform handler. Other platforms retain the normal keymap. Do not access private observer state or flush an IME session.

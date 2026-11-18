@@ -13,6 +13,7 @@ export * from "./wikiCompletion.js";
 export * from "./calendarDate.js";
 export * from "./markdownTable.js";
 export * from "./clipboardText.js";
+export * from "./blockMovement.js";
 
 export type SheetId = string;
 

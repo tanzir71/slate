@@ -45,6 +45,7 @@ export {
 } from "./livePreview.js";
 export { findWikiLinkAtPosition, type WikiLinkHit } from "./wikiLinks.js";
 export { editorBlockQuery, insertEditorBlock, type BlockQuery } from "./blockInsertion.js";
+export { editorBlockTarget, currentEditorBlock, moveEditorBlock, insertEditorBlockAt, type EditorBlockTarget } from "./editorBlocks.js";
 
 export { convertClipboardHtml } from "./clipboardHtml.js";
 

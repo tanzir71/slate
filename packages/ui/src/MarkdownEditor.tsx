@@ -23,6 +23,7 @@ import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { useBlockMenu } from "./useBlockMenu";
+import { useBlockGutter } from "./useBlockGutter";
 import { useDatePicker } from "./useDatePicker";
 import { useSmartPaste } from "./useSmartPaste";
 import { useFenceInput } from "./useFenceInput";
@@ -77,6 +78,7 @@ interface MarkdownEditorProps {
 
 export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
+  const gutter = useBlockGutter(({ view, target, rect }) => blocks.openAt(view, target, rect));
   const dates = useDatePicker(dateCompletion);
   const fenceInput = useFenceInput(fences, frontmatter);
   const paste = useSmartPaste({ richText: pasteRichText, links: pasteLinks, images: pasteImages, tables: pasteTables, importImage: onImportClipboardImage });
@@ -147,6 +149,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
           pairs.current.of(createSelectionPairs(selectionPairs)),
           completions.current.of(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })),
           blocks.extension,
+          gutter.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
           wikiLinks.current.of(wikiExtensions(knownWikiTargets, completionSheets)),
           observeEditorSelection((rect) => { selectionGeometry.current = rect; setSelectionRect(rect); }, () => toolbarRef.current),
@@ -294,5 +297,5 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     });
   }, [value]);
 
-  return <>{blocks.menu}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
+  return <>{blocks.menu}{gutter.dialog}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 });

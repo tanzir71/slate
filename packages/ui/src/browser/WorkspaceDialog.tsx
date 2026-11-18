@@ -8,12 +8,14 @@ export function WorkspaceDialog({
   children,
   busy = false,
   className = "",
+  returnFocus,
 }: {
   title: string;
   onClose(): void;
   children: ReactNode;
   busy?: boolean;
   className?: string;
+  returnFocus?: HTMLElement | undefined;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const invoker = useRef(document.activeElement);
@@ -25,8 +27,8 @@ export function WorkspaceDialog({
       ?.focus();
     return () => {
       element?.close();
-      if (invoker.current instanceof HTMLElement && invoker.current.isConnected)
-        invoker.current.focus();
+      const focus = returnFocus ?? invoker.current;
+      if (focus instanceof HTMLElement && focus.isConnected) focus.focus();
     };
   }, []);
   return (

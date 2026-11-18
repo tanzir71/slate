@@ -245,3 +245,23 @@ it("creates a three-row, three-column GFM table including its header", () => {
   expect(rowCells).toHaveLength(3);
   expect(rowCells.every((cells) => cells.length === 3)).toBe(true);
 });
+
+it("separates gutter headings from both neighbors while retaining start-only placement", () => {
+  const source = "A\n\nB";
+  const plan = inserted("heading2", {
+    source,
+    from: 2,
+    to: 2,
+    separateBlock: true,
+  });
+  expect(applyTextChanges(source, plan.changes)).toBe("A\n\n## \n\nB");
+  const metadata = inserted("frontmatter", {
+    source: "\uFEFF",
+    from: 1,
+    to: 1,
+    separateBlock: true,
+  });
+  expect(applyTextChanges("\uFEFF", metadata.changes)).toBe(
+    "\uFEFF---\ntitle: \n---\n",
+  );
+});
