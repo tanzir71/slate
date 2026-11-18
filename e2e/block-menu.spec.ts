@@ -169,6 +169,8 @@ test("literal slash contexts and front-matter boundaries preserve source", async
     "https://example.com/table",
     "` /table`",
     "```md\n/table",
+    "<!-- /table",
+    "<!--\n/table",
     "---\ntitle: /table",
   ]) {
     await replaceEditorText(page, source);

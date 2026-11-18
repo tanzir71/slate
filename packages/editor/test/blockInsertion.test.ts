@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { redo, undo } from "@codemirror/commands";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { builtinBlocks } from "@slate/core";
 import {
   createSlateMarkdownExtensions,
@@ -52,6 +52,8 @@ it.each([
   "\t/table",
   "[label]( /table)",
   "<div>\n/table\n</div>",
+  "<!-- /table -->",
+  "<!--\n/table\n-->",
   "---\ntitle: /table\n---",
 ])("keeps literal slashes in %s", (source) => {
   const head = source.indexOf("/table") + "/table".length;
@@ -63,6 +65,30 @@ it("does not treat a later horizontal rule as front-matter", () => {
   expect(editorBlockQuery(view.state)?.query).toBe("table");
   const yaml = editor("---\ntitle: My sheet\n---\n\n/table");
   expect(editorBlockQuery(yaml.state)?.query).toBe("table");
+});
+
+it("checks ordinary typing in a long paragraph without materializing the full line", () => {
+  const state = EditorState.create({
+    doc: "words ".repeat(50_000) + "ordinary",
+    selection: { anchor: 300_008 },
+    extensions: createSlateMarkdownExtensions(),
+  });
+  const line = vi.spyOn(state.doc, "lineAt").mockImplementation(() => {
+    throw new Error("Full line access on ordinary input");
+  });
+  try {
+    expect(editorBlockQuery(state)).toBeUndefined();
+  } finally {
+    line.mockRestore();
+  }
+});
+
+it("preserves the real slash boundary when a query fills the lookback window", () => {
+  const query = "t".repeat(64);
+  const valid = "long ".repeat(30) + "/" + query;
+  expect(editorBlockQuery(editor(valid).state)?.query).toBe(query);
+  const invalid = "a".repeat(100) + "/" + query;
+  expect(editorBlockQuery(editor(invalid).state)).toBeUndefined();
 });
 
 it.each(builtinBlocks.map(({ id }) => id))(

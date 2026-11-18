@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-18 - Bound Input Queries and Resolve Wiki Paths Explicitly
+
+Inspect only a bounded suffix before invoking the Markdown syntax tree: 67 UTF-16 units for the existing 64-character slash query and 131 for wiki/tag queries. Verify the actual preceding character when a suffix begins midway through a line. Ordinary typing does not materialize the entire caret line. The shared syntax guard excludes code, links, URLs, HTML comments and front matter; wiki completion may inspect its own existing wiki token without treating nested links as eligible.
+
+The pure wiki completion planner writes canonical paths with a readable alias so equal titles remain distinct. Use a stable ULID when a filename cannot be represented by the current wiki grammar. A reusable path index gives exact full filenames priority, including files differing only by extension case, and resolves shortened/case-insensitive aliases only when unique. These are provider/navigation foundations; the autocomplete UI and date picker are separate work and are not exposed yet.
+
 ## 2026-11-18 - Pair Selected Text at the Editor Input Boundary
 
 Plan selection wrappers from immutable editor state, inserting delimiters around the original ranges rather than replacing selected words. Preserve reversed and multiple selections; choose longer backtick fences when content already contains code delimiters. Only typed delimiters with a nonempty selection enter this rule. Paste, composition, readonly states and an empty caret retain normal handling. A tilde or equals inserts its complete double marker; consume its second physical character before the browser changes the DOM, preserving a single undo step. Keep that pending character through unrelated configuration updates and clear it when the document or selection changes.

@@ -9,6 +9,7 @@ export * from "./textChanges.js";
 export * from "./blocks.js";
 export * from "./blockSearch.js";
 export * from "./editorPreferences.js";
+export * from "./wikiCompletion.js";
 
 export type SheetId = string;
 

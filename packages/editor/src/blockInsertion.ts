@@ -1,5 +1,5 @@
 import { isolateHistory } from "@codemirror/commands";
-import { ensureSyntaxTree } from "@codemirror/language";
+import { markdownInputAllowed } from "./markdownInputContext.js";
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import {
@@ -14,35 +14,20 @@ export interface BlockQuery {
   query: string;
 }
 
-/** Read only the caret's line unless it contains an eligible slash query. */
+/** Bound lookback before inspecting syntax, including on a 50k-word paragraph. */
 export function editorBlockQuery(state: EditorState): BlockQuery | undefined {
   const selection = state.selection.main;
   if (state.readOnly || !selection.empty) return;
-  const line = state.doc.lineAt(selection.head);
+  const start = Math.max(0, selection.head - 67);
   const match = /(?:^|\s)\/([^\n/]{0,64})$/.exec(
-    line.text.slice(0, selection.head - line.from),
+    state.sliceDoc(start, selection.head),
   );
   if (!match) return;
   const from = selection.head - match[1]!.length - 1;
-  if (insideFrontmatter(state, from)) return;
-  const tree = ensureSyntaxTree(state, selection.head, 20);
-  if (!tree) return;
-  for (let node = tree.resolveInner(from, 1); node;) {
-    if (/Code|Link|URL|Autolink|HTML/.test(node.name)) return;
-    if (!node.parent) break;
-    node = node.parent;
-  }
+  // The lookback's start is not necessarily the start of a Markdown line.
+  if (from > 0 && !/\s/.test(state.sliceDoc(from - 1, from))) return;
+  if (!markdownInputAllowed(state, from)) return;
   return { from, to: selection.head, query: match[1]! };
-}
-
-function insideFrontmatter(state: EditorState, position: number) {
-  if (!/^\uFEFF?---\s*$/.test(state.doc.line(1).text)) return false;
-  const target = state.doc.lineAt(position).number;
-  for (let number = 2; number <= target; number++) {
-    if (/^(?:---|\.\.\.)\s*$/.test(state.doc.line(number).text))
-      return number === target;
-  }
-  return true;
 }
 
 /** Keep the resource picker outside the editor and reject stale async results. */

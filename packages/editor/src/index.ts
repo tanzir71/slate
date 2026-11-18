@@ -15,6 +15,7 @@ import { slateMarkdownSyntax } from "./markdownSyntax.js";
 import { createSmartListBindings, type SmartListOptions } from "./smartLists.js";
 import { createSelectionPairs } from "./selectionPairs.js";
 export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
+export { markdownCompletionQuery, type MarkdownCompletionQuery } from "./completionQuery.js";
 export { createSmartListBindings, indentEditorListItem, moveEditorListItem, type SmartListOptions } from "./smartLists.js";
 export {
   createFormattingBindings,
