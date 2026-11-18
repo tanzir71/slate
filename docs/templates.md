@@ -1,6 +1,6 @@
 # Templates (unreleased v0.5 work)
 
-The core format, browser gallery, safe file creation, notebook defaults and 12 built-ins are implemented on the unreleased development branch. Native gallery/default integration, daily-note carry-over and starter kits are still being connected.
+The core format, browser gallery, safe file creation, notebook defaults, daily carry-over and 12 built-ins are implemented on the unreleased development branch. Native template integration and starter kits are still being connected. Daily carry-over passes the four-profile functional checks; strict publication performance gates remain open.
 
 Templates are Markdown files in a Space's `.slate/templates/` directory or the app's global library. Optional top-level `template:` properties describe the template:
 
@@ -78,3 +78,9 @@ Select a notebook, then choose **Notebook default template** in the sheet action
 Defaults apply to the exact notebook path; child notebooks keep their own choices. **New Sheet** and its web shortcut **Alt N** open the configured template with that notebook as the initial destination, so you can fill in the title and prompts. You may change the destination before creation. The separate **New from template** action continues to browse the library and use the template's configured route. Notebooks without a default continue to create blank sheets.
 
 References live in the optional `notebookTemplates` map in `.slate/view.json`, alongside existing workspace preferences. Built-ins use IDs such as `builtin:meeting-notes`; Space templates use paths such as `.slate/templates/client.md`. Slate reads the latest preferences on each New Sheet action. Missing or malformed templates stay visible for correction, and Slate does not silently create a blank note instead. Invalid preference JSON is reported without replacing that file; the manual gallery remains available. Existing preference edits retain external changes as conflict copies.
+
+## Daily notes
+
+Choose Today or press `Mod+Shift+D` to open `Daily/YYYY-MM-DD.md` using your local calendar date. On first creation, Slate uses the built-in Daily note, places the caret in Focus and copies unfinished tasks from the latest earlier dated daily note. Missed days are allowed. Completed tasks are omitted; parent context and pending subtasks remain. Checkbox examples in metadata, code and HTML are excluded. The earlier file stays unchanged.
+
+Today always opens an existing daily file as it is, even when empty; it never appends carry-over twice. A previous file that cannot be read must be repaired or restored before creation can continue. New Sheet notebook defaults do not change the dedicated Today command. The confirmed Today app shortcut uses the same behavior.

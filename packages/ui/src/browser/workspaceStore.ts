@@ -3,7 +3,7 @@ import { createBrowserSpace, type BrowserSheet } from "@slate/storage/browser-sp
 import { decodeText, type BrowserFiles } from "@slate/storage/browser-files";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
 import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
-import { notebookTemplate, readWorkspacePreferences, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
+import { notebookTemplate, previousDailyNote, readWorkspacePreferences, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
 import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 
 interface Draft { content: string; baseContent: string | undefined }
@@ -191,14 +191,40 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
       onSaved();
     },
     openToday(date = new Date()): Promise<void> {
+      const captured = new Date(date.getTime());
       const next = linking.then(async () => {
         await flush();
-        const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        const day = `${captured.getFullYear()}-${String(captured.getMonth() + 1).padStart(2, "0")}-${String(captured.getDate()).padStart(2, "0")}`;
         const path = `Daily/${day}.md`;
-        if (await space.read(path) === undefined) await space.create(path, `# ${day}\n\n`);
-        await refresh();
-        api.setState({ selectedPath: path });
-        onSaved();
+        let created: BrowserSheet | undefined;
+        let cursor = 0;
+        if (await files.read(path) === undefined) {
+          const previous = previousDailyNote(await files.list(), day);
+          const [{ planDailyNote }, content] = await Promise.all([
+            import("../templates/dailyNote"),
+            previous ? space.read(previous).catch((cause: unknown) => {
+              throw new Error(`The previous daily note (${previous}) could not be read. Repair or restore it, then choose Today again.`, { cause });
+            }) : Promise.resolve(undefined),
+          ]);
+          if (previous && content === undefined) throw new Error("The previous daily note changed. Try Today again before carrying over its tasks.");
+          const plan = planDailyNote(record.name, captured, content ?? "");
+          created = await space.createIfMissing(path, plan.content);
+          cursor = plan.cursor ?? 0;
+        }
+        if (created) {
+          const sheet = created;
+          bases.set(path, sheet.content);
+          api.setState((state) => ({
+            sheets: overlayDrafts([...state.sheets.filter((row) => row.path !== path), sheet]),
+            selectedPath: path, initialCursor: { path, position: cursor }, saveState: "Saved", error: "",
+          }));
+          try { onSaved(); await refresh(); }
+          catch { api.setState({ notice: "Your daily note is saved. Refresh the workspace when available to update its lists." }); }
+        } else {
+          await refresh();
+          const pending = api.getState().initialCursor;
+          api.setState({ selectedPath: path, initialCursor: pending?.path === path ? pending : undefined });
+        }
       });
       linking = next.catch(() => undefined);
       return next;

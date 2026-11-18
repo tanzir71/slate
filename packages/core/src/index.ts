@@ -17,6 +17,8 @@ export * from "./blockMovement.js";
 export * from "./templateVariables.js";
 export * from "./markdownTemplate.js";
 export * from "./templateFile.js";
+export * from "./dailyNote.js";
+export * from "./dailyNotePath.js";
 
 export type SheetId = string;
 

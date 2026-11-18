@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-18 - Carry Daily Tasks Once at Canonical Creation
+
+F-43 captures the local invoking date and opens Daily/YYYY-MM-DD.md. Only first creation uses the built-in Daily note Markdown and the same pure template renderer/caret mapping as the gallery. Today is a dedicated daily command; New Sheet notebook defaults continue to apply only to New Sheet. Select the latest earlier valid canonical daily filename, including across missed days; do not aggregate all historical notes or re-append tasks when today already exists. Read the prior file after flushing drafts. A missing/unreadable prior file stops creation with a repair message rather than silently skipping its work.
+
+Use the GFM AST to copy unfinished task lists, not checkbox-shaped text in code, HTML or protected complete/unfinished metadata. Keep rich task text, multiline context, nested pending tasks, quotes, link/image references and footnote definitions. Completed task siblings are omitted; a completed/non-task ancestor becomes plain list context when needed by unfinished descendants. Serialization may normalize the copied Markdown; the previous file stays byte-for-byte unchanged. Template-looking expressions in copied task values stay literal. Parsing/rendering loads only on first daily creation and does not run while typing.
+
+Check the canonical path inside the existing owned mutation queue before writing, including empty files and undecodable bytes. Reopen existing files without decoding them for the existence check. Preserve the new row/caret after committed bytes even if subsequent notification/refresh fails. This shares the adapter's existing external read/write race limits; it does not claim an exclusive filesystem primitive against external writers. Native workspace integration remains separate pending work.
+
 ## 2026-11-18 - Render File Templates from Explicit Values and a YAML AST
 
 F-40 uses pure core functions with caller-supplied clock/date/offset, title, IDs, selection, clipboard and prompt answers. Expand tokens once; never evaluate code or recursively expand user values. Keep unknown/malformed variables and filters verbatim with field/range diagnostics. Use Moment-style calendar/time tokens, bracketed literals, English names and ISO week-year boundaries. Retain non-Latin letters/marks in slugs while folding Latin accents. One prompt label shares its answer/default across content and routing fields.

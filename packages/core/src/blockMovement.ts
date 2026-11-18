@@ -1,5 +1,6 @@
 import { parseMarkdownPreview } from "./blocks.js";
 import { markdownBoundary } from "./markdownBoundary.js";
+import { markdownBodyFrom } from "./markdownBody.js";
 import type { TextChange } from "./textChanges.js";
 
 export interface MarkdownSourceBlock {
@@ -19,24 +20,6 @@ function lineEnd(source: string, from: number): number {
     end++;
   return end;
 }
-function afterLine(source: string, end: number): number {
-  return (
-    end + (source.startsWith("\r\n", end) ? 2 : end < source.length ? 1 : 0)
-  );
-}
-/** Metadata stays at the beginning, even when unfinished or not valid YAML. */
-function bodyFrom(source: string): number {
-  const opening = /^\uFEFF?---[ \t]*(?:\r\n|\n|\r|$)/.exec(source);
-  if (!opening) return source.startsWith("\uFEFF") ? 1 : 0;
-  let position = opening[0].length;
-  while (position < source.length) {
-    const end = lineEnd(source, position);
-    if (/^(?:---|\.\.\.)[ \t]*$/.test(source.slice(position, end)))
-      return afterLine(source, end);
-    position = afterLine(source, end);
-  }
-  return source.length;
-}
 const labels: Readonly<Record<string, string>> = {
   paragraph: "Paragraph",
   heading: "Heading",
@@ -51,7 +34,7 @@ const labels: Readonly<Record<string, string>> = {
 };
 /** Source ranges are resolved only for explicit block interactions, never typing. */
 export function scanMarkdownBlocks(source: string): MarkdownBlockDocument {
-  const start = bodyFrom(source);
+  const start = markdownBodyFrom(source);
   const blocks: MarkdownSourceBlock[] = [];
   for (const node of parseMarkdownPreview(source.slice(start)).children ?? []) {
     const begin = node.position?.start.offset,

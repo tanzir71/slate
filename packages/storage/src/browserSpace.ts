@@ -54,6 +54,15 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
     create(path: string, content: string): Promise<BrowserSheet> {
       return mutate(async () => ({ path: await writeNew(path, encodeText(content)), content }));
     },
+    /** A canonical daily path is checked inside the mutation queue, including empty/unknown encodings. */
+    createIfMissing(path: string, content: string): Promise<BrowserSheet | undefined> {
+      const target = safeBrowserPath(path);
+      return mutate(async () => {
+        if (await files.read(target) !== undefined) return;
+        await files.write(target, encodeText(content));
+        return { path: target, content };
+      });
+    },
     save(path: string, content: string, baseContent: string | undefined): Promise<BrowserWriteResult> {
       return mutate(async () => {
         const bytes = await files.read(safeBrowserPath(path));

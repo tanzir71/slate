@@ -47,23 +47,16 @@ export function LaunchActions({ store }: { store: WorkspaceStore }) {
         for (const file of files) addBrowserImportEntry(entries, file.name, new Uint8Array(await file.arrayBuffer()));
         await store.importFiles(entries);
       } else if (action === "new") await store.create();
+      else if (action === "today") await store.openToday();
       else {
         await store.flush();
-        const date = new Date();
-        const today = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-        const path = action === "today" ? `Daily/${today}.md` : "Inbox/Capture.md";
+        const path = "Inbox/Capture.md";
         const previous = await store.space.read(path);
-        if (action === "capture") {
-          const saved = await store.space.save(path, `${previous ?? ""}${previous ? "\n\n" : ""}${text}\n`, previous);
-          await store.refresh();
-          await store.select(saved.path);
-        } else {
-          if (previous === undefined) await store.space.create(path, `# ${today}\n\n`);
-          await store.refresh();
-          await store.select(path);
-        }
+        const saved = await store.space.save(path, `${previous ?? ""}${previous ? "\n\n" : ""}${text}\n`, previous);
+        await store.refresh();
+        await store.select(saved.path);
       }
-      store.notifySaved();
+      if (action !== "today") store.notifySaved();
       dismiss();
     } catch (failure) { setError(failure instanceof Error ? failure.message : "The action failed. Your files were kept."); }
     finally { setBusy(false); }
