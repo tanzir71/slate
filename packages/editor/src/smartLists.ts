@@ -1,4 +1,5 @@
 import { isolateHistory } from "@codemirror/commands";
+import { forceParsing } from "@codemirror/language";
 import {
   deleteMarkupBackward,
   insertNewlineContinueMarkup,
@@ -75,6 +76,22 @@ function dispatchList(view: EditorView, transaction: Transaction) {
 
 function isolatedMarkup(command: StateCommand, view: EditorView) {
   if (view.state.readOnly) return false;
+  if (view.state.selection.ranges.some((range) => !range.empty)) return false;
+  if (command === deleteMarkupBackward) {
+    // Ordinary deletion stays with the normal keymap. Only a possible markup
+    // prefix needs a complete tree before the structural Markdown command.
+    for (const range of view.state.selection.ranges) {
+      const line = view.state.doc.lineAt(range.head);
+      if (
+        !/^[ \t>\d.)+*[\]xX-]*$/.test(
+          line.text.slice(0, range.head - line.from),
+        )
+      )
+        return false;
+    }
+  }
+  if (!forceParsing(view, view.state.doc.length, Infinity))
+    return false;
   return command({
     state: view.state,
     dispatch: (transaction) => dispatchList(view, transaction),

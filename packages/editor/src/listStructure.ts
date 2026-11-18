@@ -23,7 +23,9 @@ export function listItemAt(
   state: EditorState,
   position: number,
 ): MarkdownNode | undefined {
-  const tree = ensureSyntaxTree(state, position, 20);
+  // Structural edits need complete sibling/descendant ranges. A background
+  // time slice may otherwise expose a truncated list and renumber only part.
+  const tree = ensureSyntaxTree(state, state.doc.length, Infinity);
   if (!tree) return;
   const direct = enclosingItem(tree.resolveInner(position, 1));
   if (direct) return direct;

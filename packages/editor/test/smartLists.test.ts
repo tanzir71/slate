@@ -5,7 +5,7 @@ import {
   type Extension,
 } from "@codemirror/state";
 import { EditorView, runScopeHandlers } from "@codemirror/view";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createSlateMarkdownExtensions,
   indentEditorListItem,
@@ -73,6 +73,39 @@ afterEach(() => {
 });
 
 describe("smart list keys", () => {
+  it("renumbers every sibling even when the background parser exhausts its time slice", () => {
+    let elapsed = 0;
+    const clock = vi
+      .spyOn(Date, "now")
+      .mockImplementation(() => (elapsed += 100));
+    try {
+      const view = editor("7. A\n8. ¦B\n9. C¦\n10. D");
+      const range = view.state.selection.main;
+      view.dispatch({ selection: { anchor: range.head, head: range.anchor } });
+      expect(moveEditorListItem(view, -1)).toBe(true);
+      expect(view.state.doc.toString()).toBe("7. B\n8. C\n9. A\n10. D");
+      expect(undo(view)).toBe(true);
+      expect(view.state.doc.toString()).toBe("7. A\n8. B\n9. C\n10. D");
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("continues and renumbers a list independently of parser scheduling", () => {
+    let elapsed = 0;
+    const clock = vi
+      .spyOn(Date, "now")
+      .mockImplementation(() => (elapsed += 100));
+    try {
+      const view = editor("9. Alpha¦\n10. Beta");
+      expect(key(view, "Enter")).toBe(true);
+      expectMarked(view, "9. Alpha\n10. ¦\n11. Beta");
+      expect(undo(view)).toBe(true);
+      expectMarked(view, "9. Alpha¦\n10. Beta");
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it.each([
     ["- Alpha¦", "Enter", "- Alpha\n- ¦"],
     ["- [x] Done¦", "Enter", "- [x] Done\n- [ ] ¦"],
