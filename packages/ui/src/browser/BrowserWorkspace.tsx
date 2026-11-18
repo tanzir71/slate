@@ -18,6 +18,7 @@ import { NotebookTree } from "./NotebookTree";
 import { SheetList } from "./SheetList";
 import { matchesWorkspaceFilter } from "./workspaceFilter";
 import { useSheetSummaries } from "./useSheetSummaries";
+import { inspectorContents } from "./inspectorContents";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 interface FolderObserver {
@@ -303,8 +304,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     setAction(undefined);
   }
 
-  const outline = (document?.body ?? "").split("\n").filter((line) => /^#{1,6} /.test(line));
-  const backlinks = documents.filter((sheet) => sheet.path !== selected?.path && sheet.links.some((link) => link.targetId === document?.id || link.target === document?.title));
+  const { outline, backlinks } = useMemo(() => inspectorContents(inspector, document, documents), [inspector, document, documents]);
   const pinned = state.preferences.pinned.includes(state.selectedPath);
 
   return <main className="browserWorkspace" onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}

@@ -4,6 +4,7 @@ import {
   chooseAppearance,
   createSheet,
   openLibrary,
+  readCurrentSheet,
   showSheets,
   workspaceAction,
 } from "./helpers";
@@ -401,4 +402,70 @@ test("a bulk move stops at a collision and retries only unfinished sheets", asyn
     "Archive/Untitled (1).md": "# Beta\n\nSecond exact words.",
     "Retry/Untitled.md": "# Alpha\n\nFirst exact words.",
   });
+});
+
+test("the closed inspector avoids full-body scans and shows current headings when opened", async ({
+  page,
+}) => {
+  const content =
+    "# Inspector scan fixture\n\n## First section\n\nQuiet words.";
+  await openLibrary(page);
+  const editor = await createSheet(page, content);
+  await expect(
+    page.getByRole("button", { name: "Writing statistics", exact: true }),
+  ).toContainText("2 words");
+  await expect(
+    page.getByRole("complementary", { name: "Inspector", exact: true }),
+  ).toHaveCount(0);
+  await page.evaluate((marker) => {
+    const diagnostic = window as Window & { inspectorBodyScans: number };
+    diagnostic.inspectorBodyScans = 0;
+    const original = String.prototype.split;
+    Object.defineProperty(String.prototype, "split", {
+      configurable: true,
+      writable: true,
+      value(this: string, separator: unknown, limit?: number) {
+        if (separator === "\n" && String(this).startsWith(marker))
+          diagnostic.inspectorBodyScans++;
+        return Reflect.apply(original, this, [separator, limit]) as string[];
+      },
+    });
+  }, "# Inspector scan fixture");
+  const scans = () =>
+    page.evaluate(
+      () =>
+        (window as Window & { inspectorBodyScans: number }).inspectorBodyScans,
+    );
+  await chooseAppearance(page, "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await scans()).toBe(0);
+  await workspaceAction(page, "Toggle inspector");
+  const inspector = page.getByRole("complementary", {
+    name: "Inspector",
+    exact: true,
+  });
+  await expect(
+    inspector.getByText("First section", { exact: true }),
+  ).toBeVisible();
+  expect(await scans()).toBeGreaterThan(0);
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.insertText("\n\n### New third section");
+  await expect(
+    inspector.getByText("New third section", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
+    "Saved",
+  );
+  expect(await readCurrentSheet(page)).toBe(
+    `${content}\n\n### New third section`,
+  );
+  await workspaceAction(page, "Toggle inspector");
+  await expect(inspector).toHaveCount(0);
+  await page.evaluate(() => {
+    (window as Window & { inspectorBodyScans: number }).inspectorBodyScans = 0;
+  });
+  await chooseAppearance(page, "light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(await scans()).toBe(0);
 });
