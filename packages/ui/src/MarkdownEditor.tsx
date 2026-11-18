@@ -9,6 +9,9 @@ import {
   knownWikiTargets as wikiTargets,
   knownWikiPaths,
   createSmartListBindings,
+  createSmartTableBindings,
+  editorTableColumns,
+  runTableCommand,
   createSelectionPairs,
   createMarkdownCompletions,
   type SmartListOptions,
@@ -59,9 +62,10 @@ interface MarkdownEditorProps {
   onImportImage?: ImportBlockImage;
   smartLists?: SmartListOptions;
   selectionPairs?: boolean;
+  smartTables?: boolean;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const dates = useDatePicker(dateCompletion);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -72,6 +76,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const editable = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
   const smartListKeys = useRef(new Compartment());
+  const tableKeys = useRef(new Compartment());
   const pairs = useRef(new Compartment());
   const completions = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
@@ -120,7 +125,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
         extensions: [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
-          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false }),
+          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false }),
+          tableKeys.current.of(createSmartTableBindings(smartTables)),
           smartListKeys.current.of(createSmartListBindings(smartLists)),
           pairs.current.of(createSelectionPairs(selectionPairs)),
           completions.current.of(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })),
@@ -186,6 +192,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
 
     viewRef.current = view;
     onHandleRef.current?.({
+      runTable(id) { const applied = runTableCommand(view, id); if (applied) view.focus(); return applied; },
+      tableColumns() { return editorTableColumns(view.state); },
       runFormat(id) { const applied = runFormattingCommand(view, id); if (applied) view.focus(); return applied; },
       focus() { view.focus(); },
       hasFocus() { return view.hasFocus; },
@@ -226,6 +234,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     viewRef.current?.dispatch({ effects: smartListKeys.current.reconfigure(createSmartListBindings(smartLists)) });
   }, [smartLists]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: tableKeys.current.reconfigure(createSmartTableBindings(smartTables)) });
+  }, [smartTables]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: pairs.current.reconfigure(createSelectionPairs(selectionPairs)) });

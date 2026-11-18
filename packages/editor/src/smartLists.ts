@@ -1,3 +1,4 @@
+import { editorTableAt } from "./tableStructure.js";
 import { isolateHistory } from "@codemirror/commands";
 import { forceParsing } from "@codemirror/language";
 import {
@@ -249,8 +250,10 @@ export function indentEditorListItem(
   direction: -1 | 1,
 ): boolean {
   if (view.state.readOnly) return false;
-  const state = view.state,
-    context = selectedList(state);
+  const state = view.state;
+  // Tables own cell navigation; the first Shift-Tab must reach browser focus.
+  if (editorTableAt(state, state.selection.main.head)) return false;
+  const context = selectedList(state);
   if (!context) return false;
   const first = context.siblings[context.first]!,
     last = context.siblings[context.last]!;

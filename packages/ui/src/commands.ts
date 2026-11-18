@@ -60,6 +60,8 @@ export function commandShortcut(
 /** No CodeMirror import: the workspace can stay lazy until a sheet is opened. */
 export interface MarkdownEditorHandle {
   runFormat(id: string): boolean;
+  runTable(id: string): boolean;
+  tableColumns(): number;
   focus(): void;
   hasFocus(): boolean;
   hasSelection(): boolean;

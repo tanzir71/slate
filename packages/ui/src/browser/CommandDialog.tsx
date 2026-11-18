@@ -18,6 +18,7 @@ interface CommandDialogProps {
   os: ShortcutOS;
   editor: boolean;
   selection: boolean;
+  tableColumns?: number;
   onClose: () => void;
   onCommand: (id: string) => void;
   surface?: ShortcutProfile["surface"];
@@ -30,6 +31,7 @@ export function CommandDialog({
   os,
   editor,
   selection,
+  tableColumns = 0,
   onClose,
   onCommand,
   surface = "web",
@@ -92,7 +94,7 @@ export function CommandDialog({
       title: "Blocks & view",
       entries: commands.filter(
         (command) =>
-          command.group === "View" ||
+          command.group === "View" || command.group === "Table" ||
           /^format\.(ordered|bullet|task|quote|codeblock|toggleTask)$/.test(
             command.id,
           ),
@@ -153,7 +155,7 @@ export function CommandDialog({
           {commands
             .filter(
               (command) =>
-                commandAvailable(command, { editor, selection }) &&
+                commandAvailable(command, { editor, selection, tableColumns }) &&
                 command.id !== "app.palette",
             )
             .map((command) => (

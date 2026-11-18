@@ -139,6 +139,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   }
 
   function dispatchCommand(id: string) {
+    if (id.startsWith("table.")) { editorHandle.current?.runTable(id); return; }
     if (id.startsWith("format.")) { editorHandle.current?.runFormat(id); return; }
     const spaceIndex = id.match(/^space\.activate([1-9])$/);
     if (spaceIndex) {
@@ -177,7 +178,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
       }
       if (commandOpen || shortcutsOpen || editorSettingsOpen) return;
       const editor = editorHandle.current;
-      const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false });
+      const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { event.preventDefault(); dispatchCommand(id); }
     };
     // Explicit workspace bindings take precedence over CodeMirror's fallback keymap.
@@ -500,6 +501,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
             completionTags={completionTags}
             wikiCompletion={editorPreferences.preferences.wikiCompletion}
             tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion}
+            smartTables={editorPreferences.preferences.smartTables}
             smartLists={editorPreferences.preferences.smartLists}
             selectionPairs={editorPreferences.preferences.selectionPairs}
             key={selected.id}
@@ -561,7 +563,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
           />
         </aside>
       </section>
-      {(commandOpen || shortcutsOpen) && <CommandDialog kind={shortcutsOpen ? "shortcuts" : "palette"} surface="desktop" registry={previewCommands} keymap={keymap} os={os} editor={!!selected} selection={editorHandle.current?.hasSelection() ?? false} onClose={() => { setCommandOpen(false); setShortcutsOpen(false); }} onCommand={(id) => { setCommandOpen(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
+      {(commandOpen || shortcutsOpen) && <CommandDialog kind={shortcutsOpen ? "shortcuts" : "palette"} surface="desktop" registry={previewCommands} keymap={keymap} os={os} editor={!!selected} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => { setCommandOpen(false); setShortcutsOpen(false); }} onCommand={(id) => { setCommandOpen(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
       {editorSettingsOpen && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettingsOpen(false)} />}
     </main>
   );

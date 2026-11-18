@@ -272,3 +272,12 @@ it("rejects stale selections, read-only or composing views and removed targets",
   apply();
   expect(view.state.doc.toString()).toBe("[[sha");
 });
+
+it("keeps wiki completion within a single table cell", () => {
+  const source = "| Name | Link |\n|---|---|\n| Work | [[Sh |";
+  const view = editor(source, { sheets }, source.indexOf("[[Sh") + 4);
+  pick(view);
+  expect(view.state.doc.toString()).toBe(source.replace("[[Sh", "[[Home/Alpha.md]]"));
+  expect(undo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe(source);
+});

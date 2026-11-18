@@ -3,7 +3,7 @@ export interface ShortcutProfile {
   os: ShortcutOS;
   surface: "web" | "desktop";
 }
-export type CommandContext = "always" | "editor" | "selection" | "no-selection";
+export type CommandContext = "always" | "editor" | "selection" | "no-selection" | "table" | "table-multiple-columns";
 export interface CommandDefinition {
   id: string;
   label: string;
@@ -73,6 +73,15 @@ export const slateCommands: readonly CommandDefinition[] = [
   { id: "appearance.light", label: "Use Light appearance", group: "View" },
   { id: "appearance.dark", label: "Use Dark appearance", group: "View" },
   { id: "appearance.system", label: "Follow system appearance", group: "View" },
+  { id: "table.format", label: "Align table padding", group: "Table", context: "table" },
+  { id: "table.insertBefore", label: "Insert table column before", group: "Table", context: "table" },
+  { id: "table.insertAfter", label: "Insert table column after", group: "Table", context: "table" },
+  { id: "table.deleteColumn", label: "Delete table column", group: "Table", context: "table-multiple-columns" },
+  ...(["left", "center", "right", "none"] as const).map((alignment): CommandDefinition => ({
+    id: `table.align.${alignment}`,
+    label: alignment === "none" ? "Remove table column alignment" : `Align table column ${alignment}`,
+    group: "Table", context: "table",
+  })),
   format("bold", "Bold", "Mod+b"),
   format("italic", "Italic", "Mod+i"),
   format("strike", "Strikethrough", "Mod+Shift+x"),
@@ -302,12 +311,15 @@ export interface ShortcutInput {
 export interface CommandAvailability {
   editor: boolean;
   selection: boolean;
+  readonly tableColumns?: number;
 }
 
 export function commandAvailable(
   command: CommandDefinition,
   state: CommandAvailability,
 ): boolean {
+  if (command.context === "table") return state.editor && (state.tableColumns ?? 0) > 0;
+  if (command.context === "table-multiple-columns") return state.editor && (state.tableColumns ?? 0) > 1;
   if (command.context === "editor") return state.editor;
   if (command.context === "selection") return state.editor && state.selection;
   if (command.context === "no-selection")

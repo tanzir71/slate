@@ -26,6 +26,11 @@ const rules: readonly {
       "Alt ↑ and Alt ↓ move whole items and keep numbered lists in order.",
   },
   {
+    id: "smartTables",
+    label: "Edit tables with the keyboard",
+    description: "Tab moves between cells; Enter adds rows. Align edited tables when leaving the editor.",
+  },
+  {
     id: "selectionPairs",
     label: "Wrap selected text",
     description:

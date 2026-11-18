@@ -11,6 +11,7 @@ import {
 import { isolateHistory } from "@codemirror/commands";
 import { Facet, Prec, Transaction, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
+import { editorTableAt } from "./tableStructure.js";
 import { wikiCompletionText, type WikiCompletionTarget } from "@slate/core";
 import {
   markdownCompletionQuery,
@@ -32,6 +33,7 @@ interface Entry {
   readonly label: string;
   readonly detail: string;
   readonly insert: string;
+  readonly tableInsert: string;
   readonly search: readonly string[];
 }
 
@@ -53,6 +55,7 @@ function entries(options: MarkdownCompletionOptions): readonly Entry[] {
                   label: sheet.title || sheet.path,
                   detail: sheet.path,
                   insert,
+                  tableInsert: wikiCompletionText({ ...sheet, title: "" })!,
                   search: [fold(sheet.title), fold(sheet.path)],
                 },
               ]
@@ -69,6 +72,7 @@ function entries(options: MarkdownCompletionOptions): readonly Entry[] {
             label: tag,
             detail: "Tag",
             insert: `#${tag}`,
+            tableInsert: `#${tag}`,
             search: [fold(tag)],
           }));
   return [...wiki, ...tags].sort(
@@ -118,9 +122,10 @@ function applyEntry(
     entry.kind === "wiki" && view.state.sliceDoc(to, to + 2) === "]]"
       ? to + 2
       : to;
+  const insert = entry.kind === "wiki" && editorTableAt(view.state, query.from) ? entry.tableInsert : entry.insert;
   view.dispatch({
-    changes: { from: query.from, to: end, insert: entry.insert },
-    selection: { anchor: query.from + entry.insert.length },
+    changes: { from: query.from, to: end, insert },
+    selection: { anchor: query.from + insert.length },
     annotations: [
       isolateHistory.of("full"),
       pickedCompletion.of(completion),

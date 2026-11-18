@@ -170,3 +170,21 @@ test("desktop block insertion uses the language picker, atomic undo and IPC save
   await editor.press("ControlOrMeta+z");
   await expect.poll(saved).toContain("/code");
 });
+
+test("desktop table keys and palette columns save through IPC with atomic undo", async ({ page }) => {
+  const editor = page.locator(".cm-content");
+  await editor.fill("| a | b |");
+  await editor.press("ControlOrMeta+End");
+  await editor.press("Enter");
+  const saved = () => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("native-test:")).map((key) => localStorage.getItem(key)));
+  const source = "| a   | b   |\n| --- | --- |\n|     |     |";
+  await expect.poll(saved).toContain(source);
+  await editor.press("Tab");
+  await editor.press("ControlOrMeta+k");
+  const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+  await palette.getByRole("textbox", { name: "Search commands" }).fill("table");
+  await palette.getByRole("button", { name: "Align table column right", exact: true }).click();
+  await expect.poll(saved).toContain("| a   | b    |\n| --- | ---: |\n|     |      |");
+  await editor.press("ControlOrMeta+z");
+  await expect.poll(saved).toContain(source);
+});

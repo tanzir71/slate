@@ -150,3 +150,8 @@ it("keeps read-only sheets and nonempty selections out of slash completion", () 
   selected.dispatch({ selection: { anchor: 0, head: 6 } });
   expect(editorBlockQuery(selected.state)).toBeUndefined();
 });
+
+it("keeps block-level slash insertion out of table cells", () => {
+  const source = "| Name | Content |\n|---|---|\n| A | /table |";
+  expect(editorBlockQuery(editor(source, source.indexOf("/table") + 6).state)).toBeUndefined();
+});

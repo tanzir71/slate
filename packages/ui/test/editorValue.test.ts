@@ -215,3 +215,42 @@ it("reports cursor movements and goes to a clamped line without changing writing
     host.remove();
   }
 });
+
+it("reconfigures tables in place and exposes guarded manual table commands", async () => {
+  const rangeRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");
+  const rangeBounds = Object.getOwnPropertyDescriptor(Range.prototype, "getBoundingClientRect");
+  Object.defineProperty(Range.prototype, "getClientRects", { configurable: true, value: () => [] });
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: () => new DOMRect() });
+  const host = document.body.appendChild(document.createElement("div")), root = createRoot(host);
+  const changed = vi.fn();
+  const value = "| A | B |\n|-|-|\n| x | y |";
+  let handle: import("../src/commands").MarkdownEditorHandle | undefined;
+  const onHandle = (next: typeof handle) => { handle = next; };
+  try {
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed, onHandle, smartTables: false })));
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)!;
+    view.dispatch({ selection: { anchor: value.indexOf("y") } });
+    expect(handle?.tableColumns()).toBe(2);
+    expect(runScopeHandlers(view, new KeyboardEvent("keydown", { key: "Tab" }), "editor")).toBe(false);
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed, onHandle, smartTables: true })));
+    expect(EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)).toBe(view);
+    expect(changed).not.toHaveBeenCalled();
+    await act(async () => { expect(runScopeHandlers(view, new KeyboardEvent("keydown", { key: "Tab" }), "editor")).toBe(true); });
+    expect(view.state.doc.lines).toBe(4);
+    const edited = view.state.doc.toString();
+    await act(async () => root.render(createElement(MarkdownEditor, { value: edited, onChange: changed, onHandle, smartTables: false })));
+    expect(changed).toHaveBeenCalledTimes(1);
+    await act(async () => { runScopeHandlers(view, new KeyboardEvent("keydown", { key: "z", ctrlKey: !/Mac/.test(navigator.platform), metaKey: /Mac/.test(navigator.platform) }), "editor"); });
+    expect(view.state.doc.toString()).toBe(value);
+    await act(async () => { expect(handle?.runTable("table.deleteColumn")).toBe(true); });
+    expect(handle?.tableColumns()).toBe(1);
+    expect(handle?.runTable("table.deleteColumn")).toBe(false);
+    expect(view.state.doc.toString()).toBe("| A   |\n| --- |\n| x   |");
+  } finally {
+    await act(async () => root.unmount()); host.remove();
+    if (rangeRects) Object.defineProperty(Range.prototype, "getClientRects", rangeRects);
+    else Reflect.deleteProperty(Range.prototype, "getClientRects");
+    if (rangeBounds) Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeBounds);
+    else Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+  }
+});

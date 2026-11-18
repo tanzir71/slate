@@ -239,3 +239,19 @@ describe("shared command registry", () => {
     ).toBe("Meta Enter");
   });
 });
+
+it.each([
+  ["table", 0, false], ["table", 1, true], ["table", 3, true],
+  ["table-multiple-columns", 1, false], ["table-multiple-columns", 2, true],
+] as const)("requires %s availability for %i columns", (context, tableColumns, expected) => {
+  const command = { id: "test.table", label: "Test", group: "Table", context };
+  expect(commandAvailable(command, { editor: true, selection: false, tableColumns })).toBe(expected);
+  expect(commandAvailable(command, { editor: false, selection: false, tableColumns })).toBe(false);
+});
+it("never reads table structure to resolve unrelated key chords", () => {
+  const keymap = resolveCommandKeymap({ os: "windows", surface: "web" });
+  expect(matchCommand(keymap.bindings, { key: "a", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false }, {
+    editor: true, selection: false,
+    get tableColumns(): number { throw new Error("Ordinary keys must not parse tables"); },
+  })).toBeUndefined();
+});

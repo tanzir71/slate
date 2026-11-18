@@ -1,3 +1,4 @@
+import { ensureSyntaxTree } from "@codemirror/language";
 import { isolateHistory } from "@codemirror/commands";
 import { markdownInputAllowed } from "./markdownInputContext.js";
 import type { EditorState } from "@codemirror/state";
@@ -27,6 +28,8 @@ export function editorBlockQuery(state: EditorState): BlockQuery | undefined {
   // The lookback's start is not necessarily the start of a Markdown line.
   if (from > 0 && !/\s/.test(state.sliceDoc(from - 1, from))) return;
   if (!markdownInputAllowed(state, from)) return;
+  for (let node = ensureSyntaxTree(state, from, 20)?.resolveInner(from, 1); node; node = node.parent ?? undefined)
+    if (node.name === "Table") return;
   return { from, to: selection.head, query: match[1]! };
 }
 

@@ -13,6 +13,8 @@ import {
 } from "./livePreview.js";
 import { slateMarkdownSyntax } from "./markdownSyntax.js";
 import { createSmartListBindings, type SmartListOptions } from "./smartLists.js";
+import { createSmartTableBindings } from "./smartTables.js";
+export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEditorTable, editorTableColumns, runTableCommand } from "./smartTables.js";
 import { createSelectionPairs } from "./selectionPairs.js";
 export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
 export { markdownCompletionQuery, type MarkdownCompletionQuery } from "./completionQuery.js";
@@ -51,6 +53,7 @@ export function createSlateMarkdownExtensions(
     highContrastMarkers?: boolean;
     smartLists?: false | SmartListOptions;
     selectionPairs?: boolean;
+    smartTables?: boolean;
   } = {},
 ): Extension[] {
   return [
@@ -78,6 +81,7 @@ export function createSlateMarkdownExtensions(
       ]),
     ),
     options.formattingKeys === false ? [] : createFormattingBindings(),
+    createSmartTableBindings(options.smartTables !== false),
     options.smartLists === false ? [] : createSmartListBindings(options.smartLists),
     createSelectionPairs(options.selectionPairs !== false),
     keymap.of([...defaultKeymap, ...historyKeymap]),

@@ -119,15 +119,17 @@ it("creates a new sheet with Mod N and keeps each sheet's undo history separate"
 it("opens editor settings from the desktop command and remembers disabled smart input", async () => {
   await mount();
   expect(desktopPreviewCommands(spaces.length).some((command) => command.id === "app.editorSettings")).toBe(true);
+  expect(desktopPreviewCommands(spaces.length).filter((command) => command.group === "Table")).toHaveLength(8);
   const button = host.querySelector<HTMLButtonElement>('[aria-label="Editor settings"]')!;
   button.focus();
   await act(async () => button.click());
   const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="Editor settings"]')!;
   expect(dialog.open).toBe(true);
   const checkboxes = dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-  expect(checkboxes).toHaveLength(7);
-  expect(checkboxes[4]?.getAttribute("aria-labelledby")).toBe("smart-input-wikiCompletion-label");
-  expect(checkboxes[5]?.getAttribute("aria-labelledby")).toBe("smart-input-tagCompletion-label");
+  expect(checkboxes).toHaveLength(8);
+  expect(dialog.querySelector('[aria-labelledby="smart-input-smartTables-label"]')).not.toBeNull();
+  expect(dialog.querySelector('[aria-labelledby="smart-input-wikiCompletion-label"]')).not.toBeNull();
+  expect(dialog.querySelector('[aria-labelledby="smart-input-tagCompletion-label"]')).not.toBeNull();
   expect(document.activeElement).toBe(checkboxes[0]);
   await act(async () => checkboxes[0]!.click());
   expect(checkboxes[0]!.checked).toBe(false);
