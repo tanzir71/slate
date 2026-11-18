@@ -40,6 +40,8 @@ export {
 export { findWikiLinkAtPosition, type WikiLinkHit } from "./wikiLinks.js";
 export { editorBlockQuery, insertEditorBlock, type BlockQuery } from "./blockInsertion.js";
 
+export { convertClipboardHtml } from "./clipboardHtml.js";
+
 export interface EditorHud {
   words: number;
   characters: number;

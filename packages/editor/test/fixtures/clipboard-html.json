@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Google Docs styled fragment",
+    "html": "<b id=\"docs-internal-guid-123\" style=\"font-weight:normal\"><h2>Research notes</h2><p><span style=\"font-weight:700\">Bold</span><span style=\"font-weight:400\"> and </span><span style=\"font-style:italic\">soft</span> words.</p><ul><li>First</li><li>Second</li></ul></b>",
+    "markdown": "## Research notes\n\n**Bold** and *soft* words.\n\n-   First\n-   Second"
+  },
+  {
+    "name": "Word HTML with list metadata",
+    "html": "<html><head><style>.MsoNormal{font-family:Calibri}</style></head><body><!--StartFragment--><h1>Weekly review</h1><p class=\"MsoNormal\"><b>Wins</b> and <i>learning</i>.</p><p class=\"MsoListParagraph\" style=\"mso-list:l0 level1 lfo1\"><span style=\"mso-list:Ignore\">1.<span>&nbsp;&nbsp;</span></span>Ship the draft</p><p class=\"MsoListParagraph\" style=\"mso-list:l0 level1 lfo1\"><span style=\"mso-list:Ignore\">2.<span>&nbsp;&nbsp;</span></span>Ask for review</p><!--EndFragment--><p>Outside the selection</p></body></html>",
+    "markdown": "# Weekly review\n\n**Wins** and *learning*.\n\n1.  Ship the draft\n2.  Ask for review"
+  },
+  {
+    "name": "Notion HTML tasks and table",
+    "html": "<div><h2>Launch</h2><p><del>Old</del> <code>new()</code></p><ul><li><input type=\"checkbox\" checked>Draft</li><li><input type=\"checkbox\">Review</li></ul><table><thead><tr><th>Task</th><th style=\"text-align:center\">State</th></tr></thead><tbody><tr><td>Draft</td><td>Done</td></tr></tbody></table></div>",
+    "markdown": "## Launch\n\n~~Old~~ `new()`\n\n-   [x] Draft\n-   [ ] Review\n\n| Task  | State |\n| ----- | :---: |\n| Draft | Done  |"
+  },
+  {
+    "name": "Web article fragment",
+    "html": "<meta charset=\"utf-8\"><article><h1>A small idea</h1><p>Keep <strong>your words</strong> in <a href=\"https://example.test/notes\">plain files</a>.</p><blockquote><p>Always yours.</p></blockquote><pre><code class=\"language-js\">const keep = true;\n</code></pre><script>window.clipboardExecuted = true</script><style>p{display:none}</style></article>",
+    "markdown": "# A small idea\n\nKeep **your words** in [plain files](https://example.test/notes).\n\n> Always yours.\n\n```js\nconst keep = true;\n```"
+  }
+]
