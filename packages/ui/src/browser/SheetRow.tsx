@@ -36,14 +36,19 @@ export function SheetRow({
   pinned,
   onOpen,
   draggable,
+  disabled = false,
 }: {
   sheet: SheetDocument & { preview?: string };
   active: boolean;
   pinned: boolean;
   onOpen(): void;
   draggable: boolean;
+  disabled?: boolean;
 }) {
-  const preview = useMemo(() => sheet.preview ?? sheetPreview(sheet.body), [sheet.preview, sheet.body]);
+  const preview = useMemo(
+    () => sheet.preview ?? sheetPreview(sheet.body),
+    [sheet.preview, sheet.body],
+  );
   const date = sheet.updatedAt
     ? new Intl.DateTimeFormat(undefined, {
         month: "short",
@@ -56,6 +61,7 @@ export function SheetRow({
       data-path={sheet.path}
       aria-current={active ? "true" : undefined}
       draggable={draggable}
+      disabled={disabled}
       onDragStart={(event) =>
         event.dataTransfer.setData("slate/sheet-path", sheet.path)
       }

@@ -6,7 +6,7 @@ Context: The full-document summary worker remains active on every edit even with
 
 Decision: Coalesce pending snapshots into refresh windows at least 100 ms apart, then post after a frame. The first snapshot has no throttle delay. Continuous editing still publishes intermediate summaries; this is a bounded refresh cadence rather than a wait for typing to stop. Keep one pending latest snapshot and cancel all timers/frames before closing the worker client.
 
-Consequence: Derived metadata can trail input by roughly 100 ms plus frame/worker time. Editor transactions, live preview, synchronous recovery and file saves retain their existing paths. Unit clocks cover coalescing, continuous updates, final text and cancellation; browser checks cover real worker requests and exact saved words. The <16 ms typing gate and its workload remain unchanged.
+Consequence: Derived metadata can trail input by roughly 100 ms plus frame/worker time. List actions require the summary path set to match current source file identities; while paths differ, rows, selection and dragging are disabled and the list reports busy. Content-only edits do not block list actions. Editor transactions, live preview, synchronous recovery and file saves retain their existing paths. Unit clocks cover coalescing, continuous updates, final text and cancellation; browser checks cover real worker requests, a held-worker bulk move and exact saved words. The <16 ms typing gate and its workload remain unchanged.
 
 ## 2026-07-09 - Initialize In Place
 
