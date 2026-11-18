@@ -76,3 +76,13 @@ export async function readCurrentSheet(page: Page) {
     }
   });
 }
+
+/** A transient snapshot error must not abort an exact-byte assertion before its deadline. */
+export async function expectSavedSheet(page: Page, source: string) {
+  await expect(async () => {
+    expect(await readCurrentSheet(page)).toBe(source);
+  }).toPass({ timeout: 5_000 });
+  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
+    "Saved",
+  );
+}

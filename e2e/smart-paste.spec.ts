@@ -1,8 +1,8 @@
 import { expect, test } from "./fixtures";
 import {
   createSheet,
+  expectSavedSheet as saved,
   openLibrary,
-  readCurrentSheet,
   workspaceAction,
 } from "./helpers";
 import type { Page } from "@playwright/test";
@@ -20,12 +20,6 @@ async function paste(page: Page, text: string, html = "") {
       element.dispatchEvent(event);
     },
     { text, html },
-  );
-}
-async function saved(page: Page, source: string) {
-  await expect.poll(() => readCurrentSheet(page)).toBe(source);
-  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
-    "Saved",
   );
 }
 async function image(
@@ -95,6 +89,47 @@ async function asset(page: Page, name: string) {
     return [...new Uint8Array(await file.arrayBuffer())];
   }, name);
 }
+
+test("saved paste assertions require exact disk bytes after one unavailable snapshot", async ({
+  page,
+}) => {
+  await openLibrary(page);
+  const editor = await createSheet(page, "Start ");
+  await editor.press("ControlOrMeta+End");
+  await paste(page, "bold", "<b>bold</b>");
+  await page.evaluate(() => {
+    const original = navigator.storage.getDirectory.bind(navigator.storage);
+    const probe = { reads: 0, failures: 0 };
+    Reflect.set(window, "savedPasteSnapshot", probe);
+    Object.defineProperty(navigator.storage, "getDirectory", {
+      configurable: true,
+      value: async () => {
+        probe.reads++;
+        if (probe.failures === 0) {
+          probe.failures++;
+          throw new DOMException(
+            "One unavailable saved snapshot",
+            "NotFoundError",
+          );
+        }
+        return original();
+      },
+    });
+  });
+  await saved(page, "Start **bold**");
+  const probe = await page.evaluate(
+    () =>
+      Reflect.get(window, "savedPasteSnapshot") as {
+        reads: number;
+        failures: number;
+      },
+  );
+  expect(probe.reads).toBeGreaterThanOrEqual(2);
+  expect(probe.failures).toBe(1);
+  await page.reload();
+  await expect(page.locator(".cm-content")).toBeVisible();
+  await saved(page, "Start **bold**");
+});
 
 test("rich paste, URL-over-selection, delimited cells and plain shortcut preserve source and undo", async ({
   page,
@@ -270,7 +305,10 @@ test("a delayed image never replaces later writing and its notice retries withou
     "The sheet changed before the paste finished.",
   );
   await expect(notice).toHaveCSS("display", "flex");
-  await testInfo.attach("paste-retry-notice", { body: await page.screenshot(), contentType: "image/png" });
+  await testInfo.attach("paste-retry-notice", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
   expect(
     (await new AxeBuilder({ page }).include(".pasteNotice").analyze())
       .violations,

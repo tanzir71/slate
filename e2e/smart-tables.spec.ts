@@ -2,21 +2,12 @@ import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "./fixtures";
 import {
   createSheet,
+  expectSavedSheet as saved,
   openLibrary,
   readCurrentSheet,
   workspaceAction,
 } from "./helpers";
 
-async function saved(page: import("@playwright/test").Page, source: string) {
-  // A concurrent OPFS commit can briefly make a snapshot unavailable. Keep
-  // requiring exact saved bytes within the existing five-second assertion gate.
-  await expect(async () => {
-    expect(await readCurrentSheet(page)).toBe(source);
-  }).toPass({ timeout: 5_000 });
-  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
-    "Saved",
-  );
-}
 async function palette(page: import("@playwright/test").Page, name: string) {
   await page.locator(".cm-content").press("ControlOrMeta+k");
   const dialog = page.getByRole("dialog", {
