@@ -58,7 +58,7 @@ it("retains explicit disabled rules and defaults individual invalid fields", () 
   expect(Object.isFrozen(defaultEditorPreferences.smartLists)).toBe(true);
 });
 
-it.each(["wikiCompletion", "tagCompletion"] as const)(
+it.each(["wikiCompletion", "tagCompletion", "dateCompletion"] as const)(
   "validates optional %s independently and defaults older settings",
   (rule) => {
     for (const [value, expected] of [

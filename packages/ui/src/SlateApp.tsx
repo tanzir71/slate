@@ -499,7 +499,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
             completionSheets={completionSheets}
             completionTags={completionTags}
             wikiCompletion={editorPreferences.preferences.wikiCompletion}
-            tagCompletion={editorPreferences.preferences.tagCompletion}
+            tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion}
             smartLists={editorPreferences.preferences.smartLists}
             selectionPairs={editorPreferences.preferences.selectionPairs}
             key={selected.id}

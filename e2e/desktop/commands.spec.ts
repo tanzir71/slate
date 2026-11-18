@@ -50,6 +50,39 @@ test("desktop wiki completion saves a canonical link and opens its target", asyn
   await expect(page.locator(".editorToolbar h1")).toHaveText("Product Vision");
 });
 
+test("desktop date choice is one undo and saves through IPC", async ({
+  page,
+}) => {
+  const editor = page.locator(".cm-content");
+  await editor.fill("# Date\n\n");
+  await editor.press("ControlOrMeta+End");
+  await editor.pressSequentially("@date");
+  await expect(
+    page
+      .locator(".cm-slate-completions")
+      .getByRole("option")
+      .filter({ hasText: "Choose date…" }),
+  ).toBeVisible();
+  await editor.press("Tab");
+  const picker = page.getByRole("dialog", { name: "Insert date", exact: true });
+  expect(await picker.getByRole("button", { name: "Insert date", exact: true }).evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(36);
+  await picker.getByLabel("Date", { exact: true }).fill("2026-11-18");
+  await picker
+    .getByRole("button", { name: "Insert date", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.keys(localStorage)
+          .filter((key) => key.startsWith("native-test:"))
+          .map((key) => localStorage.getItem(key)),
+      ),
+    )
+    .toContain("# Date\n\n2026-11-18");
+  await editor.press("ControlOrMeta+z");
+  await expect(editor).toContainText("@date");
+});
+
 test("desktop formatting, registry shortcuts and IPC saves agree", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("complementary", { name: "Inspector" })).toBeHidden();

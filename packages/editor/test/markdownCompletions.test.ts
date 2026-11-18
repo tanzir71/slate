@@ -57,6 +57,43 @@ function pick(view: EditorView, index = 0) {
     throw new Error("Expected atomic completion");
   option.apply(view, option, found.from, found.to!);
 }
+
+it("opens a date picker without changing the query or undo history", () => {
+  const onPickDate = vi.fn();
+  const view = editor("Words @date", { sheets, tags, onPickDate });
+  expect(result(view)?.options[0]?.label).toBe("Choose date…");
+  pick(view);
+  expect(onPickDate).toHaveBeenCalledExactlyOnceWith(view);
+  expect(view.state.doc.toString()).toBe("Words @date");
+  expect(undo(view)).toBe(false);
+});
+
+it("keeps a disabled or stale date option inert independently of wiki/tag rules", () => {
+  const onPickDate = vi.fn();
+  expect(
+    result(editor("@", { sheets, tags, date: false, onPickDate })),
+  ).toBeNull();
+  const view = editor("@", {
+    sheets,
+    tags,
+    wiki: false,
+    tag: false,
+    onPickDate,
+  });
+  const found = result(view)!;
+  const option = found.options[0]!;
+  expect(option.label).toBe("Choose date…");
+  view.dispatch({
+    effects: settings.reconfigure(
+      createMarkdownCompletions({ date: false, onPickDate }),
+    ),
+  });
+  if (typeof option.apply !== "function")
+    throw new Error("Expected a guarded picker");
+  option.apply(view, option, found.from, found.to!);
+  expect(onPickDate).not.toHaveBeenCalled();
+  expect(view.state.doc.toString()).toBe("@");
+});
 afterEach(() => {
   vi.restoreAllMocks();
   for (const view of views.splice(0)) {
@@ -102,8 +139,12 @@ it("rejects a no-longer-matching suggestion during the typing delay", () => {
   const view = editor("[[sha");
   const found = result(view)!;
   const option = found.options[0]!;
-  if (typeof option.apply !== "function") throw new Error("Expected atomic completion");
-  view.dispatch({ changes: { from: 2, to: 5, insert: "other" }, selection: { anchor: 7 } });
+  if (typeof option.apply !== "function")
+    throw new Error("Expected atomic completion");
+  view.dispatch({
+    changes: { from: 2, to: 5, insert: "other" },
+    selection: { anchor: 7 },
+  });
   option.apply(view, option, 2, 7);
   expect(view.state.doc.toString()).toBe("[[other");
 });

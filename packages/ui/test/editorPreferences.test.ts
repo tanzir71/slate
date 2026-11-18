@@ -47,6 +47,7 @@ it("persists changes, reopens preferences and follows cross-tab changes or remov
       first.current.change("selectionPairs", false);
       first.current.change("wikiCompletion", false);
       first.current.change("tagCompletion", false);
+      first.current.change("dateCompletion", false);
     });
     expect(first.current.preferences.smartLists).toEqual({
       continuation: false,
@@ -56,6 +57,7 @@ it("persists changes, reopens preferences and follows cross-tab changes or remov
     expect(first.current.preferences.selectionPairs).toBe(false);
     expect(first.current.preferences.wikiCompletion).toBe(false);
     expect(first.current.preferences.tagCompletion).toBe(false);
+    expect(first.current.preferences.dateCompletion).toBe(false);
     expect(JSON.parse(localStorage.getItem(editorPreferenceKey)!)).toEqual(
       first.current.preferences,
     );

@@ -41,6 +41,12 @@ const rules: readonly {
     label: "Suggest tags after #",
     description: "Reuse tags from this Space, including nested tags.",
   },
+  {
+    id: "dateCompletion",
+    label: "Choose dates after @",
+    description:
+      "Type @ to choose a calendar date and insert it as YYYY-MM-DD.",
+  },
 ];
 
 export function EditorSettingsDialog({

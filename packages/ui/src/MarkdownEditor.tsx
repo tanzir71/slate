@@ -19,6 +19,7 @@ import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { useBlockMenu } from "./useBlockMenu";
+import { useDatePicker } from "./useDatePicker";
 import type { ImportBlockImage } from "./BlockResourcePicker";
 
 const externalValue = Annotation.define<boolean>();
@@ -53,14 +54,16 @@ interface MarkdownEditorProps {
   completionTags?: readonly string[];
   wikiCompletion?: boolean;
   tagCompletion?: boolean;
+  dateCompletion?: boolean;
   onCursorChange?: (cursor: EditorCursor) => void;
   onImportImage?: ImportBlockImage;
   smartLists?: SmartListOptions;
   selectionPairs?: boolean;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
+  const dates = useDatePicker(dateCompletion);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -120,7 +123,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
           ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false }),
           smartListKeys.current.of(createSmartListBindings(smartLists)),
           pairs.current.of(createSelectionPairs(selectionPairs)),
-          completions.current.of(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion })),
+          completions.current.of(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })),
           blocks.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
           wikiLinks.current.of(wikiExtensions(knownWikiTargets, completionSheets)),
@@ -229,8 +232,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   }, [selectionPairs]);
 
   useEffect(() => {
-    viewRef.current?.dispatch({ effects: completions.current.reconfigure(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion })) });
-  }, [completionSheets, completionTags, wikiCompletion, tagCompletion]);
+    viewRef.current?.dispatch({ effects: completions.current.reconfigure(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })) });
+  }, [completionSheets, completionTags, wikiCompletion, tagCompletion, dateCompletion, dates.open]);
 
   useEffect(() => {
     const previous = previousWikiTargets.current;
@@ -256,5 +259,5 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     });
   }, [value]);
 
-  return <>{blocks.menu}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
+  return <>{blocks.menu}{dates.dialog}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 });

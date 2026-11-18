@@ -7,11 +7,13 @@ export function WorkspaceDialog({
   onClose,
   children,
   busy = false,
+  className = "",
 }: {
   title: string;
   onClose(): void;
   children: ReactNode;
   busy?: boolean;
+  className?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const invoker = useRef(document.activeElement);
@@ -30,7 +32,7 @@ export function WorkspaceDialog({
   return (
     <dialog
       ref={dialog}
-      className="workspaceDialog"
+      className={`workspaceDialog ${className}`.trim()}
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();

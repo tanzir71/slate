@@ -1,0 +1,57 @@
+.dateDialog > header > button {
+  display: grid;
+  place-items: center;
+  min-inline-size: 36px;
+  min-block-size: 36px;
+  padding: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.dateDialog > header > button:hover {
+  background: var(--bg-hover);
+}
+.dateDialog input {
+  min-block-size: 36px;
+  font: inherit;
+}
+.dateDialog form > p {
+  color: var(--text-secondary);
+}
+.datePickerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-block-start: 20px;
+}
+.datePickerActions button {
+  min-block-size: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.datePickerActions button:hover {
+  background: var(--bg-hover);
+}
+.datePickerActions .dateInsertButton {
+  border-color: var(--accent-default);
+  background: var(--accent-default);
+  color: var(--text-on-accent);
+}
+.datePickerActions .dateInsertButton:hover {
+  background: var(--accent-hover);
+}
+@media (pointer: coarse) {
+  .dateDialog > header > button,
+  .datePickerActions button,
+  .dateDialog input {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+}

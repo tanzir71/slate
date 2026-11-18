@@ -3,6 +3,7 @@ import {
   acceptCompletion,
   completionKeymap,
   pickedCompletion,
+  closeCompletion,
   type Completion,
   type CompletionContext,
   type CompletionResult,
@@ -11,13 +12,18 @@ import { isolateHistory } from "@codemirror/commands";
 import { Facet, Prec, Transaction, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { wikiCompletionText, type WikiCompletionTarget } from "@slate/core";
-import { markdownCompletionQuery } from "./completionQuery.js";
+import {
+  markdownCompletionQuery,
+  type MarkdownCompletionQuery,
+} from "./completionQuery.js";
 
 export interface MarkdownCompletionOptions {
   readonly sheets?: readonly WikiCompletionTarget[];
   readonly tags?: readonly string[];
   readonly wiki?: boolean;
   readonly tag?: boolean;
+  readonly date?: boolean;
+  readonly onPickDate?: (view: EditorView) => void;
 }
 
 interface Entry {
@@ -71,11 +77,18 @@ function entries(options: MarkdownCompletionOptions): readonly Entry[] {
   );
 }
 
-const completionEntries = Facet.define<
-  MarkdownCompletionOptions,
-  readonly Entry[]
->({
-  combine: (values) => entries(values.at(-1) ?? {}),
+interface CompletionData {
+  readonly entries: readonly Entry[];
+  readonly onPickDate: ((view: EditorView) => void) | undefined;
+}
+const completionData = Facet.define<MarkdownCompletionOptions, CompletionData>({
+  combine: (values) => {
+    const options = values.at(-1) ?? {};
+    return {
+      entries: entries(options),
+      onPickDate: options.date === false ? undefined : options.onPickDate,
+    };
+  },
 });
 
 function applyEntry(
@@ -94,8 +107,8 @@ function applyEntry(
     query.to !== to ||
     !entry.search.some((value) => value.includes(fold(query.query))) ||
     !view.state
-      .facet(completionEntries)
-      .some(
+      .facet(completionData)
+      .entries.some(
         (current) =>
           current.kind === entry.kind && current.identity === entry.identity,
       )
@@ -117,17 +130,50 @@ function applyEntry(
   });
 }
 
+function dateResult(
+  context: CompletionContext,
+  query: MarkdownCompletionQuery,
+): CompletionResult | null {
+  if (!context.state.facet(completionData).onPickDate) return null;
+  return {
+    from: query.contentFrom,
+    to: query.to,
+    filter: false,
+    options: [
+      {
+        label: "Choose date…",
+        detail: "YYYY-MM-DD",
+        apply(view, _completion, from, to) {
+          const current = markdownCompletionQuery(view.state);
+          const pick = view.state.facet(completionData).onPickDate;
+          if (
+            view.compositionStarted ||
+            !pick ||
+            current?.kind !== "date" ||
+            current.contentFrom !== from ||
+            current.to !== to
+          )
+            return;
+          closeCompletion(view);
+          pick(view);
+        },
+      },
+    ],
+  };
+}
+
 /** Suggestions are derived from metadata only; ordinary input uses a bounded query. */
 export function markdownCompletionSource(
   context: CompletionContext,
 ): CompletionResult | null {
   if (context.view?.compositionStarted) return null;
   const query = markdownCompletionQuery(context.state);
-  if (!query || query.kind === "date") return null;
+  if (!query) return null;
+  if (query.kind === "date") return dateResult(context, query);
   const text = fold(query.query);
   const ranked = context.state
-    .facet(completionEntries)
-    .filter((entry) => entry.kind === query.kind)
+    .facet(completionData)
+    .entries.filter((entry) => entry.kind === query.kind)
     .map((entry) => ({
       entry,
       rank: Math.min(
@@ -162,7 +208,7 @@ export function createMarkdownCompletions(
   options: MarkdownCompletionOptions = {},
 ): Extension {
   return [
-    completionEntries.of(options),
+    completionData.of(options),
     autocompletion({
       override: [markdownCompletionSource],
       defaultKeymap: false,

@@ -10,13 +10,15 @@ export interface EditorPreferences {
   readonly selectionPairs: boolean;
   readonly wikiCompletion: boolean;
   readonly tagCompletion: boolean;
+  readonly dateCompletion: boolean;
 }
 
 export type EditorPreferenceRule =
   | keyof SmartListPreferences
   | "selectionPairs"
   | "wikiCompletion"
-  | "tagCompletion";
+  | "tagCompletion"
+  | "dateCompletion";
 
 export const defaultEditorPreferences: EditorPreferences = Object.freeze({
   version: 1,
@@ -24,6 +26,7 @@ export const defaultEditorPreferences: EditorPreferences = Object.freeze({
   selectionPairs: true,
   wikiCompletion: true,
   tagCompletion: true,
+  dateCompletion: true,
 });
 
 /** Optional preferences never prevent a document from opening. */
@@ -39,6 +42,8 @@ export function parseEditorPreferences(value: unknown): EditorPreferences {
       typeof value.wikiCompletion === "boolean" ? value.wikiCompletion : true,
     tagCompletion:
       typeof value.tagCompletion === "boolean" ? value.tagCompletion : true,
+    dateCompletion:
+      typeof value.dateCompletion === "boolean" ? value.dateCompletion : true,
     smartLists: {
       continuation:
         typeof lists.continuation === "boolean" ? lists.continuation : true,
