@@ -14,7 +14,7 @@ export async function createSheet(page: Page, text = "# My writing\n\nWords wort
   const editor = page.locator(".cm-content");
   await expect(editor).toBeVisible({ timeout: 15_000 });
   await editor.click();
-  await page.keyboard.insertText(text);
+  if (text) await page.keyboard.insertText(text);
   await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved$/ })).toBeVisible({ timeout: 15_000 });
   return editor;
 }

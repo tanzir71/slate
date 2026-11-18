@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-18 - Bridge the Slash Menu Without Delaying Ordinary Input
+
+Keep query detection and editor transactions in CodeMirror; React owns the nonmodal list, safe GFM preview and resource dialogs. Only an eligible slash opens the menu. Capture its anchor before the native slash changes the DOM and publish after that transaction; use CodeMirror's normal measurement phase to reconcile wrapping/scrolling. Commit an open menu during the callback's frame with flushSync so React does not add another scheduled frame. Ordinary characters never read anchor geometry or publish menu state. Cancelled requests preserve the literal query; async insertions require the same source and an editable, connected editor. Optional local usage history is validated and affects ranking only. The exact `ta` alias keeps four-keystroke Table insertion stable under that history. Image bytes use the existing serialized, conflict-preserving import adapter; raw HTML and all preview links remain inert, including heading links that would otherwise change the app route.
+
+Menu timing gets its own Playwright process and report directory under the existing Linux reference policy, retaining all four profiles, the strict <50 ms assertion and diagnostic results on other hosts. Its fixture starts with a real empty saved sheet and measures the actual slash input through the first visible frame, then verifies saved bytes. Template/Snippet groups, the gutter/grip, broader smart input and automatic TOC refresh remain later work; this menu does not advertise future libraries.
+
 ## 2026-11-18 - Plan Block Transactions in the Pure Core
 
 Context: v0.4's slash menu, gutter insertion and later CLI/automation consumers need the same Markdown outputs. Resource picking and platform IO cannot enter packages/core.

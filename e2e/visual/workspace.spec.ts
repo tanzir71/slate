@@ -56,6 +56,25 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page).toHaveScreenshot(`a1-selection-${theme}.png`);
     });
 
+    test("A2 slash block menu and preview", async ({ page }) => {
+      await writingFixture(page);
+      await page.keyboard.press("Control+End");
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Enter");
+      await page.keyboard.type("/ta");
+      const menu = page.getByRole("dialog", {
+        name: "Insert block",
+        exact: true,
+      });
+      await expect(menu).toBeVisible();
+      await expect(menu.getByRole("option", { selected: true })).toContainText(
+        "Table",
+      );
+      await expect(menu.getByRole("columnheader")).toHaveCount(3);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a2-blocks-${theme}.png`);
+    });
+
     test("A5 read-only shortcut sheet", async ({ page }) => {
       await writingFixture(page);
       await page.getByRole("button", { name: "Keyboard shortcuts", exact: true }).click();

@@ -1,0 +1,40 @@
+.workspaceDialog {
+  inline-size: min(520px, calc(100% - 32px));
+  max-block-size: 85dvh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  box-shadow: 0 16px 60px #0003;
+  font: 13px/1.6 var(--font-ui, Geist, Arial, sans-serif);
+}
+.workspaceDialog::backdrop {
+  background: #1d1c1a55;
+}
+.workspaceDialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-end: 20px;
+}
+.workspaceDialog h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.workspaceDialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.workspaceDialog input {
+  inline-size: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+}

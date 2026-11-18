@@ -20,6 +20,7 @@ import { matchesWorkspaceFilter } from "./workspaceFilter";
 import { useSheetSummaries } from "./useSheetSummaries";
 import { inspectorContents } from "./inspectorContents";
 import { sheetStructureReady } from "./sheetStructureReady";
+import { importBlockImage } from "./importBlockImage";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 interface FolderObserver {
@@ -40,6 +41,7 @@ interface WorkspaceProps {
 
 export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance }: WorkspaceProps) {
   const state = useStore(store.api);
+  const copyBlockImage = useCallback((file: File) => importBlockImage(store.space, file), [store]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
   const inspectorKey = `slate.inspector.${state.record.id}`;
@@ -361,7 +363,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <section className="browserEditor" aria-label="Editor">
         <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} knownWikiTargets={wikiTargets} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} value={selected.content} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} knownWikiTargets={wikiTargets} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => run(() => store.create())}>New Sheet</button></div>}
       </section>
       {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>

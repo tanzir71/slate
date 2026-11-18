@@ -21,7 +21,8 @@
     "perf:site": "node scripts/perf-site.mjs",
     "perf": "node scripts/perf-budgets.mjs",
     "perf:typing": "playwright test --config=playwright.performance.config.ts",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e:desktop && pnpm e2e && pnpm visual && pnpm perf:typing",
+    "perf:menu": "playwright test --config=playwright.block-menu-performance.config.ts",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm build:site && pnpm perf:site && pnpm perf && pnpm e2e:desktop && pnpm e2e && pnpm visual && pnpm perf:menu && pnpm perf:typing",
     "format": "prettier --write ."
   },
   "devDependencies": {

@@ -62,6 +62,19 @@ jobs:
       - name: Verify Windows (WebKit storage is checked on Linux and macOS)
         if: matrix.os == 'windows-latest'
         run: pnpm e2e --project=chromium --project=firefox --project=mobile
+      - name: Verify block menu latency in fresh browsers (Linux reference)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm perf:menu
+      - name: macOS block menu diagnostic (budget enforced on Linux)
+        id: menu-macos
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: pnpm perf:menu
+      - name: Windows block menu diagnostic (budget enforced on Linux)
+        id: menu-windows
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        run: pnpm perf:menu --project=chromium --project=firefox --project=mobile
       - name: Verify typing budgets in fresh browsers (Linux reference)
         if: matrix.os == 'ubuntu-latest'
         run: pnpm perf:typing
@@ -76,7 +89,7 @@ jobs:
         continue-on-error: true
         run: pnpm perf:typing --project=chromium --project=firefox --project=mobile
       - name: Upload failed verification evidence
-        if: failure() || steps.lighthouse-diagnostic.outcome == 'failure' || steps.typing-macos.outcome == 'failure' || steps.typing-windows.outcome == 'failure'
+        if: failure() || steps.lighthouse-diagnostic.outcome == 'failure' || steps.typing-macos.outcome == 'failure' || steps.typing-windows.outcome == 'failure' || steps.menu-macos.outcome == 'failure' || steps.menu-windows.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: verification-${{ matrix.os }}

@@ -1,0 +1,234 @@
+.slateBlockMenu {
+  position: fixed;
+  z-index: 12;
+  inline-size: 612px;
+  max-inline-size: calc(100vw - 16px);
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  box-shadow:
+    0 24px 64px -8px #0003,
+    0 2px 6px #00000014;
+  font: 13px/20px var(--font-ui, Geist, Arial, sans-serif);
+}
+.blockMenuBody {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  block-size: min(430px, 65dvh);
+}
+.blockMenuResults {
+  min-block-size: 0;
+  overflow: auto;
+  padding: 6px;
+}
+.blockMenuGroup {
+  padding: 6px 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.4px;
+}
+.blockMenuOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  inline-size: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-primary);
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+}
+.blockMenuOption[aria-selected="true"] {
+  background: var(--bg-selected);
+}
+.blockMenuOption:hover {
+  background: var(--bg-hover);
+}
+.blockMenuOption:hover small,
+.blockMenuOption[aria-selected="true"] small {
+  color: var(--text-secondary);
+}
+.blockMenuOption strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.blockMenuOption small {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+.blockMenuIcon {
+  display: grid;
+  flex: 0 0 28px;
+  place-items: center;
+  block-size: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--icon-default);
+  background: var(--bg-canvas);
+}
+.blockMenuPreview {
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 16px;
+  border-inline-start: 1px solid var(--border-default);
+  outline-offset: -3px;
+}
+.blockMenuPreview header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.blockMenuPreview header strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.blockMenuPreview header span {
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  font-size: 11px;
+  line-height: 16px;
+}
+.blockMenuPreview > small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.5px;
+}
+.blockMarkdownPreview {
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  white-space: pre-wrap;
+  font: 11px/16px var(--font-mono, "Geist Mono", monospace);
+}
+.blockRenderedPreview {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.blockRenderedPreview > :first-child {
+  margin-block-start: 0;
+}
+.blockRenderedPreview > :last-child {
+  margin-block-end: 0;
+}
+.blockRenderedPreview table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+.blockRenderedPreview th,
+.blockRenderedPreview td {
+  min-inline-size: 48px;
+  block-size: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-default);
+  font-weight: 400;
+  text-align: start;
+}
+.blockRenderedPreview th {
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  font-weight: 500;
+}
+.blockRenderedPreview pre {
+  white-space: pre-wrap;
+}
+.blockRenderedPreview code {
+  font: 11px/16px var(--font-mono, "Geist Mono", monospace);
+}
+.blockRenderedPreview a {
+  color: var(--md-link);
+  text-decoration: underline;
+}
+.blockRenderedPreview blockquote {
+  margin-inline: 0;
+  padding-inline-start: 12px;
+  border-inline-start: 3px solid var(--border-strong);
+}
+.slateBlockMenu > footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  border-block-start: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  background: var(--bg-panel);
+  font-size: 11px;
+  line-height: 16px;
+}
+.slateBlockMenu > footer > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.slateBlockMenu kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--border-default);
+  border-block-end-width: 2px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  font: 11px/16px var(--font-mono, "Geist Mono", monospace);
+}
+.blockMenuEmpty {
+  padding: 12px;
+  color: var(--text-secondary);
+}
+.blockMenuError {
+  position: fixed;
+  inset-inline-end: 16px;
+  inset-block-end: 48px;
+  z-index: 13;
+  max-inline-size: min(400px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--bg-raised);
+  font: 13px/20px var(--font-ui, Geist, Arial, sans-serif);
+}
+.blockMenuError button {
+  margin-inline-start: 8px;
+}
+@media (max-width: 650px) {
+  .blockMenuBody {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .blockMenuPreview {
+    display: none;
+    border-inline-start: 0;
+  }
+  .slateBlockMenu[data-preview="true"] .blockMenuResults {
+    display: none;
+  }
+  .slateBlockMenu[data-preview="true"] .blockMenuPreview {
+    display: flex;
+  }
+}
+@media (pointer: coarse) {
+  .blockMenuOption {
+    min-block-size: 44px;
+  }
+}

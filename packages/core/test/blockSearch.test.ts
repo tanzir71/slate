@@ -27,7 +27,8 @@ it("uses decaying frequency within a match tier and never promotes fuzzy over a 
     footnote: { count: 10_000, lastUsed: now },
   };
   expect(searchBuiltinBlocks("", history, now)[0]?.id).toBe("footnote");
-  expect(searchBuiltinBlocks("ta", history, now)[0]?.id).toBe("task");
+  expect(searchBuiltinBlocks("t", history, now)[0]?.id).toBe("task");
+  expect(searchBuiltinBlocks("ta", history, now)[0]?.id).toBe("table");
   expect(searchBuiltinBlocks("table", history, now)[0]?.id).toBe("table");
   expect(searchBuiltinBlocks("unmatchable")).toEqual([]);
   expect(

@@ -80,3 +80,38 @@ test("desktop palette executes formatting and appearance and preserves invoker f
   await page.keyboard.press("Escape");
   await expect(shortcuts).toBeFocused();
 });
+
+test("desktop block insertion uses the language picker, atomic undo and IPC saves", async ({
+  page,
+}) => {
+  const editor = page.locator(".cm-content");
+  await editor.click();
+  await editor.press("ControlOrMeta+A");
+  await page.keyboard.insertText("/code");
+  await editor.press("Enter");
+  const picker = page.getByRole("dialog", {
+    name: "Code language",
+    exact: true,
+  });
+  await expect(picker).toBeVisible();
+  await picker
+    .getByRole("combobox", { name: "Code language", exact: true })
+    .fill("rust");
+  expect(
+    (await new AxeBuilder({ page }).include(".workspaceDialog").analyze())
+      .violations,
+  ).toEqual([]);
+  await picker
+    .getByRole("button", { name: "Insert code block", exact: true })
+    .click();
+  const saved = () =>
+    page.evaluate(() =>
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith("native-test:"))
+        .map((key) => localStorage.getItem(key)),
+    );
+  await expect.poll(saved).toContain("```rust\n\n```");
+  await expect(editor).toBeFocused();
+  await editor.press("ControlOrMeta+z");
+  await expect.poll(saved).toContain("/code");
+});

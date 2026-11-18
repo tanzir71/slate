@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import "../workspaceDialog.css";
 
 export function WorkspaceDialog({
   title,

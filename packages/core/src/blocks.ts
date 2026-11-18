@@ -121,7 +121,7 @@ export const builtinBlocks = [
     id: "table",
     label: "Table",
     description: "Grid with a header row",
-    aliases: ["table", "grid", "| |"],
+    aliases: ["ta", "table", "grid", "| |"],
     group: "Blocks",
     placement: "block",
   },
@@ -504,14 +504,25 @@ function validDate(value: string) {
   );
 }
 
-interface MarkdownNode {
+export interface MarkdownPreviewNode {
   type: string;
   depth?: number;
   value?: string;
   alt?: string;
-  children?: MarkdownNode[];
+  url?: string;
+  ordered?: boolean;
+  checked?: boolean | null;
+  children?: MarkdownPreviewNode[];
 }
-function nodeText(node: MarkdownNode): string {
+/** Syntax data only; renderers must escape text and decide which URLs to allow. */
+export function parseMarkdownPreview(source: string): MarkdownPreviewNode {
+  return markdownPreviewParser.parse(source) as MarkdownPreviewNode;
+}
+function createMarkdownPreviewParser() {
+  return unified().use(remarkParse).use(remarkGfm).freeze();
+}
+const markdownPreviewParser = /* @__PURE__ */ createMarkdownPreviewParser();
+function nodeText(node: MarkdownPreviewNode): string {
   if (node.type === "html") return "";
   return node.value ?? node.alt ?? (node.children ?? []).map(nodeText).join("");
 }
@@ -520,12 +531,9 @@ export function tableOfContents(source: string): string {
   const markdown = source
     .replace(/\r\n?/g, "\n")
     .replace(/^\uFEFF?---\n[\s\S]*?\n---(?:\n|$)/, "");
-  const root = unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .parse(markdown) as MarkdownNode;
+  const root = parseMarkdownPreview(markdown);
   const headings: { depth: number; text: string }[] = [];
-  function visit(node: MarkdownNode) {
+  function visit(node: MarkdownPreviewNode) {
     if (node.type === "heading") {
       const text = nodeText(node).replace(/\s+/g, " ").trim();
       if (text) headings.push({ depth: node.depth!, text });
