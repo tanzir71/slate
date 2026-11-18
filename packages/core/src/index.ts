@@ -11,6 +11,7 @@ export * from "./blockSearch.js";
 export * from "./editorPreferences.js";
 export * from "./wikiCompletion.js";
 export * from "./calendarDate.js";
+export * from "./markdownTable.js";
 
 export type SheetId = string;
 
