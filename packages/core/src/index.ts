@@ -20,6 +20,8 @@ export * from "./templateFile.js";
 export * from "./dailyNote.js";
 export * from "./dailyNotePath.js";
 export * from "./starterKit.js";
+export * from "./snippetTemplate.js";
+export * from "./snippets.js";
 
 export type SheetId = string;
 
