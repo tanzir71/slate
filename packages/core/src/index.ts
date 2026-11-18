@@ -14,6 +14,9 @@ export * from "./calendarDate.js";
 export * from "./markdownTable.js";
 export * from "./clipboardText.js";
 export * from "./blockMovement.js";
+export * from "./templateVariables.js";
+export * from "./markdownTemplate.js";
+export * from "./templateFile.js";
 
 export type SheetId = string;
 

@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-18 - Render File Templates from Explicit Values and a YAML AST
+
+F-40 uses pure core functions with caller-supplied clock/date/offset, title, IDs, selection, clipboard and prompt answers. Expand tokens once; never evaluate code or recursively expand user values. Keep unknown/malformed variables and filters verbatim with field/range diagnostics. Use Moment-style calendar/time tokens, bracketed literals, English names and ISO week-year boundaries. Retain non-Latin letters/marks in slugs while folding Latin accents. One prompt label shares its answer/default across content and routing fields.
+
+Parse template YAML with the existing safe schema, validate mappings/aliases and remove only the top-level template key. Render decoded scalar values, keys and comments through the AST, then serialize and validate the final property map. This escapes quotes/newlines rather than injecting property text. Promote any configuration anchors referenced by sheet properties before removing configuration; keep normal shared/cyclic aliases. Preserve BOM, closing marker, line endings and exact body bytes. Drop an empty configuration-only header, retaining comment-only metadata. Invalid metadata produces no file plan.
+
+Map caret markers through actual YAML serialization using a sentinel selected after all filters have rendered and checked against source/output values. Remove every sentinel and validate the resulting keys again, then choose the first printed marker. This prevents a transformed user value from colliding with the sentinel and catches duplicate/reserved keys formed after marker removal. Routing proposes portable relative Markdown paths, rejects private configuration/traversal and requires unresolved routing fields to be supplied or explicitly overridden. Actual collision-safe creation remains the storage adapter's job. The core format is independent of the pending gallery/file-creation UI.
+
 ## 2026-11-18 - Keep Gutter Controls Outside Markdown and Reuse the Catalog
 
 Resolve top-level Markdown ranges only on explicit pointer/menu actions, cached by CodeMirror Text identity. Protect BOM and complete/unfinished YAML metadata. Move entire source payloads, including nested lists, fences and tables; adjust only joining whitespace and keep the change as one undo transaction. Refuse a bare divider move that would reinterpret the first line as unfinished YAML. The parser and move planner remain pure TypeScript in core.
