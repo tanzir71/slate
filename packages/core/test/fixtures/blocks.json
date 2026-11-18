@@ -1,0 +1,74 @@
+[
+  { "id": "heading1", "text": "# ", "caret": 2 },
+  { "id": "heading2", "text": "## ", "caret": 3 },
+  { "id": "heading3", "text": "### ", "caret": 4 },
+  { "id": "bullet", "text": "- ", "caret": 2 },
+  { "id": "ordered", "text": "1. ", "caret": 3 },
+  { "id": "task", "text": "- [ ] ", "caret": 6 },
+  { "id": "quote", "text": "> ", "caret": 2 },
+  { "id": "callout.note", "text": "> [!NOTE] Title\n> ", "selected": "Title" },
+  { "id": "callout.tip", "text": "> [!TIP] Title\n> ", "selected": "Title" },
+  {
+    "id": "callout.warning",
+    "text": "> [!WARNING] Title\n> ",
+    "selected": "Title"
+  },
+  {
+    "id": "callout.important",
+    "text": "> [!IMPORTANT] Title\n> ",
+    "selected": "Title"
+  },
+  {
+    "id": "callout.caution",
+    "text": "> [!CAUTION] Title\n> ",
+    "selected": "Title"
+  },
+  { "id": "divider", "text": "---\n\n", "caret": 5 },
+  {
+    "id": "table",
+    "text": "| Column | Column | Column |\n| ------ | ------ | ------ |\n|        |        |        |\n|        |        |        |",
+    "selected": "Column"
+  },
+  {
+    "id": "codeblock",
+    "context": { "language": "typescript" },
+    "text": "```typescript\n\n```",
+    "caret": 14
+  },
+  { "id": "math", "text": "$$\n\n$$", "caret": 3 },
+  {
+    "id": "mermaid",
+    "text": "```mermaid\nflowchart LR\n  A[Start] --> B[Finish]\n```",
+    "selected": "Start"
+  },
+  {
+    "id": "image",
+    "context": { "image": { "path": "assets/photo.png", "alt": "Photo" } },
+    "text": "![Photo](assets/photo.png)",
+    "selected": "Photo"
+  },
+  { "id": "wiki", "text": "[[", "caret": 2, "followUp": "wiki" },
+  { "id": "embed", "text": "![[Sheet#Heading]]", "selected": "Sheet#Heading" },
+  { "id": "toc", "text": "<!-- toc -->\n\n<!-- /toc -->", "caret": 13 },
+  { "id": "footnote", "text": "[^1]\n\n[^1]: ", "caret": 12 },
+  { "id": "frontmatter", "text": "---\ntitle: \n---\n", "caret": 11 },
+  {
+    "id": "date",
+    "context": { "date": "2026-11-18" },
+    "text": "2026-11-18",
+    "caret": 10
+  },
+  {
+    "id": "time",
+    "context": { "time": "07:30:15" },
+    "text": "07:30:15",
+    "caret": 8
+  },
+  {
+    "id": "details",
+    "text": "<details>\n<summary>Details</summary>\n\n\n</details>",
+    "selected": "Details"
+  },
+  { "id": "comment", "text": "<!-- Comment -->", "selected": "Comment" },
+  { "id": "tag", "text": "#", "caret": 1, "followUp": "tag" }
+]

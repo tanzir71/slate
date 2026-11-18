@@ -6,6 +6,7 @@ import { parse as parseYaml } from "yaml";
 export * from "./commands.js";
 export * from "./workspacePreferences.js";
 export * from "./textChanges.js";
+export * from "./blocks.js";
 
 export type SheetId = string;
 

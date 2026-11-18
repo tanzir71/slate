@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-18 - Plan Block Transactions in the Pure Core
+
+Context: v0.4's slash menu, gutter insertion and later CLI/automation consumers need the same Markdown outputs. Resource picking and platform IO cannot enter packages/core.
+
+Decision: Keep the built-in catalog and insertion planner pure. Return original-document TextChange coordinates plus a final UTF-16 selection, or a typed resource request before any edit. Footnote references/definitions share one planned transaction; front-matter is guarded at the document start; dates/times are explicit inputs. The editor adapter will commit a plan as one undo step after resolving any resource request.
+
+Consequence: Golden fixtures cover all 28 entries, including five callout variants and the A2 Tag item. The plan's 3×3 table is interpreted as three columns and three rows including the header (two body rows). Existing source text and newline bytes stay outside the replaced query; inserted line endings follow the document. Menu UI, resource adapters and automatic TOC refresh remain separate v0.4 work, so this foundation does not advertise those features as shipped.
+
 ## 2026-11-18 - Bound Derived Summary Refreshes
 
 Context: The full-document summary worker remains active on every edit even with one in-flight job. A two-CPU WebKit diagnostic sent 226 jobs during 225 inputs and recorded 1,567 ms of aggregate worker round-trip time. Summaries feed the list, statistics, tags and inspector; they are rebuildable projections of the immutable source buffers.
