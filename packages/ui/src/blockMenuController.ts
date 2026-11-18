@@ -7,6 +7,23 @@ export interface BlockMenuAnchor extends BlockQuery {
   rect: { left: number; right: number; top: number; bottom: number };
 }
 
+/** Avoid preempting CodeMirror while a native input mutation is still pending. */
+function queryMatchesDOM(view: EditorView, query: BlockQuery): boolean {
+  const selection = view.dom.ownerDocument.getSelection();
+  const end = view.domAtPos(query.to);
+  if (
+    !selection?.isCollapsed ||
+    selection.focusNode !== end.node ||
+    selection.focusOffset !== end.offset
+  )
+    return false;
+  const start = view.domAtPos(query.from);
+  const range = view.dom.ownerDocument.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  return range.toString() === `/${query.query}`;
+}
+
 /** Measure only an open menu. Ordinary writing does not cross into React. */
 export function createBlockMenuController(
   onChange: (anchor: BlockMenuAnchor | undefined) => void,
@@ -18,7 +35,26 @@ export function createBlockMenuController(
       dismissed = "";
       alive = true;
       prepared: { from: number; rect: BlockMenuAnchor["rect"] } | undefined;
-      constructor(readonly view: EditorView) {}
+      constructor(readonly view: EditorView) {
+        // Android may consume a rapid Enter before CodeMirror runs extension
+        // handlers. An open menu owns its keys before document input begins.
+        view.contentDOM.addEventListener("keydown", this.keydown, true);
+      }
+      keydown = (event: KeyboardEvent) => {
+        if (
+          !this.query ||
+          event.defaultPrevented ||
+          event.isComposing ||
+          this.view.composing
+        )
+          return;
+        if (
+          /^(Enter|Escape|Tab|ArrowUp|ArrowDown)$/.test(event.key) &&
+          queryMatchesDOM(this.view, this.query) &&
+          onKey(event, this.view, this.query)
+        )
+          event.preventDefault();
+      };
       update(update: ViewUpdate) {
         if (update.viewportChanged && !update.docChanged)
           this.prepared = undefined;
@@ -77,6 +113,7 @@ export function createBlockMenuController(
         onChange(undefined);
       }
       destroy() {
+        this.view.contentDOM.removeEventListener("keydown", this.keydown, true);
         this.alive = false;
         onChange(undefined);
       }
@@ -118,9 +155,7 @@ export function createBlockMenuController(
       keydown(event, view) {
         const query = view.plugin(plugin)?.query;
         if (!query || event.isComposing || view.composing) return false;
-        if (!onKey(event, view, query)) return false;
-        event.preventDefault();
-        return true;
+        return onKey(event, view, query);
       },
     }),
   );

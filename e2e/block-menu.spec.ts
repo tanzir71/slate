@@ -53,6 +53,36 @@ test("four keystrokes insert a table, with source-preserving undo and reopen", a
   await savedText(page, "/ta");
 });
 
+test("a rapid mobile Enter without DOM input still inserts the selected block", async ({
+  page,
+}) => {
+  await openLibrary(page);
+  const editor = await createSheet(page, "");
+  // Freeze wall time only: event ordering, timers and animation frames stay real.
+  // Android input sees Enter within its 50 ms post-mutation window on every host.
+  await page.clock.setFixedTime(new Date("2026-11-18T00:00:00Z"));
+  await editor.pressSequentially("/ta");
+  await expect(
+    menu(page).getByRole("option", { selected: true }),
+  ).toContainText("Table");
+  // Some mobile key deliveries have no subsequent insertParagraph event.
+  await editor.evaluate((node) =>
+    node.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  await expect(menu(page)).toBeHidden();
+  await savedText(page, table);
+  await editor.press("ControlOrMeta+z");
+  await savedText(page, "/ta");
+});
+
 test("keyboard navigation previews real Markdown and Escape keeps typed text", async ({
   page,
   isMobile,
@@ -162,7 +192,9 @@ test("image insertion saves exact asset bytes and a relative Markdown reference"
   await savedText(page, "/image");
 });
 
-test("literal slash contexts and front-matter boundaries preserve source", async ({ page }) => {
+test("literal slash contexts and front-matter boundaries preserve source", async ({
+  page,
+}) => {
   await openLibrary(page);
   const editor = await createSheet(page, "Start");
   for (const source of [
