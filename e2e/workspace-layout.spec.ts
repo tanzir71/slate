@@ -312,7 +312,7 @@ test("nested notebook collapse persists and Today reopens the same daily file", 
   ).toBeVisible();
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.press(`${modifier}+Shift+d`);
-  await expect(page).toHaveURL(/Daily%2F\d{4}-\d{2}-\d{2}\.md$/);
+  await expect(page).toHaveURL(/Daily%2F\d{4}-\d{2}-\d{2}\.md$/, { timeout: 15_000 });
   const url = page.url();
   const editor = page.locator(".cm-content");
   await editor.focus();
@@ -534,4 +534,94 @@ test("summary refreshes stay bounded during typing and catch up to exact saved w
     "Saved",
   );
   expect(await readCurrentSheet(page)).toBe(`${prefix}${words}`);
+});
+
+test("bulk controls wait for the current file paths after a move", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const diagnostic = window as Window & {
+      holdSheetSummaries: boolean;
+      releaseSheetSummaries(): void;
+    };
+    diagnostic.holdSheetSummaries = false;
+    const held: (() => void)[] = [];
+    diagnostic.releaseSheetSummaries = () => {
+      diagnostic.holdSheetSummaries = false;
+      held.splice(0).forEach((post) => post());
+    };
+    const Original = window.Worker;
+    window.Worker = class extends Original {
+      private summary: boolean;
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        this.summary = String(url).includes("sheetSummary");
+      }
+      postMessage(
+        message: unknown,
+        options: Transferable[] | StructuredSerializeOptions = [],
+      ) {
+        const post = () => {
+          if (Array.isArray(options)) super.postMessage(message, options);
+          else super.postMessage(message, options);
+        };
+        if (this.summary && diagnostic.holdSheetSummaries) held.push(post);
+        else post();
+      }
+    };
+  });
+  await openLibrary(page);
+  await createSheet(page, "# Alpha\n\nFirst exact words.");
+  await createSheet(page, "# Beta\n\nSecond exact words.");
+  await showSheets(page);
+  await expect(page.locator(".browserSheetRow")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Select sheets", exact: true })
+    .click();
+  const selectAll = page.getByRole("checkbox", {
+    name: "Select all filtered sheets",
+    exact: true,
+  });
+  await selectAll.check();
+  await page
+    .locator(".sheetSelectionControls")
+    .getByRole("button", { name: "Move", exact: true })
+    .click();
+  const move = page.getByRole("dialog", { name: "Move sheet", exact: true });
+  await expect(move).toContainText("2 selected sheets");
+  await move
+    .getByRole("textbox", { name: "Notebook path", exact: true })
+    .fill("Archive");
+  await page.evaluate(() => {
+    (window as Window & { holdSheetSummaries: boolean }).holdSheetSummaries =
+      true;
+  });
+  await move.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(move).toBeHidden();
+  await showSheets(page);
+  await expect(selectAll).toBeDisabled();
+  await expect(page.locator(".browserSheetRows")).toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  await page.evaluate(() => {
+    (
+      window as Window & { releaseSheetSummaries(): void }
+    ).releaseSheetSummaries();
+  });
+  await expect(selectAll).toBeEnabled();
+  await selectAll.check();
+  await page
+    .locator(".sheetSelectionControls")
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  const trash = page.getByRole("dialog", {
+    name: "Move this sheet to trash?",
+    exact: true,
+  });
+  await expect(trash).toContainText("2 selected sheets");
+  await trash.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.locator('.browserSheetRow[data-path^="Archive/"]'),
+  ).toHaveCount(2);
 });

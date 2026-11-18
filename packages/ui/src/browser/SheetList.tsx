@@ -8,6 +8,7 @@ interface SheetListProps {
   selectedPath: string;
   preferences: WorkspacePreferences;
   owned: boolean;
+  pending: boolean;
   readOnlyPaths: ReadonlySet<string>;
   onOpen(path: string): void;
   onBulk(action: "move" | "trash", paths: string[]): void;
@@ -17,6 +18,7 @@ export function SheetList({
   selectedPath,
   preferences,
   owned,
+  pending,
   readOnlyPaths,
   onOpen,
   onBulk,
@@ -86,7 +88,7 @@ export function SheetList({
     <>
       <div className="sheetSelectionControls">
         <button
-          disabled={!owned || !editable.length}
+          disabled={!owned || pending || !editable.length}
           aria-pressed={selecting}
           onClick={() => {
             setSelecting((value) => !value);
@@ -101,7 +103,7 @@ export function SheetList({
               <input
                 type="checkbox"
                 aria-label="Select all filtered sheets"
-                disabled={!owned || !editable.length}
+                disabled={!owned || pending || !editable.length}
                 checked={
                   !!editable.length && selected.length === editable.length
                 }
@@ -118,13 +120,13 @@ export function SheetList({
               {selected.length} selected
             </label>
             <button
-              disabled={!owned || !selected.length}
+              disabled={!owned || pending || !selected.length}
               onClick={() => onBulk("move", selected)}
             >
               Move
             </button>
             <button
-              disabled={!owned || !selected.length}
+              disabled={!owned || pending || !selected.length}
               onClick={() => onBulk("trash", selected)}
             >
               Delete
@@ -135,6 +137,7 @@ export function SheetList({
       <div
         ref={container}
         className="browserSheetRows"
+        aria-busy={pending}
         data-density={preferences.density}
         onScroll={(event) =>
           setViewport({
@@ -144,6 +147,7 @@ export function SheetList({
         }
         onKeyDown={(event) => {
           if (
+            pending ||
             !(event.target instanceof HTMLElement) ||
             !event.target.matches(".browserSheetRow") ||
             !["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)
@@ -193,7 +197,7 @@ export function SheetList({
                 <input
                   type="checkbox"
                   aria-label={`Select ${sheet.title}`}
-                  disabled={!owned || readOnlyPaths.has(sheet.path)}
+                  disabled={!owned || pending || readOnlyPaths.has(sheet.path)}
                   checked={checked.has(sheet.path)}
                   onChange={(event) =>
                     setChecked((current) => {
@@ -210,7 +214,8 @@ export function SheetList({
               sheet={sheet}
               active={sheet.path === selectedPath}
               pinned={preferences.pinned.includes(sheet.path)}
-              draggable={owned && !selecting}
+              draggable={owned && !pending && !selecting}
+              disabled={pending}
               onOpen={() => onOpen(sheet.path)}
             />
           </div>

@@ -19,6 +19,7 @@ import { SheetList } from "./SheetList";
 import { matchesWorkspaceFilter } from "./workspaceFilter";
 import { useSheetSummaries } from "./useSheetSummaries";
 import { inspectorContents } from "./inspectorContents";
+import { sheetStructureReady } from "./sheetStructureReady";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 interface FolderObserver {
@@ -72,6 +73,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
   const documents = useSheetSummaries(state.sheets);
+  const summariesPending = !sheetStructureReady(state.sheets, documents);
   const document = documents.find((sheet) => sheet.path === state.selectedPath);
   const wikiTargetNames = useMemo(() => JSON.stringify([...new Set(documents.flatMap((sheet) => [sheet.title.toLowerCase(), ...(/^01[0-9A-HJKMNP-TV-Z]{24}$/i.test(sheet.id) ? [sheet.id.toLowerCase()] : [])]))].sort()), [documents]);
   const wikiTargets = useMemo(() => new Set(JSON.parse(wikiTargetNames) as string[]), [wikiTargetNames]);
@@ -353,7 +355,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       <aside className="browserSheetList" aria-label="Sheets">
         <div className="listHeading"><strong>{listTitle}</strong><small>{visible.length}</small><label className="densityControl"><span className="visuallyHidden">Sheet density</span><select aria-label="Sheet density" value={state.preferences.density} disabled={!state.owned} onChange={(event) => run(() => store.setDensity(event.target.value as "comfortable" | "compact"))}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label><button title={`New sheet (${shortcut("sheet.new")})`} aria-label="New Sheet" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}><Plus size={17} /></button></div>
         <label className="browserSearch"><Search size={15} /><input ref={search} aria-label="Search sheets" placeholder={filter ? `Filter ${listTitle}…` : "Search sheets…"} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} readOnlyPaths={new Set(state.sheets.filter((sheet) => sheet.unsupportedEncoding).map((sheet) => sheet.path))} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} />
+        <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} pending={summariesPending} readOnlyPaths={new Set(state.sheets.filter((sheet) => sheet.unsupportedEncoding).map((sheet) => sheet.path))} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} />
         {!visible.length && <div className="browserEmpty"><strong>{query ? "No sheets match" : "A little room to think"}</strong><p>{query ? "Try another search." : "Create your first sheet or import your notes."}</p></div>}
         <div className="listFoot">{visible.length} sheets</div>
       </aside>
