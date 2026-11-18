@@ -6,6 +6,27 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 
 ## [Unreleased]
 
+### Added
+- Light, Dark and System appearance with bundled Geist, Geist Mono and Newsreader fonts.
+- Shared command/keymap registry, searchable OS-aware shortcut sheet and formatting selection toolbar with one-step undo.
+- Live Markdown basics for headings, emphasis, highlights, links, tags, code, frontmatter and task checkboxes.
+- Notebook navigation, persisted pins/density/collapse preferences, safe bulk move/trash and bounded sheet-list rendering.
+- Interactive writing statistics, reading time and cursor navigation in the browser status bar.
+- Reviewed Light/Dark visual regression baselines and a release typing benchmark using real saved 50k-word files.
+- Unsigned three-platform desktop preview packaging, startup smokes, checksums and source-commit manifests from v0.3.
+- Real Light/Dark landing captures with responsive mobile views and theme-aware image selection.
+
+### Changed
+- Reuse commands, formatting and shortcut notices in the native preview.
+- Compute derived sheet summaries in a worker and keep typing recovery in a versioned incremental journal compatible with older open apps.
+- Resolve release versions and commits before publishing; verify the live browser app and every desktop asset before creating the public release.
+
+### Fixed
+- Preserve independent undo history when changing native preview sheets and respect handled, composing and AltGr keyboard events.
+- Keep optional view persistence from reading scroll layout during editor input while flushing pending scroll positions on exit.
+- Preserve newer recovery drafts and unsupported source bytes across ownership transfer and conflicting external changes.
+- Give modal close buttons 44 × 44 touch targets and keep long shortcut lists keyboard-scrollable.
+
 ## [0.2.1] - 2026-11-17
 
 ### Fixed
