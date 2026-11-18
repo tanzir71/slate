@@ -6,6 +6,8 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-18
+
 ### Added
 - Light, Dark and System appearance with bundled Geist, Geist Mono and Newsreader fonts.
 - Shared command/keymap registry, searchable OS-aware shortcut sheet and formatting selection toolbar with one-step undo.

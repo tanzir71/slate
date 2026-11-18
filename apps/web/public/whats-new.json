@@ -1,5 +1,12 @@
 {
-  "version": "0.2.1",
-  "title": "Safer tab recovery",
-  "changes": ["Taking over a Space restores the writer's latest recovery draft", "A completed save clears stale recovery snapshots in other tabs", "Reload every open Slate tab after updating to use the fix"]
+  "version": "0.3.0",
+  "title": "New look, faster formatting",
+  "changes": [
+    "Light, Dark and System appearance with bundled fonts",
+    "Redesigned notebooks, pinned sheets, density and status controls",
+    "Shared commands, a keyboard shortcut sheet and the selection toolbar",
+    "Live Markdown headings, links, emphasis and task checkboxes",
+    "Safer recovery journals and bounded background summaries",
+    "Unsigned desktop previews for Windows, Linux and macOS"
+  ]
 }

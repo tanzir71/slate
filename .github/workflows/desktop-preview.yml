@@ -11,6 +11,12 @@ on:
     paths:
       - .github/workflows/desktop-preview.yml
       - apps/desktop/src-tauri/tauri.preview.conf.json
+      - apps/desktop/src-tauri/tauri.conf.json
+      - apps/desktop/src-tauri/Cargo.toml
+      - apps/desktop/src-tauri/Cargo.lock
+      - apps/desktop/package.json
+      - package.json
+      - pnpm-lock.yaml
       - scripts/build-desktop-preview.mjs
       - scripts/desktop-artifacts.mjs
 
