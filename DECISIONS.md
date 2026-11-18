@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Custom block files contain literal Markdown fragments
+
+F-32 specifies .slate/blocks/*.md without a second metadata or variable language. Use the file stem as the name and its relative path to distinguish names in nested folders, consistent with Space template directory organization. Preserve its source as ordinary Markdown: YAML, template expressions and numbered snippet syntax remain literal. Templates and snippets retain their separate variable/field behavior. Bound each fragment to 1 MiB of UTF-8, counted without platform APIs. Reading and planning never write its file.
+
+Insertion removes only the fragment's leading file BOM, converts its line endings to the note's first existing convention (LF for an empty note), and adds only missing blank-line separation around the replacement. Existing note bytes outside the requested span and trailing fragment line breaks remain intact. Return one change and a UTF-16 caret at the end of inserted content. Platform adapters must enforce code-context, ownership and stale-source checks. No custom blocks are advertised until directory reading, insertion and the actual menu are integrated and verified.
+
 ## 2026-11-19 - Integrate snippets through cached file scopes and guarded editor requests
 
 F-50 browser integration keeps the global and Space files as the source of truth. A lazy library reads both scopes, resolves overrides/disabled entries and builds the bounded suffix index outside key handlers. Unchanged source snapshots retain the same index. Missing global configuration supplies three shipped defaults without writing a file; an explicit valid empty file clears them. Invalid or unavailable configuration disables expansion and exposes repair rather than silently replacing it. Focus, visible file polling and optional cross-tab messages refresh definitions; messaging failure must not block a successful file commit or loading.
