@@ -44,12 +44,14 @@ it("persists changes, reopens preferences and follows cross-tab changes or remov
       first.current.change("continuation", false);
       first.current.change("indent", false);
       first.current.change("move", false);
+      first.current.change("selectionPairs", false);
     });
     expect(first.current.preferences.smartLists).toEqual({
       continuation: false,
       indent: false,
       move: false,
     });
+    expect(first.current.preferences.selectionPairs).toBe(false);
     expect(JSON.parse(localStorage.getItem(editorPreferenceKey)!)).toEqual(
       first.current.preferences,
     );

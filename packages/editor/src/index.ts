@@ -13,6 +13,8 @@ import {
 } from "./livePreview.js";
 import { slateMarkdownSyntax } from "./markdownSyntax.js";
 import { createSmartListBindings, type SmartListOptions } from "./smartLists.js";
+import { createSelectionPairs } from "./selectionPairs.js";
+export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
 export { createSmartListBindings, indentEditorListItem, moveEditorListItem, type SmartListOptions } from "./smartLists.js";
 export {
   createFormattingBindings,
@@ -44,6 +46,7 @@ export function createSlateMarkdownExtensions(
     hideSyntax?: boolean;
     highContrastMarkers?: boolean;
     smartLists?: false | SmartListOptions;
+    selectionPairs?: boolean;
   } = {},
 ): Extension[] {
   return [
@@ -72,6 +75,7 @@ export function createSlateMarkdownExtensions(
     ),
     options.formattingKeys === false ? [] : createFormattingBindings(),
     options.smartLists === false ? [] : createSmartListBindings(options.smartLists),
+    createSelectionPairs(options.selectionPairs !== false),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     EditorView.lineWrapping,
     EditorView.theme({

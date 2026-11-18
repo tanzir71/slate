@@ -5,6 +5,21 @@ import {
 } from "../src/editorPreferences";
 
 it.each([
+  [false, false],
+  [true, true],
+  [undefined, true],
+  ["false", true],
+])("validates selection-pair preference %j", (value, expected) => {
+  expect(
+    parseEditorPreferences({
+      version: 1,
+      smartLists: {},
+      selectionPairs: value,
+    }).selectionPairs,
+  ).toBe(expected);
+});
+
+it.each([
   undefined,
   null,
   [],

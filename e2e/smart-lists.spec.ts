@@ -38,6 +38,9 @@ test("smart lists move children, indent and preserve counter alignment with one 
   await editor.press("ControlOrMeta+Home");
   await editor.press("End");
   await editor.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Go to line", exact: true }),
+  ).toHaveText("Ln 2, Col 4");
   await saved(page, "8. Alpha\n9. \n10. Beta\n    - Child");
   await editor.press("ControlOrMeta+z");
   await saved(page, numbered);
@@ -78,6 +81,10 @@ test("editor settings disable smart input immediately and survive reopening", as
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
   await editor.press("ControlOrMeta+End");
   await editor.press("Enter");
+  // Android defers Enter. Observe the new caret before trusting the Saved label.
+  await expect(
+    page.getByRole("button", { name: "Go to line", exact: true }),
+  ).toHaveText("Ln 3, Col 1");
   await saved(page, original + "\n");
   await editor.press("ControlOrMeta+z");
   await saved(page, original);
@@ -85,9 +92,18 @@ test("editor settings disable smart input immediately and survive reopening", as
   await expect(editor).toBeVisible();
   await editor.press("ControlOrMeta+End");
   await editor.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Go to line", exact: true }),
+  ).toHaveText("Ln 3, Col 1");
   await saved(page, original + "\n");
   await editor.press("ControlOrMeta+,");
   await expect(dialog).toBeVisible();
-  for (const checkbox of await dialog.getByRole("checkbox").all())
-    await expect(checkbox).not.toBeChecked();
+  for (const name of [
+    "Continue lists and quotes",
+    "Indent list items",
+    "Move list items with children",
+  ])
+    await expect(
+      dialog.getByRole("checkbox", { name, exact: true }),
+    ).not.toBeChecked();
 });

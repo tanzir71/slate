@@ -8,6 +8,7 @@ import {
   findEditorWikiLink,
   knownWikiTargets as wikiTargets,
   createSmartListBindings,
+  createSelectionPairs,
   type SmartListOptions,
   type WikiLinkHit
 } from "@slate/editor";
@@ -42,9 +43,10 @@ interface MarkdownEditorProps {
   onCursorChange?: (cursor: EditorCursor) => void;
   onImportImage?: ImportBlockImage;
   smartLists?: SmartListOptions;
+  selectionPairs?: boolean;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange, onImportImage, smartLists }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -54,6 +56,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const editable = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
   const smartListKeys = useRef(new Compartment());
+  const pairs = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
@@ -99,8 +102,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
         extensions: [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
-          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false }),
+          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false }),
           smartListKeys.current.of(createSmartListBindings(smartLists)),
+          pairs.current.of(createSelectionPairs(selectionPairs)),
           blocks.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
           wikiLinks.current.of(wikiTargets.of(knownWikiTargets ?? new Set())),
@@ -203,6 +207,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     viewRef.current?.dispatch({ effects: smartListKeys.current.reconfigure(createSmartListBindings(smartLists)) });
   }, [smartLists]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: pairs.current.reconfigure(createSelectionPairs(selectionPairs)) });
+  }, [selectionPairs]);
 
   useEffect(() => {
     const previous = previousWikiTargets.current;

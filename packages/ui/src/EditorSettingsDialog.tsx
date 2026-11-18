@@ -1,9 +1,9 @@
-import type { EditorPreferences, SmartListPreferences } from "@slate/core";
+import type { EditorPreferences, EditorPreferenceRule } from "@slate/core";
 import { WorkspaceDialog } from "./browser/WorkspaceDialog";
 import "./editorSettings.css";
 
 const rules: readonly {
-  id: keyof SmartListPreferences;
+  id: EditorPreferenceRule;
   label: string;
   description: string;
 }[] = [
@@ -25,6 +25,12 @@ const rules: readonly {
     description:
       "Alt ↑ and Alt ↓ move whole items and keep numbered lists in order.",
   },
+  {
+    id: "selectionPairs",
+    label: "Wrap selected text",
+    description:
+      "Type a Markdown delimiter or opening bracket to wrap selected words in one undo step.",
+  },
 ];
 
 export function EditorSettingsDialog({
@@ -33,7 +39,7 @@ export function EditorSettingsDialog({
   onClose,
 }: {
   preferences: EditorPreferences;
-  onChange(rule: keyof SmartListPreferences, enabled: boolean): void;
+  onChange(rule: EditorPreferenceRule, enabled: boolean): void;
   onClose(): void;
 }) {
   return (
@@ -49,13 +55,19 @@ export function EditorSettingsDialog({
             <label className="smartInputRule" key={rule.id}>
               <input
                 type="checkbox"
-                checked={preferences.smartLists[rule.id]}
+                checked={
+                  rule.id === "selectionPairs"
+                    ? preferences.selectionPairs
+                    : preferences.smartLists[rule.id]
+                }
                 onChange={(event) => onChange(rule.id, event.target.checked)}
                 aria-describedby={`smart-input-${rule.id}`}
                 aria-labelledby={`smart-input-${rule.id}-label`}
               />
               <span>
-                <strong id={`smart-input-${rule.id}-label`}>{rule.label}</strong>
+                <strong id={`smart-input-${rule.id}-label`}>
+                  {rule.label}
+                </strong>
                 <small id={`smart-input-${rule.id}`}>{rule.description}</small>
               </span>
             </label>

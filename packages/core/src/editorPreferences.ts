@@ -7,11 +7,16 @@ export interface SmartListPreferences {
 export interface EditorPreferences {
   readonly version: 1;
   readonly smartLists: SmartListPreferences;
+  readonly selectionPairs: boolean;
 }
+
+export type EditorPreferenceRule =
+  keyof SmartListPreferences | "selectionPairs";
 
 export const defaultEditorPreferences: EditorPreferences = Object.freeze({
   version: 1,
   smartLists: Object.freeze({ continuation: true, indent: true, move: true }),
+  selectionPairs: true,
 });
 
 /** Optional preferences never prevent a document from opening. */
@@ -21,6 +26,8 @@ export function parseEditorPreferences(value: unknown): EditorPreferences {
   const lists = value.smartLists;
   return {
     version: 1,
+    selectionPairs:
+      typeof value.selectionPairs === "boolean" ? value.selectionPairs : true,
     smartLists: {
       continuation:
         typeof lists.continuation === "boolean" ? lists.continuation : true,

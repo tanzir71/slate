@@ -3,7 +3,7 @@ import {
   defaultEditorPreferences,
   parseEditorPreferences,
   type EditorPreferences,
-  type SmartListPreferences,
+  type EditorPreferenceRule,
 } from "@slate/core";
 
 export const editorPreferenceKey = "slate.editor-preferences";
@@ -32,10 +32,15 @@ export function useEditorPreferences() {
     return () => window.removeEventListener("storage", changed);
   }, []);
 
-  function change(rule: keyof SmartListPreferences, enabled: boolean) {
+  function change(rule: EditorPreferenceRule, enabled: boolean) {
     const next: EditorPreferences = {
       version: 1,
-      smartLists: { ...current.current.smartLists, [rule]: enabled },
+      selectionPairs:
+        rule === "selectionPairs" ? enabled : current.current.selectionPairs,
+      smartLists:
+        rule === "selectionPairs"
+          ? current.current.smartLists
+          : { ...current.current.smartLists, [rule]: enabled },
     };
     current.current = next;
     try {

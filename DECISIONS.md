@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-18 - Pair Selected Text at the Editor Input Boundary
+
+Plan selection wrappers from immutable editor state, inserting delimiters around the original ranges rather than replacing selected words. Preserve reversed and multiple selections; choose longer backtick fences when content already contains code delimiters. Only typed delimiters with a nonempty selection enter this rule. Paste, composition, readonly states and an empty caret retain normal handling. A tilde or equals inserts its complete double marker; consume its second physical character before the browser changes the DOM, preserving a single undo step. Keep that pending character through unrelated configuration updates and clear it when the document or selection changes.
+
+For a non-cancellable mobile input, reconcile the DOM to identical source in a transaction excluded from history; this follows CodeMirror's approach to skipping a previously inserted closing bracket. A regression verifies both selected words and single-step undo through that fallback.
+
+Expose one independently disabled preference using the existing versioned schema and live CodeMirror compartment. Older preference records default the new field without affecting saved notes. Ordinary non-delimiter typing returns before document inspection. A large-selection regression rejects spreading every code span into a function call; scan the maximum delimiter width instead. Wiki/tag completion and the date picker remain later F-21 work.
+
 ## 2026-11-18 - Keep Smart Lists Structural and Undoable
 
 Use CodeMirror's existing Markdown continuation/deletion commands with explicit isolated history. Disable the language extension's automatic keymap so disabled rules cannot run through a second handler. Resolve list ancestry through the Markdown syntax tree; indentation and movement operate on whole sibling items and their descendant blocks. Renumber direct ordered siblings while preserving the original first counter. When a counter crosses a digit boundary, adjust child-line indentation in the same transaction, including counters changed by the upstream Enter command. Do not intercept Tab at the first sibling or Shift-Tab at a root list, preserving keyboard focus escape.

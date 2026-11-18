@@ -125,7 +125,7 @@ it("opens editor settings from the desktop command and remembers disabled smart 
   const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="Editor settings"]')!;
   expect(dialog.open).toBe(true);
   const checkboxes = dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-  expect(checkboxes).toHaveLength(3);
+  expect(checkboxes).toHaveLength(4);
   expect(document.activeElement).toBe(checkboxes[0]);
   await act(async () => checkboxes[0]!.click());
   expect(checkboxes[0]!.checked).toBe(false);

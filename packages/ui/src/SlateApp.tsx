@@ -493,6 +493,7 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
 
           <MarkdownEditor
             smartLists={editorPreferences.preferences.smartLists}
+            selectionPairs={editorPreferences.preferences.selectionPairs}
             key={selected.id}
             documentKey={`desktop/${selected.id}`}
             keymap={keymap}
