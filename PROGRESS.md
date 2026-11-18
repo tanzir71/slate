@@ -8,6 +8,8 @@
 
 ## Loop Notes
 
+- 2026-11-18: F-30 search now ranks exact, prefix, word-prefix, substring and fuzzy aliases before decaying usage frequency. Query ties use label order, so an empty-history `/ta` selects Table within the four-keystroke acceptance path; empty browsing retains catalog order. Case/diacritic normalization and malformed optional history are covered. All 10 search cases, strict core types and targeted ESLint pass. The pure search helper is ready for the menu; no UI is enabled by this commit.
+
 - 2026-11-18: Added the F-30/F-31 CodeMirror adapter without enabling a menu yet. Slash queries use the caret line and syntax context, excluding code, URLs/links, HTML, front-matter, selections and read-only sheets. Each built-in applies in one isolated transaction; all 28 undo/redo cases preserve the preceding typed query. Resource requests leave text untouched and async results reject a changed source document. All 46 adapter cases, 43 catalog cases and 3 merged structural-readiness cases pass, with strict editor types and targeted ESLint. A tab-indented line correctly remains literal code; a tab after prose permits a query. UI/keyboard menu and pickers are next; no release claim.
 
 - 2026-11-18: Integrate v0.3 structural readiness and route fixtures (80a62e9) into the isolated v0.4 branch. Preserve both branches’ evidence and catalog architecture; no release/version changes. Candidate v0.3 CI 44223373758 is confirmed running on Windows, Linux and macOS.
