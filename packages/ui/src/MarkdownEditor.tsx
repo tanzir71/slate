@@ -27,6 +27,7 @@ import type { SnippetTarget } from "./snippets/snippetTypes";
 import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
+import type { BlockLibrary } from "./blocks/blockLibrary";
 import { useBlockMenu } from "./useBlockMenu";
 import { useBlockGutter } from "./useBlockGutter";
 import { useDatePicker } from "./useDatePicker";
@@ -81,11 +82,13 @@ interface MarkdownEditorProps {
   fences?: boolean;
   frontmatter?: boolean;
   snippetIndex?: SnippetIndex | undefined;
+  customBlockLibrary?: BlockLibrary | undefined;
+  onManageBlocks?: (() => void) | undefined;
   onSnippet?: ((definition: ScopedSnippet, target: SnippetTarget) => boolean) | undefined;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet }: MarkdownEditorProps) {
-  const blocks = useBlockMenu(onImportImage);
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks }: MarkdownEditorProps) {
+  const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks);
   const gutter = useBlockGutter(({ view, target, rect }) => blocks.openAt(view, target, rect));
   const dates = useDatePicker(dateCompletion);
   const fenceInput = useFenceInput(fences, frontmatter);

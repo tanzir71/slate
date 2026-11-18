@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Cache custom block search and revalidate the chosen preview
+
+Share the existing block ranking algorithm across built-in metadata and literal custom fragments. Refresh the Space directory on startup, focus, advisory Space-scoped broadcasts and the existing visible polling loop. No file reads happen while filtering or navigating menu results. A failed directory listing clears offered custom entries while reporting its error; individual unsupported files remain visible in management with original-byte downloads. Advisory messaging failures do not undo committed writes.
+
+An explicit selection compares the rendered preview source with the current cache, then re-reads that file and checks current ownership and source again. Only then may the editor snapshot guard apply the fragment. This also rejects a cache refresh that happened before React committed a new preview. Settings edits retain their original byte snapshot and write through the same Space queue as notes, preserving external primaries and conflict copies. The browser surface exposes management through the slash preview, Editor settings and the shared command registry. Native management is not advertised before its native adapter is implemented.
+
 ## 2026-11-19 - Restore origin-global files after browser scope stories
 
 F-50 macOS CI showed the global writer's ;scope configuration in a later temporary WebKit profile, where the table trigger was consequently absent. Treat temporary profile teardown as insufficient isolation for origin-global OPFS files. A story that changes global/snippets.json captures its exact original bytes, restores those bytes or the original absence in finally, and verifies the restored file within the existing 5-second assertion deadline. Keep Space files and sibling data intact. The production behavior for an explicitly configured global file remains valid; the regression belongs to test fixture cleanup. Preserve the original keyboard operations and all data/field assertions.

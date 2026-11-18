@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useStore } from "zustand";
 import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X, Settings } from "lucide-react";
 import { matchCommand, resolveCommandKeymap, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
+import { useBlockLibrary } from "../blocks/useBlockLibrary";
 import { useSnippetLibrary } from "../snippets/useSnippetLibrary";
 import type { SnippetTarget } from "../snippets/snippetTypes";
 import type { SnippetInvocation, PreparedSnippet } from "../snippets/snippetSession";
@@ -34,6 +35,7 @@ const NotebookTemplateDialog = lazy(() => import("../templates/NotebookTemplateD
 const StarterKitDialog = lazy(() => import("../templates/StarterKitDialog"));
 const SnippetPicker = lazy(() => import("../snippets/SnippetPicker"));
 const SnippetPrompt = lazy(() => import("../snippets/SnippetPrompt"));
+const BlockSettings = lazy(() => import("../blocks/BlockSettings"));
 const SnippetSettings = lazy(() => import("../snippets/SnippetSettings"));
 interface TemplateRequest {
   notebook: string; selection: string; returnFocus: HTMLElement | undefined;
@@ -58,6 +60,8 @@ interface WorkspaceProps {
 export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance }: WorkspaceProps) {
   const state = useStore(store.api);
   const snippets = useSnippetLibrary(store);
+  const blocks = useBlockLibrary(store);
+  const [blockSettings, setBlockSettings] = useState<{ returnFocus: HTMLElement | undefined }>();
   const [snippetPicker, setSnippetPicker] = useState<SnippetInvocation>();
   const [snippetPrompt, setSnippetPrompt] = useState<PreparedSnippet>();
   const [snippetSettings, setSnippetSettings] = useState<{ returnFocus: HTMLElement | undefined }>();
@@ -95,6 +99,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const input = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLInputElement>(null);
+  const editorSettingsInvoker = useRef<HTMLElement | undefined>(undefined);
   const aboutButton = useRef<HTMLButtonElement>(null);
   const index = useRef<ReturnType<NonNullable<BrowserAppProps["createIndex"]>> | undefined>(undefined);
   const queryGeneration = useRef(0);
@@ -182,6 +187,15 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const current = store.api.getState();
     return applySnippet(snippets.session.createSnippetInvocation(target, current.record.name, current.selectedPath), definition);
   }, [store, snippets.session, applySnippet]);
+  const openBlockSettings = useCallback((returnFocus?: HTMLElement) => {
+    const active = window.document.activeElement;
+    if (blocks.library) { setBlockSettings({ returnFocus: returnFocus ?? (active instanceof HTMLElement ? active : undefined) }); run(blocks.library.refresh); }
+  }, [blocks.library, run]);
+  function openEditorSettings() {
+    const active = window.document.activeElement;
+    editorSettingsInvoker.current = active instanceof HTMLElement ? active : undefined;
+    setEditorSettings(true);
+  }
   function openSnippetSettings(returnFocus?: HTMLElement) {
     const active = window.document.activeElement;
     if (snippets.library) { setSnippetSettings({ returnFocus: returnFocus ?? (active instanceof HTMLElement ? active : undefined) }); run(snippets.library.refresh); }
@@ -217,8 +231,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "space.switch": () => run(onSwitchSpace),
       "view.inspector": () => setInspector((open) => !open),
       "app.shortcuts": () => setShortcuts(true),
-      "app.editorSettings": () => setEditorSettings(true),
+      "app.editorSettings": openEditorSettings,
       "snippet.picker": openSnippetPicker,
+      "block.settings": () => openBlockSettings(),
       "snippet.settings": () => openSnippetSettings(),
       "app.about": onAbout,
       "appearance.light": () => appearance.change("light"),
@@ -279,6 +294,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const refresh = () => {
       if (active && window.document.visibilityState === "visible") {
         run(store.refresh);
+        if (blocks.library && !["Unsaved", "Saving…"].includes(store.api.getState().saveState)) run(blocks.library.refresh);
         if (snippets.library && !["Unsaved", "Saving…"].includes(store.api.getState().saveState)) run(snippets.library.refresh);
       }
     };
@@ -315,7 +331,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       window.removeEventListener("pagehide", save);
       window.removeEventListener("beforeunload", beforeUnload);
     };
-  }, [store, snippets.library]);
+  }, [store, snippets.library, blocks.library]);
 
   useEffect(() => {
     function route() {
@@ -344,7 +360,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") { setPalette(false); setShortcuts(false); if (!actionBusy) setAction(undefined); return; }
-      if (palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings) return;
+      if (palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { event.preventDefault(); dispatchCommand(id); }
@@ -417,12 +433,13 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     } }}>
     <WorkspaceTitleBar windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
       onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={focusSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
-      controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); setEditorSettings(true); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
+      controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); openEditorSettings(); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
       actions={[
         { label: "New from template", disabled: !state.owned, run: () => dispatchCommand("sheet.fromTemplate") },
         { label: "Starter kits", disabled: !state.owned, run: () => setStarterKitRequest(captureTemplateRequest("Inbox")) },
         { label: "Insert snippet", disabled: !state.owned || !selected || selected.unsupportedEncoding || !snippets.library, run: openSnippetPicker },
+        { label: "Manage custom blocks", disabled: !blocks.library, run: () => openBlockSettings() },
         { label: "Manage snippets", disabled: !snippets.library, run: () => openSnippetSettings() },
         { label: "Notebook default template", disabled: !state.owned, run: () => openNotebookTemplate(filter && !/^[#@]/.test(filter) ? filter : "Inbox") },
         { label: pinned ? "Unpin sheet" : "Pin sheet", disabled: !selected || !state.owned, run: () => dispatchCommand("sheet.pin") },
@@ -467,7 +484,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <section className="browserEditor" aria-label="Editor">
         <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} initialCursor={state.initialCursor?.path === selected.path ? state.initialCursor.position : undefined} value={selected.content} smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} completionTags={tags} wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion} snippetIndex={snippets.snapshot?.index} onSnippet={expandSnippet} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onImportClipboardImage={copyClipboardImage} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks} pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}>New Sheet</button></div>}
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} initialCursor={state.initialCursor?.path === selected.path ? state.initialCursor.position : undefined} value={selected.content} smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} completionTags={tags} wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion} customBlockLibrary={blocks.library} onManageBlocks={openBlockSettings} snippetIndex={snippets.snapshot?.index} onSnippet={expandSnippet} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onImportClipboardImage={copyClipboardImage} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks} pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}>New Sheet</button></div>}
       </section>
       {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>
@@ -475,9 +492,10 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <WorkspaceStatusBar saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.flush)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
     <LaunchActions key={state.record.id} store={store} />
-    {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
+    {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
     {snippetPicker && snippets.library && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPicker.target.element} onClose={() => setSnippetPicker(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetPicker library={snippets.library} invocation={snippetPicker} spaceName={state.record.name} onClose={() => setSnippetPicker(undefined)} onChoose={(definition) => { applySnippet(snippetPicker, definition); setSnippetPicker(undefined); }} onManage={() => { openSnippetSettings(snippetPicker.target.element); setSnippetPicker(undefined); }} /></Suspense>}
     {snippetPrompt && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPrompt.target.element} onClose={() => setSnippetPrompt(undefined)}><p role="status">Opening snippet fields…</p></WorkspaceDialog>}><SnippetPrompt request={snippetPrompt} onClose={() => setSnippetPrompt(undefined)} /></Suspense>}
+    {blockSettings && blocks.library && <Suspense fallback={<WorkspaceDialog title="Custom blocks" returnFocus={blockSettings.returnFocus} onClose={() => setBlockSettings(undefined)}><p role="status">Opening custom blocks…</p></WorkspaceDialog>}><BlockSettings library={blocks.library} store={store} returnFocus={blockSettings.returnFocus} onTakeover={onTakeover} onClose={() => setBlockSettings(undefined)} /></Suspense>}
     {snippetSettings && snippets.library && <Suspense fallback={<WorkspaceDialog title="Snippets" returnFocus={snippetSettings.returnFocus} onClose={() => setSnippetSettings(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetSettings library={snippets.library} store={store} returnFocus={snippetSettings.returnFocus} onTakeover={onTakeover} onClose={() => setSnippetSettings(undefined)} /></Suspense>}
     {(palette || shortcuts) && <CommandDialog kind={shortcuts ? "shortcuts" : "palette"} keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => { setPalette(false); setShortcuts(false); }} onCommand={(id) => { setPalette(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
     {templateRequest && <Suspense fallback={<WorkspaceDialog title="New from template" returnFocus={templateRequest.returnFocus} onClose={() => setTemplateRequest(undefined)}><p role="status">Opening templates…</p></WorkspaceDialog>}><TemplateGallery store={store} notebook={templateRequest.notebook} selection={templateRequest.selection} returnFocus={templateRequest.returnFocus} initialTemplateId={templateRequest.initialTemplateId} initialDestination={templateRequest.initialDestination} onClose={() => setTemplateRequest(undefined)} onStarterKits={() => { setStarterKitRequest({ returnFocus: templateRequest.returnFocus }); setTemplateRequest(undefined); }} /></Suspense>}

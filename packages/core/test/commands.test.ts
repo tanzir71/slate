@@ -25,6 +25,10 @@ const profile = { os: "windows", surface: "web" } as const;
 const editor = { editor: true, selection: false };
 
 describe("shared command registry", () => {
+  it("offers custom block management only on the implemented browser surface", () => {
+    expect(commandsForSurface("web").find((command) => command.id === "block.settings")?.label).toBe("Manage custom blocks");
+    expect(commandsForSurface("desktop").some((command) => command.id === "block.settings")).toBe(false);
+  });
   it("opens the web snippet picker with Mod semicolon and keeps preview-only desktop actions honest", () => {
     const web = resolveCommandKeymap(profile);
     expect(matchCommand(web.bindings, input(";"), editor)).toBe("snippet.picker");

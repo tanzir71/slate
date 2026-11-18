@@ -83,6 +83,38 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page).toHaveScreenshot(`a4-snippets-${theme}.png`);
     });
 
+    test("A7 custom block settings", async ({ page }) => {
+      await writingFixture(page);
+      await workspaceAction(page, "Manage custom blocks");
+      const dialog = page.getByRole("dialog", {
+        name: "Custom blocks",
+        exact: true,
+      });
+      for (const [name, source] of [
+        ["Callout", "> A detail worth remembering.\n"],
+        ["Decision", "## Decision\n\n- Context\n- Outcome\n"],
+      ]) {
+        await dialog
+          .getByRole("button", { name: "Add custom block", exact: true })
+          .click();
+        await dialog
+          .getByRole("textbox", { name: "Block name", exact: true })
+          .fill(name!);
+        await dialog
+          .getByRole("textbox", { name: "Block Markdown", exact: true })
+          .fill(source!);
+        await dialog
+          .getByRole("button", { name: "Save block", exact: true })
+          .click();
+        await expect(
+          dialog.getByRole("button", { name: `Edit ${name}.md`, exact: true }),
+        ).toBeVisible();
+      }
+      await expect(dialog.locator("tbody tr")).toHaveCount(2);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a7-custom-blocks-${theme}.png`);
+    });
+
     test("A7 snippet settings", async ({ page }) => {
       await writingFixture(page);
       await workspaceAction(page, "Manage snippets");

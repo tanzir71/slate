@@ -23,7 +23,7 @@ import {
   Braces,
   FileText,
 } from "lucide-react";
-import type { BlockDefinition } from "@slate/core";
+import type { BlockDefinition, CustomBlock } from "@slate/core";
 import type { BlockMenuAnchor } from "./blockMenuController";
 import { BlockPreview } from "./BlockPreview";
 
@@ -59,12 +59,16 @@ export function BlockMenu({
   previewRef,
   previewing,
   search,
+  onManage,
+  catalogError,
 }: {
   anchor: BlockMenuAnchor;
-  results: readonly BlockDefinition[];
-  active: BlockDefinition | undefined;
+  results: readonly (BlockDefinition | CustomBlock)[];
+  active: BlockDefinition | CustomBlock | undefined;
   markdown: string;
   listId: string;
+  onManage?: (() => void) | undefined;
+  catalogError?: string | undefined;
   onSelect(id: string): void;
   onInsert(id: string): void;
   onKey(event: KeyboardEvent): void;
@@ -159,6 +163,11 @@ export function BlockMenu({
           tabIndex={0}
           aria-label="Blocks"
         >
+          {catalogError && (
+            <p className="blockMenuEmpty" role="status">
+              {catalogError}
+            </p>
+          )}
           {!results.length && (
             <p className="blockMenuEmpty">No blocks match “{anchor.query}”.</p>
           )}
@@ -213,6 +222,20 @@ export function BlockMenu({
               <small>PREVIEW</small>
               <BlockPreview markdown={markdown} />
             </>
+          )}
+          {onManage && (
+            <button
+              type="button"
+              className="blockMenuManage"
+              aria-label="Manage custom blocks"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ")
+                  event.stopPropagation();
+              }}
+              onClick={onManage}
+            >
+              Edit blocks in Settings → Blocks
+            </button>
           )}
         </section>
       </div>

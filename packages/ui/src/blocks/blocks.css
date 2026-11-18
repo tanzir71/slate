@@ -1,0 +1,36 @@
+.customBlockSettings .snippetTable th:first-child {
+  inline-size: 200px;
+}
+.customBlockSettings .snippetTable th:last-child {
+  inline-size: auto;
+}
+.customBlockSettings .snippetTable td {
+  block-size: 52px;
+}
+.customBlockSettings .snippetTable td:first-child button {
+  inline-size: 100%;
+  text-align: start;
+  color: var(--text-primary);
+  font: 500 13px/20px var(--font-ui);
+}
+.customBlockPath {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-tertiary);
+  font: 11px/16px var(--font-mono);
+}
+.customBlockSettings .snippetTable td:last-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.customBlockSettings .snippetTable td:last-child code {
+  display: block;
+  max-block-size: 32px;
+  overflow: hidden;
+}
+@media (max-width: 600px) {
+  .customBlockSettings .snippetTable th:first-child {
+    inline-size: 44%;
+  }
+}
