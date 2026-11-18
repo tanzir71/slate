@@ -8,7 +8,11 @@ import {
 } from "./helpers";
 
 async function saved(page: import("@playwright/test").Page, source: string) {
-  await expect.poll(() => readCurrentSheet(page)).toBe(source);
+  // A concurrent OPFS commit can briefly make a snapshot unavailable. Keep
+  // requiring exact saved bytes within the existing five-second assertion gate.
+  await expect(async () => {
+    expect(await readCurrentSheet(page)).toBe(source);
+  }).toPass({ timeout: 5_000 });
   await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
     "Saved",
   );
@@ -126,6 +130,40 @@ test("leaving the editor aligns only edited tables and undo retains the typed wo
   await saved(page, source.replace("| x |", "| x longer |"));
 });
 
+test("table save assertions survive one unavailable OPFS snapshot and still require the exact file", async ({
+  page,
+}) => {
+  await openLibrary(page);
+  const source = "| a | b |\n|-|-|\n| x | y |";
+  const editor = await createSheet(page, source);
+  await editor.press("ControlOrMeta+Home");
+  await editor.press("ArrowDown");
+  await editor.press("ArrowDown");
+  await editor.press("Home");
+  for (let index = 0; index < 3; index++) await editor.press("ArrowRight");
+  await page.keyboard.insertText(" longer");
+  await page.getByRole("button", { name: "Go to line", exact: true }).focus();
+  await page.evaluate(() => {
+    const get = navigator.storage.getDirectory.bind(navigator.storage);
+    let missing = true;
+    navigator.storage.getDirectory = async () => {
+      if (missing) {
+        missing = false;
+        throw new DOMException(
+          "Snapshot is not yet available",
+          "NotFoundError",
+        );
+      }
+      return get();
+    };
+  });
+  const expected = "| a        | b   |\n| -------- | --- |\n| x longer | y   |";
+  await saved(page, expected);
+  await page.reload();
+  await expect(editor).toBeVisible();
+  await saved(page, expected);
+});
+
 test("smart tables can be disabled independently and the preference survives reopening", async ({
   page,
 }) => {
@@ -176,13 +214,11 @@ test("completion wins table keys and date dialogs preserve their source snapshot
 }) => {
   test.setTimeout(60_000);
   await openLibrary(page);
-  await page
-    .getByLabel("Import files", { exact: true })
-    .setInputFiles({
-      name: "Target.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from("# Target\n\nWords."),
-    });
+  await page.getByLabel("Import files", { exact: true }).setInputFiles({
+    name: "Target.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# Target\n\nWords."),
+  });
   await expect(
     page.getByText("Imported your files. Existing files were kept."),
   ).toBeVisible();
