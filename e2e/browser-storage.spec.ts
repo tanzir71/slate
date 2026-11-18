@@ -55,6 +55,39 @@ test("reloads offline with saved files and a working editor", async ({ page, con
   await expect(page.locator(".cm-content")).toContainText("Still writing.");
 });
 
+test("refreshes an invalidated file snapshot once and surfaces persistent read errors", async ({ page }) => {
+  await openLibrary(page);
+  const source = "# Snapshot\n\nKeep these bytes.";
+  await createSheet(page, source);
+  await page.evaluate(() => {
+    const probe = { reads: 0, remaining: 1, name: "NotReadableError" };
+    Reflect.set(window, "snapshotReadProbe", probe);
+    const getFile = FileSystemFileHandle.prototype.getFile;
+    FileSystemFileHandle.prototype.getFile = async function () {
+      const file = await getFile.call(this);
+      if (this.name !== "Untitled.md") return file;
+      const text = file.text.bind(file);
+      Object.defineProperty(file, "text", { value: async () => {
+        probe.reads++;
+        if (probe.remaining > 0) { probe.remaining--; throw new DOMException("Test snapshot invalidated", probe.name); }
+        return text();
+      } });
+      return file;
+    };
+  });
+  const probe = () => page.evaluate(() => Reflect.get(window, "snapshotReadProbe") as { reads: number; remaining: number; name: string });
+  expect(await readCurrentSheet(page)).toBe(source);
+  expect((await probe()).reads).toBe(2);
+  await page.evaluate(() => Object.assign(Reflect.get(window, "snapshotReadProbe"), { reads: 0, remaining: 2 }));
+  await expect(readCurrentSheet(page)).rejects.toThrow("Test snapshot invalidated");
+  expect((await probe()).reads).toBe(2);
+  await page.evaluate(() => Object.assign(Reflect.get(window, "snapshotReadProbe"), { reads: 0, remaining: 1, name: "NotAllowedError" }));
+  await expect(readCurrentSheet(page)).rejects.toThrow("Test snapshot invalidated");
+  expect((await probe()).reads).toBe(1);
+  await page.evaluate(() => Object.assign(Reflect.get(window, "snapshotReadProbe"), { remaining: 0 }));
+  expect(await readCurrentSheet(page)).toBe(source);
+});
+
 test("gives one tab write ownership and transfers it after flushing", async ({ page, context }) => {
   // Two cold tab loads must leave time for the existing 15 s save assertion.
   test.setTimeout(60_000);

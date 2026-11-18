@@ -63,10 +63,16 @@ export function createDirectoryFiles(root: BrowserDirectoryHandle): BrowserFiles
     async read(path) {
       try {
         const { directory, name } = await locate(path, false);
-        const file = await (await directory.getFileHandle(name)).getFile();
-        return new Uint8Array(await file.arrayBuffer());
+        const handle = await directory.getFileHandle(name);
+        const snapshot = async () => new Uint8Array(await (await handle.getFile()).arrayBuffer());
+        try { return await snapshot(); }
+        catch (error) {
+          // A concurrent save can invalidate a File object. Obtain a fresh object once.
+          if (!isFileError(error, "NotReadableError")) throw error;
+          return await snapshot();
+        }
       } catch (error) {
-        if (isNotFound(error)) return undefined;
+        if (isFileError(error, "NotFoundError")) return undefined;
         throw error;
       }
     },
@@ -106,6 +112,6 @@ export function createMemoryFiles(initial: Record<string, string> = {}): Browser
 export const encodeText = (text: string): Uint8Array => new TextEncoder().encode(text);
 export const decodeText = (bytes: Uint8Array): string => new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 
-function isNotFound(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "name" in error && error.name === "NotFoundError";
+function isFileError(error: unknown, name: string): boolean {
+  return typeof error === "object" && error !== null && "name" in error && error.name === name;
 }

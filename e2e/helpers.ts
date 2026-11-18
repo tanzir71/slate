@@ -67,6 +67,12 @@ export async function readCurrentSheet(page: Page) {
     const root = await navigator.storage.getDirectory();
     let directory = await (await root.getDirectoryHandle("spaces")).getDirectoryHandle(id);
     for (const part of path) directory = await directory.getDirectoryHandle(part);
-    return (await (await directory.getFileHandle(filename)).getFile()).text();
+    const handle = await directory.getFileHandle(filename);
+    const snapshot = async () => (await handle.getFile()).text();
+    try { return await snapshot(); }
+    catch (error) {
+      if (!(error instanceof DOMException) || error.name !== "NotReadableError") throw error;
+      return snapshot();
+    }
   });
 }
