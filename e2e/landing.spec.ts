@@ -44,14 +44,14 @@ test("product capture follows the system theme without changing its dimensions",
   page.on("request", (request) => { if (/workspace-(?:light|dark|mobile)/.test(request.url())) requested.push(new URL(request.url()).pathname); });
   await page.goto("../");
   const image = page.locator(".workspace-shot");
-  await expect.poll(() => image.evaluate((element: HTMLImageElement) => new URL(element.currentSrc).pathname))
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => new URL(element.currentSrc, document.baseURI).pathname))
     .toMatch(isMobile ? /workspace-mobile-dark\.avif$/ : /workspace-dark\.jpg$/);
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   expect(await image.evaluate((element: HTMLImageElement) => [element.naturalWidth, element.naturalHeight])).toEqual(isMobile ? [604, 480] : [1440, 900]);
   expect(requested.some((path) => /workspace-light\.jpg$|workspace-mobile\.avif$/.test(path))).toBe(false);
   const before = await image.boundingBox();
   await page.emulateMedia({ colorScheme: "light" });
-  await expect.poll(() => image.evaluate((element: HTMLImageElement) => new URL(element.currentSrc).pathname))
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => new URL(element.currentSrc, document.baseURI).pathname))
     .toMatch(isMobile ? /workspace-mobile\.avif$/ : /workspace-light\.jpg$/);
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   const after = await image.boundingBox();
