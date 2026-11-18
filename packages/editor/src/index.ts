@@ -28,6 +28,7 @@ export {
   livePreviewSettings,
 } from "./livePreview.js";
 export { findWikiLinkAtPosition, type WikiLinkHit } from "./wikiLinks.js";
+export { editorBlockQuery, insertEditorBlock, type BlockQuery } from "./blockInsertion.js";
 
 export interface EditorHud {
   words: number;
