@@ -34,11 +34,10 @@ export function useEditorPreferences() {
 
   function change(rule: EditorPreferenceRule, enabled: boolean) {
     const next: EditorPreferences = {
-      version: 1,
-      selectionPairs:
-        rule === "selectionPairs" ? enabled : current.current.selectionPairs,
+      ...current.current,
+      ...(rule in current.current ? { [rule]: enabled } : {}),
       smartLists:
-        rule === "selectionPairs"
+        rule in current.current
           ? current.current.smartLists
           : { ...current.current.smartLists, [rule]: enabled },
     };

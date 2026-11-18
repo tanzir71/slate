@@ -152,6 +152,9 @@ importers:
 
   packages/editor:
     dependencies:
+      '@codemirror/autocomplete':
+        specifier: 6.20.3
+        version: 6.20.3
       '@codemirror/commands':
         specifier: ^6.8.1
         version: 6.10.4
@@ -5565,7 +5568,7 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.9
       estree-walker: 2.0.2
-      picomatch: 4.0.5
+      picomatch: 4.0.7
     optionalDependencies:
       rollup: 4.62.2
 

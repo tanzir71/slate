@@ -113,6 +113,8 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
   const selected = sheets.find((sheet) => sheet.id === selectedId) ?? sheets[0];
   const completionIdentities = useMemo(() => JSON.stringify(sheets.map((sheet) => ({ id: sheet.id, path: sheetToPath(sheet), title: sheet.title }))), [sheets]);
   const completionSheets = useMemo(() => JSON.parse(completionIdentities) as WikiCompletionTarget[], [completionIdentities]);
+  const tagIdentities = useMemo(() => JSON.stringify([...new Set(sheets.flatMap((sheet) => sheet.tags))].sort()), [sheets]);
+  const completionTags = useMemo(() => JSON.parse(tagIdentities) as string[], [tagIdentities]);
   const selectedSpace = spaces.find((space) => space.id === activeSpace) ?? spaces[0];
 
   useEffect(() => {
@@ -495,6 +497,9 @@ export function SlateApp({ autosaveWriter, sheetMoveWriter }: SlateAppProps = {}
 
           <MarkdownEditor
             completionSheets={completionSheets}
+            completionTags={completionTags}
+            wikiCompletion={editorPreferences.preferences.wikiCompletion}
+            tagCompletion={editorPreferences.preferences.tagCompletion}
             smartLists={editorPreferences.preferences.smartLists}
             selectionPairs={editorPreferences.preferences.selectionPairs}
             key={selected.id}

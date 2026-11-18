@@ -1,0 +1,218 @@
+import {
+  autocompletion,
+  acceptCompletion,
+  completionKeymap,
+  pickedCompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+} from "@codemirror/autocomplete";
+import { isolateHistory } from "@codemirror/commands";
+import { Facet, Prec, Transaction, type Extension } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { wikiCompletionText, type WikiCompletionTarget } from "@slate/core";
+import { markdownCompletionQuery } from "./completionQuery.js";
+
+export interface MarkdownCompletionOptions {
+  readonly sheets?: readonly WikiCompletionTarget[];
+  readonly tags?: readonly string[];
+  readonly wiki?: boolean;
+  readonly tag?: boolean;
+}
+
+interface Entry {
+  readonly identity: string;
+  readonly kind: "wiki" | "tag";
+  readonly label: string;
+  readonly detail: string;
+  readonly insert: string;
+  readonly search: readonly string[];
+}
+
+const fold = (text: string) =>
+  text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const tagPath = /^[A-Za-z0-9][A-Za-z0-9_-]*(?:\/[A-Za-z0-9][A-Za-z0-9_-]*)*$/;
+
+function entries(options: MarkdownCompletionOptions): readonly Entry[] {
+  const wiki: Entry[] =
+    options.wiki === false
+      ? []
+      : (options.sheets ?? []).flatMap((sheet) => {
+          const insert = wikiCompletionText(sheet);
+          return insert
+            ? [
+                {
+                  identity: JSON.stringify([sheet.id, sheet.path, sheet.title]),
+                  kind: "wiki" as const,
+                  label: sheet.title || sheet.path,
+                  detail: sheet.path,
+                  insert,
+                  search: [fold(sheet.title), fold(sheet.path)],
+                },
+              ]
+            : [];
+        });
+  const tags: Entry[] =
+    options.tag === false
+      ? []
+      : [...new Set(options.tags)]
+          .filter((tag) => tagPath.test(tag))
+          .map((tag) => ({
+            identity: tag,
+            kind: "tag",
+            label: tag,
+            detail: "Tag",
+            insert: `#${tag}`,
+            search: [fold(tag)],
+          }));
+  return [...wiki, ...tags].sort(
+    (a, b) =>
+      a.label.localeCompare(b.label) || a.detail.localeCompare(b.detail),
+  );
+}
+
+const completionEntries = Facet.define<
+  MarkdownCompletionOptions,
+  readonly Entry[]
+>({
+  combine: (values) => entries(values.at(-1) ?? {}),
+});
+
+function applyEntry(
+  view: EditorView,
+  completion: Completion,
+  entry: Entry,
+  from: number,
+  to: number,
+) {
+  const query = markdownCompletionQuery(view.state);
+  if (
+    view.compositionStarted ||
+    !query ||
+    query.kind !== entry.kind ||
+    query.contentFrom !== from ||
+    query.to !== to ||
+    !entry.search.some((value) => value.includes(fold(query.query))) ||
+    !view.state
+      .facet(completionEntries)
+      .some(
+        (current) =>
+          current.kind === entry.kind && current.identity === entry.identity,
+      )
+  )
+    return;
+  const end =
+    entry.kind === "wiki" && view.state.sliceDoc(to, to + 2) === "]]"
+      ? to + 2
+      : to;
+  view.dispatch({
+    changes: { from: query.from, to: end, insert: entry.insert },
+    selection: { anchor: query.from + entry.insert.length },
+    annotations: [
+      isolateHistory.of("full"),
+      pickedCompletion.of(completion),
+      Transaction.userEvent.of("input.complete"),
+    ],
+    scrollIntoView: true,
+  });
+}
+
+/** Suggestions are derived from metadata only; ordinary input uses a bounded query. */
+export function markdownCompletionSource(
+  context: CompletionContext,
+): CompletionResult | null {
+  if (context.view?.compositionStarted) return null;
+  const query = markdownCompletionQuery(context.state);
+  if (!query || query.kind === "date") return null;
+  const text = fold(query.query);
+  const ranked = context.state
+    .facet(completionEntries)
+    .filter((entry) => entry.kind === query.kind)
+    .map((entry) => ({
+      entry,
+      rank: Math.min(
+        ...entry.search.map((value) =>
+          value === text
+            ? 0
+            : value.startsWith(text)
+              ? 1
+              : value.includes(text)
+                ? 2
+                : 3,
+        ),
+      ),
+    }))
+    .filter(({ rank }) => rank < 3)
+    .sort((a, b) => a.rank - b.rank);
+  if (!ranked.length) return null;
+  return {
+    from: query.contentFrom,
+    to: query.to,
+    filter: false,
+    options: ranked.map(({ entry }) => ({
+      label: entry.label,
+      detail: entry.detail,
+      apply: (view, completion, from, to) =>
+        applyEntry(view, completion, entry, from, to),
+    })),
+  };
+}
+
+export function createMarkdownCompletions(
+  options: MarkdownCompletionOptions = {},
+): Extension {
+  return [
+    completionEntries.of(options),
+    autocompletion({
+      override: [markdownCompletionSource],
+      defaultKeymap: false,
+      icons: false,
+      maxRenderedOptions: 50,
+      interactionDelay: 0,
+      tooltipClass: () => "cm-slate-completions",
+    }),
+    Prec.highest(
+      keymap.of([{ key: "Tab", run: acceptCompletion }, ...completionKeymap]),
+    ),
+    EditorView.theme({
+      ".cm-tooltip.cm-slate-completions": {
+        backgroundColor: "var(--bg-raised)",
+        color: "var(--text-primary)",
+        border: "1px solid var(--border-default)",
+        borderRadius: "10px",
+        boxShadow: "0 12px 32px #0002",
+        overflow: "hidden",
+        font: "13px/20px var(--font-ui, Geist, Arial, sans-serif)",
+        maxWidth: "min(420px, calc(100vw - 24px))",
+      },
+      ".cm-tooltip.cm-slate-completions > ul": {
+        padding: "4px",
+        maxHeight: "min(300px, 45vh)",
+        fontFamily: "inherit",
+      },
+      ".cm-tooltip.cm-slate-completions > ul > li": {
+        padding: "4px 8px",
+        minHeight: "28px",
+        boxSizing: "border-box",
+        borderRadius: "6px",
+      },
+      ".cm-tooltip.cm-slate-completions > ul > li[aria-selected]": {
+        backgroundColor: "var(--bg-selected)",
+        color: "var(--text-primary)",
+      },
+      ".cm-completionDetail": {
+        color: "var(--text-secondary)",
+        fontStyle: "normal",
+        fontSize: "12px",
+        marginLeft: "16px",
+      },
+      "@media (pointer: coarse)": {
+        ".cm-tooltip.cm-slate-completions > ul > li": {
+          minHeight: "44px",
+          paddingTop: "12px",
+          paddingBottom: "12px",
+        },
+      },
+    }),
+  ];
+}

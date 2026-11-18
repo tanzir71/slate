@@ -377,3 +377,10 @@ Wiki completions use a canonical Space-relative Markdown path and a display titl
 ## 2026-11-18 - Keep recovery rows in the file list's stable order
 
 Recovery creates virtual draft paths before their first disk write. Sort the overlaid paths with the same ordinal string ordering as the file adapter, before exposing them to summary workers or navigation. Otherwise, saving an appended recovered draft moves its row above the original between pointer-down and pointer-up; a real click can select the neighboring note. Sorting changes only derived list order and preserves source bytes, conflict handling and both recovery journals. The regression checks identical path order before and after saving two divergent drafts.
+
+
+## 2026-11-18 - Use CodeMirror completion with current metadata identities
+
+Use the existing CodeMirror autocomplete package directly (pinned 6.20.3) for keyboard, pointer, viewport and listbox behavior. Supply a bounded Markdown-aware source and precomputed title/path/tag metadata; ordinary typing never scans a full line or every sheet. Wiki paths disambiguate identical titles, and tags follow Slate's existing ASCII nested-tag grammar. Search matches titles or paths with accent-insensitive prefix/substring ranking. Render labels as plain text, style the tooltip with Slate tokens, and retain ordinary list Tab/Enter behavior when completion is inactive.
+
+Each accepted option revalidates the current query, read-only/composition state and semantic target identity before one isolated transaction. A metadata refresh can add a newly typed tag while a pointer click is pending; compare semantic identities rather than object references so an unchanged target still works. Removed, renamed or no-longer-matching suggestions remain inert. Existing wiki closers are consumed instead of duplicated. Wiki and tag preferences are independent, default on for older version-1 preferences, and never modify note contents or reset editor history when changed. Date completion remains a separate pending rule.

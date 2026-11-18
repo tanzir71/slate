@@ -57,3 +57,27 @@ it("retains explicit disabled rules and defaults individual invalid fields", () 
   ).toEqual({ continuation: true, indent: false, move: true });
   expect(Object.isFrozen(defaultEditorPreferences.smartLists)).toBe(true);
 });
+
+it.each(["wikiCompletion", "tagCompletion"] as const)(
+  "validates optional %s independently and defaults older settings",
+  (rule) => {
+    for (const [value, expected] of [
+      [false, false],
+      [true, true],
+      [undefined, true],
+      ["false", true],
+    ] as const) {
+      const preferences = parseEditorPreferences({
+        version: 1,
+        smartLists: {},
+        [rule]: value,
+      });
+      expect(preferences[rule]).toBe(expected);
+      expect(
+        preferences[
+          rule === "wikiCompletion" ? "tagCompletion" : "wikiCompletion"
+        ],
+      ).toBe(true);
+    }
+  },
+);

@@ -10,6 +10,7 @@ import {
   knownWikiPaths,
   createSmartListBindings,
   createSelectionPairs,
+  createMarkdownCompletions,
   type SmartListOptions,
   type WikiLinkHit
 } from "@slate/editor";
@@ -49,13 +50,16 @@ interface MarkdownEditorProps {
   onHandle?: (handle: MarkdownEditorHandle | undefined) => void;
   knownWikiTargets?: ReadonlySet<string>;
   completionSheets?: readonly WikiCompletionTarget[];
+  completionTags?: readonly string[];
+  wikiCompletion?: boolean;
+  tagCompletion?: boolean;
   onCursorChange?: (cursor: EditorCursor) => void;
   onImportImage?: ImportBlockImage;
   smartLists?: SmartListOptions;
   selectionPairs?: boolean;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -66,6 +70,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const formattingKeys = useRef(new Compartment());
   const smartListKeys = useRef(new Compartment());
   const pairs = useRef(new Compartment());
+  const completions = useRef(new Compartment());
   const onHandleRef = useRef(onHandle);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
@@ -115,6 +120,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
           ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false }),
           smartListKeys.current.of(createSmartListBindings(smartLists)),
           pairs.current.of(createSelectionPairs(selectionPairs)),
+          completions.current.of(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion })),
           blocks.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
           wikiLinks.current.of(wikiExtensions(knownWikiTargets, completionSheets)),
@@ -221,6 +227,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     viewRef.current?.dispatch({ effects: pairs.current.reconfigure(createSelectionPairs(selectionPairs)) });
   }, [selectionPairs]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: completions.current.reconfigure(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion })) });
+  }, [completionSheets, completionTags, wikiCompletion, tagCompletion]);
 
   useEffect(() => {
     const previous = previousWikiTargets.current;

@@ -31,6 +31,16 @@ const rules: readonly {
     description:
       "Type a Markdown delimiter or opening bracket to wrap selected words in one undo step.",
   },
+  {
+    id: "wikiCompletion",
+    label: "Suggest sheets after [[",
+    description: "Find sheets by title or file path and insert a wiki link.",
+  },
+  {
+    id: "tagCompletion",
+    label: "Suggest tags after #",
+    description: "Reuse tags from this Space, including nested tags.",
+  },
 ];
 
 export function EditorSettingsDialog({
@@ -56,9 +66,11 @@ export function EditorSettingsDialog({
               <input
                 type="checkbox"
                 checked={
-                  rule.id === "selectionPairs"
-                    ? preferences.selectionPairs
-                    : preferences.smartLists[rule.id]
+                  rule.id === "continuation" ||
+                  rule.id === "indent" ||
+                  rule.id === "move"
+                    ? preferences.smartLists[rule.id]
+                    : preferences[rule.id]
                 }
                 onChange={(event) => onChange(rule.id, event.target.checked)}
                 aria-describedby={`smart-input-${rule.id}`}

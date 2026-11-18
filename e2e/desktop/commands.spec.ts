@@ -28,6 +28,28 @@ test("desktop migration notice is dismissible and is shown only once", async ({ 
   await expect(notice).toHaveCount(0);
 });
 
+test("desktop wiki completion saves a canonical link and opens its target", async ({ page }) => {
+  const editor = page.locator(".cm-content");
+  await editor.fill("# Source\n\n");
+  await editor.press("ControlOrMeta+End");
+  await editor.pressSequentially("[[Product Vis");
+  const option = page.locator(".cm-slate-completions").getByRole("option").filter({ hasText: "Product Vision" });
+  await expect(option).toBeVisible();
+  await expect(option).toContainText("product/strategy/product-vision.md");
+  await editor.press("Tab");
+  const expected = "# Source\n\n[[product/strategy/product-vision.md|Product Vision]]";
+  await expect.poll(() => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("native-test:")).map((key) => localStorage.getItem(key)))).toContain(expected);
+  await editor.press("ControlOrMeta+z");
+  await expect(editor).toContainText("[[Product Vis");
+  await editor.press("Escape");
+  await editor.pressSequentially("ion");
+  await expect(option).toBeVisible();
+  await editor.press("Enter");
+  await editor.press("ControlOrMeta+Home");
+  await editor.locator(".cm-slate-wiki-link").click({ modifiers: ["ControlOrMeta"] });
+  await expect(page.locator(".editorToolbar h1")).toHaveText("Product Vision");
+});
+
 test("desktop formatting, registry shortcuts and IPC saves agree", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("complementary", { name: "Inspector" })).toBeHidden();
