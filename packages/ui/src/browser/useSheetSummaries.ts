@@ -2,11 +2,12 @@ import { startTransition, useEffect, useRef, useState } from "react";
 import type { SheetDocument } from "@slate/core";
 import { createSheetSummaryClient } from "./sheetSummaryClient";
 import type { SummaryInput } from "./sheetSummaryProtocol";
+import { createSheetSummaryScheduler } from "./sheetSummaryScheduler";
 
 export function useSheetSummaries(sheets: readonly SummaryInput[]) {
   const [documents, setDocuments] = useState<SheetDocument[]>([]);
   const client = useRef<
-    ReturnType<typeof createSheetSummaryClient> | undefined
+    ReturnType<typeof createSheetSummaryScheduler> | undefined
   >(undefined);
   useEffect(() => {
     let worker: Worker | undefined;
@@ -21,22 +22,16 @@ export function useSheetSummaries(sheets: readonly SummaryInput[]) {
     const current = createSheetSummaryClient(worker, (next) =>
       startTransition(() => setDocuments(next)),
     );
-    client.current = current;
+    const scheduled = createSheetSummaryScheduler(current.read);
+    client.current = scheduled;
     return () => {
+      scheduled.close();
       current.close();
       client.current = undefined;
     };
   }, []);
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    // Clone large source strings for the worker after the editor's next paint.
-    const frame = requestAnimationFrame(() => {
-      timer = setTimeout(() => client.current?.read(sheets), 0);
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(timer);
-    };
+    client.current?.read(sheets);
   }, [sheets]);
   return documents;
 }

@@ -469,3 +469,69 @@ test("the closed inspector avoids full-body scans and shows current headings whe
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   expect(await scans()).toBe(0);
 });
+
+test("summary refreshes stay bounded during typing and catch up to exact saved words", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const diagnostic = window as Window & {
+      summaryPostTimes: number[];
+      summaryStarted: number;
+    };
+    diagnostic.summaryPostTimes = [];
+    const Original = window.Worker;
+    window.Worker = class extends Original {
+      private summary: boolean;
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        this.summary = String(url).includes("sheetSummary");
+      }
+      postMessage(
+        message: unknown,
+        options: Transferable[] | StructuredSerializeOptions = [],
+      ) {
+        if (this.summary) diagnostic.summaryPostTimes.push(performance.now());
+        if (Array.isArray(options)) super.postMessage(message, options);
+        else super.postMessage(message, options);
+      }
+    };
+  });
+  await openLibrary(page);
+  const prefix = "# Refresh cadence fixture\n\n";
+  const editor = await createSheet(page, prefix);
+  await expect(
+    page.locator('.browserSheetRow[aria-current="true"]'),
+  ).toContainText("Refresh cadence fixture");
+  await editor.focus();
+  await page.evaluate(() => {
+    const diagnostic = window as Window & {
+      summaryPostTimes: number[];
+      summaryStarted: number;
+    };
+    diagnostic.summaryPostTimes = [];
+    diagnostic.summaryStarted = performance.now();
+  });
+  const words = "one ".repeat(20);
+  await page.keyboard.type(words, { delay: 10 });
+  const refreshes = await page.evaluate(() => {
+    const diagnostic = window as Window & {
+      summaryPostTimes: number[];
+      summaryStarted: number;
+    };
+    return {
+      count: diagnostic.summaryPostTimes.length,
+      elapsed: performance.now() - diagnostic.summaryStarted,
+    };
+  });
+  expect(refreshes.count).toBeGreaterThan(1);
+  expect(refreshes.count).toBeLessThanOrEqual(
+    Math.ceil(refreshes.elapsed / 100) + 2,
+  );
+  await expect(
+    page.getByRole("button", { name: "Writing statistics", exact: true }),
+  ).toHaveText("20 words");
+  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
+    "Saved",
+  );
+  expect(await readCurrentSheet(page)).toBe(`${prefix}${words}`);
+});
