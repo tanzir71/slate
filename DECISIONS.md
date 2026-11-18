@@ -372,3 +372,8 @@ Allow one in-flight summary request and keep only the latest pending immutable s
 ## 2026-11-18 - Resolve canonical wiki paths without rewriting files
 
 Wiki completions use a canonical Space-relative Markdown path and a display title, so equal titles in separate notebooks remain distinguishable. Resolve explicit paths before legacy titles, retaining exact filename case and rejecting ambiguous shortened or case-folded paths. Link identity and completion metadata contain only id, path and title and remain stable across body-only summary updates. Reconfigure the live editor's path index without a source edit or undo entry. Explicit paths can open an existing unsupported-encoding file through its download-original screen; no decoding, replacement file or byte rewrite is needed. Legacy title/id lookup remains unchanged for readable notes.
+
+
+## 2026-11-18 - Keep recovery rows in the file list's stable order
+
+Recovery creates virtual draft paths before their first disk write. Sort the overlaid paths with the same ordinal string ordering as the file adapter, before exposing them to summary workers or navigation. Otherwise, saving an appended recovered draft moves its row above the original between pointer-down and pointer-up; a real click can select the neighboring note. Sorting changes only derived list order and preserves source bytes, conflict handling and both recovery journals. The regression checks identical path order before and after saving two divergent drafts.

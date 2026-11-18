@@ -66,7 +66,8 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
   function overlayDrafts(sheets: BrowserSheet[]) {
     const overlaid = sheets.map((sheet) => drafts.has(sheet.path) ? { ...sheet, content: drafts.get(sheet.path)!.content } : sheet);
     for (const [path, draft] of drafts) if (!overlaid.some((sheet) => sheet.path === path)) overlaid.push({ path, content: draft.content });
-    return overlaid;
+    // Match file-list order before recovered drafts have reached disk, too.
+    return overlaid.sort((a, b) => a.path === b.path ? 0 : a.path < b.path ? -1 : 1);
   }
 
   async function refresh() {

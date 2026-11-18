@@ -8,6 +8,20 @@ beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
 describe("persistent workspace store", () => {
+  it("keeps recovered rows in the same path order before and after their first save", async () => {
+    const files = createMemoryFiles({ "note.md": "saved" });
+    localStorage.setItem("slate.recovery-v2.test-library", JSON.stringify({ version: 2, drafts: { "note.md": { content: "newer draft", baseContent: "saved" } } }));
+    localStorage.setItem("slate.recovery.test-library", JSON.stringify({ "note.md": { content: "earlier draft", baseContent: "saved" } }));
+    const reader = createWorkspaceStore(record, files);
+    await reader.load();
+    reader.setOwned(true);
+    const before = reader.api.getState().sheets.map((sheet) => sheet.path);
+    expect(before).toHaveLength(2);
+    expect(before).toEqual([...before].sort());
+    await reader.flush();
+    expect(reader.api.getState().sheets.map((sheet) => sheet.path)).toEqual(before);
+    expect((await reader.space.sheets()).map((sheet) => sheet.content).sort()).toEqual(["earlier draft", "newer draft"]);
+  });
   it("opens an unreadable canonical wiki target without creating or overwriting any file", async () => {
     const files = createMemoryFiles({ "source.md": "# Source\n\n[[bad.md]]" });
     await files.write("bad.md", new Uint8Array([0xff, 0xfe, 0xfd]));
