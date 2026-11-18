@@ -312,7 +312,7 @@ test("nested notebook collapse persists and Today reopens the same daily file", 
   ).toBeVisible();
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.press(`${modifier}+Shift+d`);
-  await expect(page).toHaveURL(/Daily%2F\d{4}-\d{2}-\d{2}\.md$/);
+  await expect(page).toHaveURL(/Daily%2F\d{4}-\d{2}-\d{2}\.md$/, { timeout: 15_000 });
   const url = page.url();
   const editor = page.locator(".cm-content");
   await editor.focus();

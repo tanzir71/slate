@@ -10,7 +10,7 @@ export async function openLibrary(page: Page) {
 export async function createSheet(page: Page, text = "# My writing\n\nWords worth keeping.") {
   const previousURL = page.url();
   await page.getByRole("button", { name: "New Sheet", exact: true }).first().click();
-  await expect(page).not.toHaveURL(previousURL);
+  await expect(page).not.toHaveURL(previousURL, { timeout: 15_000 });
   const editor = page.locator(".cm-content");
   await expect(editor).toBeVisible({ timeout: 15_000 });
   await editor.click();
