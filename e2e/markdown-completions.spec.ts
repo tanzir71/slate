@@ -3,16 +3,11 @@ import { expect, test } from "./fixtures";
 import {
   createSheet,
   openLibrary,
+  expectSavedSheet as saved,
   readCurrentSheet,
   workspaceAction,
 } from "./helpers";
 
-async function saved(page: import("@playwright/test").Page, text: string) {
-  await expect.poll(() => readCurrentSheet(page)).toBe(text);
-  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
-    "Saved",
-  );
-}
 
 test("wiki completion disambiguates equal titles, navigates the chosen file and is one undo", async ({
   page,
