@@ -183,6 +183,9 @@ test("bulk move and trash preserve every selected file and its recoverable copy"
   await move.getByRole("button", { name: "Save", exact: true }).click();
   await expect(move).toBeHidden();
   await showSheets(page);
+  // check() can return for an already-checked disabled box while moved rows
+  // still refresh. Wait for current file identities before selecting again.
+  await expect(page.getByRole("checkbox", { name: "Select all filtered sheets", exact: true })).toBeEnabled();
   await page
     .getByRole("checkbox", { name: "Select all filtered sheets", exact: true })
     .check();
