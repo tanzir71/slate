@@ -1,6 +1,6 @@
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { undo } from "@codemirror/commands";
+import { history, undo } from "@codemirror/commands";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveCommandKeymap, slateCommands } from "@slate/core";
 import {
@@ -37,6 +37,23 @@ afterEach(() => {
 });
 
 describe("registered formatting commands", () => {
+  it("formats a large selection with many inline code spans without losing source", () => {
+    const doc = "`x` ".repeat(75_000);
+    // This command only needs state/history; avoid parsing 150k syntax markers
+    // into jsdom while testing the real command and its undo transaction.
+    const view = new EditorView({
+      state: EditorState.create({
+        doc,
+        selection: { anchor: 0, head: doc.length },
+        extensions: history(),
+      }),
+    });
+    views.push(view);
+    expect(runFormattingCommand(view, "format.code")).toBe(true);
+    expect(view.state.doc.toString()).toBe("`` " + doc + " ``");
+    expect(undo(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe(doc);
+  });
   it("implements exactly the registered Format actions", () => {
     expect(formattingCommandIds.toSorted()).toEqual(
       slateCommands

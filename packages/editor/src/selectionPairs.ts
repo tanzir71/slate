@@ -9,6 +9,7 @@ import {
   type Extension,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { inlineCodeDelimiters } from "./codeDelimiters.js";
 
 interface PendingPair {
   character: string;
@@ -34,12 +35,7 @@ function delimiters(
   if (text === "=" || text === "==") return ["==", "=="];
   if (text === "*" || text === "_") return [text, text];
   if (text !== "`") return;
-  let longest = 0;
-  for (const match of selected.matchAll(/`+/g))
-    longest = Math.max(longest, match[0].length);
-  const fence = "`".repeat(longest + 1);
-  const padding = selected.startsWith("`") || selected.endsWith("`") ? " " : "";
-  return [fence + padding, padding + fence];
+  return inlineCodeDelimiters(selected);
 }
 
 /** Preserve every selected character and selection direction in one undo step. */

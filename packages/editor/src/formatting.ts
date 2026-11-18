@@ -1,6 +1,7 @@
 import { isolateHistory } from "@codemirror/commands";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { Prec, type Extension } from "@codemirror/state";
+import { inlineCodeDelimiters } from "./codeDelimiters.js";
 import {
   matchCommand,
   resolveCommandKeymap,
@@ -159,13 +160,8 @@ function inlineCode(view: EditorView) {
       `${wrapped[1]}${wrapped[2]}`,
       `${wrapped[2]}${wrapped[1]}`,
     );
-  const longest = Math.max(
-    0,
-    ...Array.from(text.matchAll(/`+/g), (match) => match[0].length),
-  );
-  const fence = "`".repeat(longest + 1);
-  const padding = text.startsWith("`") || text.endsWith("`") ? " " : "";
-  return wrapEditorSelection(view, `${fence}${padding}`, `${padding}${fence}`);
+  const [before, after] = inlineCodeDelimiters(text);
+  return wrapEditorSelection(view, before, after);
 }
 
 function codeBlock(view: EditorView): boolean {
