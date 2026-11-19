@@ -28,7 +28,12 @@ test("Tidy is searchable in shortcuts and the palette opens review without editi
   await shortcuts
     .getByRole("textbox", { name: "Search shortcuts", exact: true })
     .fill("tidy");
-  const row = shortcuts.locator(".shortcutRow");
+  const rows = shortcuts.locator(".shortcutRow");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.locator(":scope > span:first-child")).toHaveText([
+    "Tidy document", "Batch Tidy", "Undo batch Tidy",
+  ]);
+  const row = rows.filter({ hasText: "Tidy document" });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("Tidy document");
   await expect(row.locator("kbd")).toHaveText(/(?:Alt|⌥).*?(?:Shift|⇧).*F/);
@@ -42,6 +47,9 @@ test("Tidy is searchable in shortcuts and the palette opens review without editi
   await palette
     .getByRole("textbox", { name: "Search commands", exact: true })
     .fill("tidy");
+  await expect(palette.locator(".commandResults button > span")).toHaveText([
+    "Tidy document", "Batch Tidy", "Undo batch Tidy",
+  ]);
   await palette.getByRole("button", { name: /Tidy document/ }).click();
   await expect(panel(page)).toBeVisible();
   await expect(panel(page).locator(".tidyApplyAll")).toBeEnabled();
@@ -61,6 +69,9 @@ type FixGate = {
   replied: boolean;
   release?: () => void;
 };
+declare global {
+  interface Window { slateTidyFixGate: FixGate }
+}
 async function installFixGate(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
     const NativeWorker = window.Worker;
@@ -101,32 +112,25 @@ async function installFixGate(page: import("@playwright/test").Page) {
 }
 async function holdFix(page: import("@playwright/test").Page) {
   await page.evaluate(() => {
-    (window as Window & { slateTidyFixGate: FixGate }).slateTidyFixGate.hold =
-      true;
+    window.slateTidyFixGate.hold = true;
   });
   await panel(page).locator(".tidyApplyAll").click();
   await expect
     .poll(() =>
       page.evaluate(
-        () =>
-          (window as Window & { slateTidyFixGate: FixGate }).slateTidyFixGate
-            .waiting,
+        () => window.slateTidyFixGate.waiting,
       ),
     )
     .toBe(true);
 }
 async function releaseFix(page: import("@playwright/test").Page) {
   await page.evaluate(() =>
-    (
-      window as Window & { slateTidyFixGate: FixGate }
-    ).slateTidyFixGate.release?.(),
+    window.slateTidyFixGate.release?.(),
   );
   await expect
     .poll(() =>
       page.evaluate(
-        () =>
-          (window as Window & { slateTidyFixGate: FixGate }).slateTidyFixGate
-            .replied,
+        () => window.slateTidyFixGate.replied,
       ),
     )
     .toBe(true);
