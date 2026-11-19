@@ -6,6 +6,7 @@ import {
   openLibrary,
   readCurrentSheet,
   showSheets,
+  workspaceAction,
 } from "./helpers";
 import { libraryFile, libraryPaths } from "./libraryFiles";
 
@@ -13,6 +14,43 @@ const dirty = "  #   Draft\n\n+ _One_\n+ __Two__\n";
 const clean = "# Draft\n\n- *One*\n- **Two**\n";
 const panel = (page: import("@playwright/test").Page) =>
   page.getByRole("complementary", { name: "Tidy review", exact: true });
+
+test("Tidy is searchable in shortcuts and the palette opens review without editing the note", async ({
+  page,
+}) => {
+  await openLibrary(page);
+  const editor = await createSheet(page, dirty);
+  await workspaceAction(page, "Keyboard shortcuts");
+  const shortcuts = page.getByRole("dialog", {
+    name: "Keyboard shortcuts",
+    exact: true,
+  });
+  await shortcuts
+    .getByRole("textbox", { name: "Search shortcuts", exact: true })
+    .fill("tidy");
+  const row = shortcuts.locator(".shortcutRow");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Tidy document");
+  await expect(row.locator("kbd")).toHaveText(/(?:Alt|⌥).*?(?:Shift|⇧).*F/);
+  await page.keyboard.press("Escape");
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+k");
+  const palette = page.getByRole("dialog", {
+    name: "Command palette",
+    exact: true,
+  });
+  await palette
+    .getByRole("textbox", { name: "Search commands", exact: true })
+    .fill("tidy");
+  await palette.getByRole("button", { name: /Tidy document/ }).click();
+  await expect(panel(page)).toBeVisible();
+  await expect(panel(page).locator(".tidyApplyAll")).toBeEnabled();
+  expect(await readCurrentSheet(page)).toBe(dirty);
+  await page.keyboard.press("Escape");
+  await expect(panel(page)).toBeHidden();
+  await expect(editor).toBeFocused();
+  expect(await readCurrentSheet(page)).toBe(dirty);
+});
 async function refresh(page: import("@playwright/test").Page) {
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 }

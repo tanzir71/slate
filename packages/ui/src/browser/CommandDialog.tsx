@@ -95,6 +95,7 @@ export function CommandDialog({
       entries: commands.filter(
         (command) =>
           command.group === "View" || command.group === "Table" ||
+          command.group === "Edit" ||
           /^format\.(ordered|bullet|task|quote|codeblock|toggleTask)$/.test(
             command.id,
           ),
