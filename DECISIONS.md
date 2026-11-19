@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Parse a proven plain-list subset without general token events
+
+The retained dense-list CPU profile still spends substantial work on general Markdown tokenization after the released upstream batching fix. Recognize only a whole tight list whose unindented markers are identical, whose marker separator is exactly one ASCII space, and whose nonempty words contain Unicode letters, marks or numbers separated by ASCII spaces. Preserve exact UTF-16 offsets and LF/CRLF/CR positions, including the final root newline. Reject every other grammar before building nodes and use the established CommonMark/GFM parser. This follows the [CommonMark list rules](https://spec.commonmark.org/0.31.2/#lists) and [mdast list model](https://github.com/syntax-tree/mdast#list).
+
+Compare complete nodes and positions against the independent full-GFM parser, including generated Unicode and mixed line endings and explicit nested, loose, task, punctuation, escape, HTML, link, code and blank-item boundaries. Count general list-token events rather than adding a flaky unit deadline. The original full content projection, issue collection, output/source binding, worker protocol and 150 ms all-profile browser gate remain mandatory. CPU diagnostics do not establish that gate.
+
 ## 2026-11-19 - Restrict desktop commands and keep SQL inside the native process
 
 Search cache readiness follows source revisions. Serialize rebuilds, invalidate on unsaved or external changes, discard in-flight old answers, and consult indexed results only after the latest successful replacement. A failed rebuild uses current file contents until repaired; cache failure cannot hide or mutate source files.
