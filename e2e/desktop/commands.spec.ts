@@ -97,7 +97,13 @@ test("desktop date choice is one undo and saves through IPC", async ({
   page,
 }) => {
   const editor = page.locator(".cm-content");
-  await editor.fill("# Date\n\n");
+  const saved = () => page.evaluate(() => Object.keys(localStorage)
+    .filter((key) => key.startsWith("native-test:"))
+    .map((key) => localStorage.getItem(key)));
+  await editor.click();
+  await editor.press("ControlOrMeta+a");
+  await page.keyboard.insertText("# Date\n\n");
+  await expect.poll(saved).toContain("# Date\n\n");
   await editor.press("ControlOrMeta+End");
   await editor.pressSequentially("@date");
   await expect(
@@ -113,17 +119,10 @@ test("desktop date choice is one undo and saves through IPC", async ({
   await picker
     .getByRole("button", { name: "Insert date", exact: true })
     .click();
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        Object.keys(localStorage)
-          .filter((key) => key.startsWith("native-test:"))
-          .map((key) => localStorage.getItem(key)),
-      ),
-    )
-    .toContain("# Date\n\n2026-11-18");
+  await expect.poll(saved).toContain("# Date\n\n2026-11-18");
   await editor.press("ControlOrMeta+z");
   await expect(editor).toContainText("@date");
+  await expect.poll(saved).toContain("# Date\n\n@date");
 });
 
 test("desktop formatting, registry shortcuts and IPC saves agree", async ({ page }) => {
