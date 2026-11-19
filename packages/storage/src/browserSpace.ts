@@ -6,6 +6,8 @@ export * from "./browserBlocks";
 export interface BrowserSheet { path: string; content: string; unsupportedEncoding?: boolean }
 export interface BrowserWriteResult extends BrowserSheet { conflict: boolean }
 
+const decodeFile = (path: string, bytes: Uint8Array): string => decodeText(bytes, /\.md$/i.test(path));
+
 function sameBytes(left: Uint8Array | undefined, right: Uint8Array | undefined): boolean {
   return left === right || (left !== undefined && right !== undefined && left.length === right.length && left.every((value, index) => value === right[index]));
 }
@@ -15,7 +17,7 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
   let pending: Promise<unknown> = Promise.resolve();
   const read = async (path: string) => {
     const bytes = await files.read(safeBrowserPath(path));
-    return bytes === undefined ? undefined : decodeText(bytes);
+    return bytes === undefined ? undefined : decodeFile(path, bytes);
   };
   function mutate<T>(action: () => Promise<T>): Promise<T> {
     const next = pending.then(async () => {
@@ -52,7 +54,7 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
       const rows = await Promise.all(paths.map(async (path): Promise<BrowserSheet | undefined> => {
         const bytes = await files.read(path);
         if (bytes === undefined) return undefined;
-        try { return { path, content: decodeText(bytes) }; }
+        try { return { path, content: decodeFile(path, bytes) }; }
         catch { return { path, content: "", unsupportedEncoding: true }; }
       }));
       return rows.filter((row): row is BrowserSheet => row !== undefined);
@@ -73,7 +75,7 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
       return mutate(async () => {
         const bytes = await files.read(safeBrowserPath(path));
         let disk: string | undefined;
-        try { disk = bytes === undefined ? undefined : decodeText(bytes); }
+        try { disk = bytes === undefined ? undefined : decodeFile(path, bytes); }
         catch { return writeConflict(path, content); }
         if (disk !== baseContent && disk !== content) return writeConflict(path, content);
         await files.write(path, encodeText(content));
@@ -93,7 +95,7 @@ export function createBrowserSpace(files: BrowserFiles, canWrite: () => boolean 
     move(from: string, to: string, baseContent: string): Promise<BrowserSheet> {
       return mutate(async () => {
         const bytes = await files.read(from);
-        if (!bytes || decodeText(bytes) !== baseContent) throw new Error("File changed outside Slate. Refresh before moving it.");
+        if (!bytes || decodeFile(from, bytes) !== baseContent) throw new Error("File changed outside Slate. Refresh before moving it.");
         if (await files.read(to)) throw new Error("A file already exists at the destination.");
         await files.write(safeBrowserPath(to), bytes);
         // A concurrent external edit is preserved in the source, even after copying the destination.

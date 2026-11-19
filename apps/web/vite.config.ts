@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { VitePWA } from "vite-plugin-pwa";
+import { markdownWorker } from "../../scripts/markdown-worker";
 
 const fromRoot = (path: string): string =>
   fileURLToPath(new URL(path, import.meta.url));
@@ -23,10 +24,11 @@ export default defineConfig({
       clientsClaim: true
     }
   })],
-  worker: { format: "es" },
+  worker: { format: "es", plugins: () => [markdownWorker()] },
   resolve: {
     alias: {
       "@slate/ui/browser": fromRoot("../../packages/ui/src/browser/BrowserApp.tsx"),
+      "@slate/storage/browser-tidy": fromRoot("../../packages/storage/src/browserTidy.ts"),
       "@slate/storage/browser-files": fromRoot("../../packages/storage/src/browserFiles.ts"),
       "@slate/storage/browser-import": fromRoot("../../packages/storage/src/browserImport.ts"),
       "@slate/storage/browser-space": fromRoot("../../packages/storage/src/browserSpace.ts"),
@@ -35,6 +37,8 @@ export default defineConfig({
       "@slate/storage/browser-ownership": fromRoot("../../packages/storage/src/browserOwnership.ts"),
       "@slate/storage/web-opfs": fromRoot("../../packages/storage/src/webOpfsSqlite.ts"),
       "@slate/storage/runtime": fromRoot("../../packages/storage/src/runtimeSqliteAdapter.ts"),
+      "@slate/core/tidy/settings": fromRoot("../../packages/core/src/tidy/settings.ts"),
+      "@slate/core/tidy": fromRoot("../../packages/core/src/tidy/index.ts"),
       "@slate/core": fromRoot("../../packages/core/src/index.ts"),
       "@slate/editor": fromRoot("../../packages/editor/src/index.ts"),
       "@slate/export": fromRoot("../../packages/export/src/index.ts"),

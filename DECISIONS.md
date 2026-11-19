@@ -1,5 +1,21 @@
 # Slate Decisions
 
+## 2026-11-19 - Gate real Tidy worker round trips on every Linux profile
+
+Keep Tidy acceptance in a separate fresh-browser process, inheriting Chromium, Firefox, WebKit and mobile from the existing reference configuration. Measure the real emitted module worker through request/reply for four documents with 50,000 body words, including the known slow dense list. Include worker construction/startup in the first flat-lint result; retain internal CPU time separately. Validate original-source/request binding, exact fixes and untouched open-sheet bytes before asserting each 150 ms budget. Store all measurements before final assertions, with no selected reruns or threshold relaxation. Require perf:tidy in verify, Linux CI and Pages publication alongside the original menu/typing gates.
+
+## 2026-11-19 - Preserve Markdown BOMs and use a DOM-free worker decoder
+
+The real byte-level Tidy test exposed generic text decoding stripping a Markdown BOM before the editor received source. Preserve that marker for Markdown reads, lists, saves and move comparisons; JSON callers retain their existing decoder behavior. A BOM-only external edit must conflict rather than be treated as an unchanged file. File export/trash continue to copy original bytes.
+
+The bundled Markdown parser selected a browser entity decoder that initialized document.createElement, which cannot execute in a worker. A worker-only Vite resolver uses the dependency importer's native resolution to select the package's pure entity-table implementation. Main-bundle resolution is untouched. The actual-worker browser flows are the regression evidence; do not replace the parser with a DOM shim or relax semantic checks.
+
+## 2026-11-19 - Keep Tidy review asynchronous and source-bound
+
+Use a dedicated worker with one active computation and one replaceable pending snapshot. Superseded results cannot apply, and unavailable workers report an actionable error rather than parsing large documents on the main thread. Keep configuration/JSON token edits in the separate pure tidy/settings entry; preserve unknown numeric spelling and text instead of reserializing metadata. Main-thread identity checks compare captured configuration references outside the structured-cloned report. Recheck source, sheet path and write ownership at application time, then apply the verified original-span proposal as one isolated editor transaction.
+
+CodeMirror normalizes line endings internally. A history state field retains raw CR/CRLF only when needed; inverted effects restore it with Undo/Redo, avoiding whole-document snapshots for ordinary LF keystrokes. Source review temporarily suppresses Live decorations and adds line tints; view changes do not reset history. Full persistent Live/Source/Read controls remain the later F-11 milestone. JSON settings dialogs retain their opening byte snapshot so background refresh cannot turn an old draft into an overwrite. Native review controls, automatic save/batch flows and the150ms worker gate remain required work.
+
 ## 2026-11-19 - Keep Tidy settings as explicit byte-checked file edits
 
 Expose the persisted adapter separately through @slate/storage/browser-tidy so future review/settings code can load it on demand. Reading .slate/tidy.json never creates a file or normalizes user text. Keep exact UTF-8 source and bytes, including a BOM, and validate only for interpretation/explicit save. Saving the entered JSON avoids rounding unknown future numeric fields through JSON reserialization. Use the Space mutation queue and saveSnapshot original-byte comparison: retain external edits as canonical and the proposal as a conflict copy, including changes that only add/remove the BOM. Keep invalid text repairable; unsupported bytes or failed reads require a fresh readable snapshot before saving. On-save/automatic formatting must remain disabled if configuration is invalid or unavailable. Review UI integration remains separate.

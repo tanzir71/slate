@@ -1,0 +1,362 @@
+.tidyIcon {
+  display: inline-block;
+  flex: 0 0 16px;
+  inline-size: 16px;
+  block-size: 16px;
+  background: currentcolor;
+  mask: var(--tidy-icon) center / 16px 16px no-repeat;
+}
+.tidyIcon--wand {
+  --tidy-icon: url("../assets/tidy/wand.svg");
+}
+.tidyIcon--apply {
+  --tidy-icon: url("../assets/tidy/apply.svg");
+}
+.tidyIcon--diff {
+  --tidy-icon: url("../assets/tidy/diff.svg");
+}
+.tidyIcon--close {
+  --tidy-icon: url("../assets/templates/close.svg");
+}
+.tidyIcon--chevron {
+  --tidy-icon: url("../assets/templates/chevron-down.svg");
+}
+.tidyPanel {
+  grid-column: 4;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  inline-size: 360px;
+  background: var(--bg-panel);
+  border-inline-start: 1px solid var(--border-subtle);
+  font: 13px/20px var(--font-ui);
+  outline: none;
+}
+.tidyPanelHeader {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 0 0 48px;
+  padding: 0 10px 0 16px;
+  border-block-end: 1px solid var(--border-subtle);
+}
+.tidyPanelHeader > .tidyIcon {
+  color: var(--text-accent);
+}
+.tidyPanelHeader h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+.tidyCount {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+.tidyPanelHeader button {
+  margin-inline-start: auto;
+  display: grid;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.tidyPanelControls {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  border-block-end: 1px solid var(--border-subtle);
+}
+.tidyActions {
+  display: flex;
+  gap: 8px;
+}
+.tidyActions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-block-size: 32px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.tidyPanel .tidyApplyAll {
+  flex: 1;
+  background: var(--accent-default);
+  color: var(--text-on-accent);
+  border: 1px solid var(--accent-default);
+}
+.tidyDiffButton {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+.tidySettingRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 20px;
+}
+.tidySettingRow > span:first-child {
+  flex: 1;
+}
+.tidySettingRow select {
+  appearance: none;
+  max-inline-size: 230px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 0;
+  text-align: end;
+  cursor: pointer;
+}
+.tidyPanel .tidyToggle {
+  inline-size: 28px;
+  block-size: 17px;
+  border: 0;
+  padding: 0;
+  background: transparent center / 28px 17px no-repeat;
+}
+.tidyToggle.off {
+  background-image: url("../assets/tidy/toggle-off.svg");
+}
+.tidyToggle.on {
+  background-image: url("../assets/tidy/toggle-on.svg");
+}
+.tidyFixes {
+  flex: 1;
+  min-block-size: 0;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tidyFix {
+  flex: 0 0 auto;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  display: grid;
+  gap: 8px;
+}
+.tidyFixHeading {
+  display: flex;
+  align-items: start;
+  gap: 6px;
+}
+.tidyFixHeading h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.tidyFixHeading button {
+  flex-shrink: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font: 11px/16px var(--font-mono);
+}
+.tidyFixPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  overflow: auto;
+}
+.tidyFixPreview code {
+  font: 11px/16px var(--font-mono);
+  white-space: pre;
+}
+.tidyRemoved {
+  color: var(--status-danger);
+}
+.tidyAdded {
+  color: var(--status-success);
+}
+.tidyFixActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tidyFixActions code {
+  flex: 1;
+  overflow-wrap: anywhere;
+  color: var(--text-tertiary);
+  font: 11px/16px var(--font-mono);
+}
+.tidyFixActions button,
+.tidyPanelFooter button,
+.tidyMore {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.tidyFixActions .tidyApplyOne {
+  color: var(--text-accent);
+}
+.tidyPanel button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.tidyPanel button:focus-visible,
+.tidyPanel select:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+.tidyMessage {
+  margin: 0;
+  padding: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.tidyMessage p {
+  margin: 0 0 8px;
+}
+.tidyMessage button {
+  margin-inline-end: 8px;
+}
+.tidyPanelFooter {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-block-start: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+.tidyPanelFooter p {
+  margin: 0 0 8px;
+}
+.tidyDiffDialog {
+  inline-size: min(1000px, calc(100vw - 40px));
+}
+.tidyDiffColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.tidyDiffColumns section {
+  min-inline-size: 0;
+}
+.tidyDiffColumns h3 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.tidyDiffColumns pre {
+  max-block-size: 60vh;
+  overflow: auto;
+  padding: 12px;
+  margin: 0;
+  background: var(--bg-subtle);
+  font: 12px/20px var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tidySettingsDialog textarea {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 260px;
+  margin-block-start: 8px;
+  resize: vertical;
+  font: 12px/20px var(--font-mono);
+}
+.workspaceStatus .tidyStatusControl {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-accent);
+  font-weight: 500;
+}
+@media (width <= 1100px) {
+  .tidyPanel {
+    position: absolute;
+    z-index: 9;
+    inset-block: 0;
+    inset-inline-end: 0;
+    inline-size: min(360px, 100%);
+  }
+}
+@media (pointer: coarse) {
+  .tidyPanelHeader button,
+  .tidyFixHeading button,
+  .tidyFixActions button,
+  .tidyPanelFooter button,
+  .tidySettingRow,
+  .tidyMore {
+    min-block-size: 44px;
+  }
+  .tidyActions button {
+    min-block-size: 44px;
+  }
+  .tidyToggle {
+    position: relative;
+    min-inline-size: 44px;
+    min-block-size: 44px;
+    background-size: 28px 17px;
+  }
+}
+@media (width <= 600px) {
+  .tidyDiffColumns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.browserPanes.withTidy {
+  --inspector-size: 360px;
+}
+.browserEditor .tidySourceEditor .cm-content {
+  padding: 24px 24px 100px;
+}
+.tidySourceEditor .cm-gutters {
+  background: var(--bg-canvas);
+  border: 0;
+  color: var(--text-tertiary);
+  font: 11px/26px var(--font-mono);
+}
+.tidySourceEditor .cm-line.cm-tidy-line {
+  background: color-mix(in srgb, var(--status-warning) 8%, var(--bg-canvas));
+  border-inline-start: 2px solid var(--status-warning);
+}
+@media (width <= 1100px) {
+  .browserPanes.withTidy {
+    --inspector-size: 0px;
+  }
+}
+
+.browserEditor .tidySourceEditor .cm-scroller,
+.browserEditor .tidySourceEditor .cm-content {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 26px;
+  color: var(--text-secondary);
+}
+.tidySourceEditor .cm-line span {
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-style: normal;
+  font-weight: 400;
+}

@@ -6,6 +6,7 @@ import {
   type ShortcutOS,
 } from "@slate/core";
 import type { SnippetTarget } from "./snippets/snippetTypes";
+import type { TidyResult } from "@slate/core/tidy";
 
 export function shortcutOS(platform = navigator.platform): ShortcutOS {
   return /Mac|iPhone|iPad/.test(platform)
@@ -60,6 +61,8 @@ export function commandShortcut(
 
 /** No CodeMirror import: the workspace can stay lazy until a sheet is opened. */
 export interface MarkdownEditorHandle {
+  source(): string;
+  applyTidy(result: TidyResult): boolean;
   runFormat(id: string): boolean;
   runTable(id: string): boolean;
   tableColumns(): number;

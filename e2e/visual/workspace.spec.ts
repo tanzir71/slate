@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { workspaceAction } from "../helpers";
+import { readCurrentSheet, workspaceAction } from "../helpers";
+import { libraryFile } from "../libraryFiles";
 
 test.skip(
   process.platform !== "linux",
@@ -11,6 +12,8 @@ async function stableFrame(page: Page) {
     await document.fonts.ready;
   });
   await expect(page.getByRole("alert")).toHaveCount(0);
+  const tidy = page.getByRole("button", { name: "Tidy review", exact: true });
+  if (await tidy.count()) await expect(tidy).toHaveText(/^Tidy · \d+$/);
 }
 
 async function writingFixture(page: Page) {
@@ -192,6 +195,54 @@ for (const theme of ["light", "dark"] as const) {
     test("A1 workspace and live Markdown", async ({ page }) => {
       await writingFixture(page);
       await expect(page).toHaveScreenshot(`a1-workspace-${theme}.png`);
+    });
+
+    test("A6 Tidy source review", async ({ page }) => {
+      await writingFixture(page);
+      const source = [
+        "---",
+        "title: Launch plan",
+        "tags: [strategy,planning]",
+        "---",
+        "# Launch plan",
+        "Slate 2.0 ships the fastest way from a blank page to a clean doc.  ",
+        "##Goals",
+        "- [x] Ship slash blocks and the template gallery",
+        "* [ ] Auto-format on save, off by default",
+        "+ [ ] Public beta once [[Onboarding flow ideas]] is signed off",
+        "",
+        "|Phase|Scope|Target|",
+        "|---|---|---|",
+        "|Foundation|Blocks, templates, Tidy|Weeks 1–4|",
+        "|Beta|Snippets, automations, CLI|Weeks 5–8|",
+        "",
+        "We measure success by **time-to-clean-doc**.",
+      ].join("\n");
+      // An imported source fixture avoids the normal table-input autoformatter.
+      const path = decodeURIComponent(page.url().split("/sheet/")[1]!);
+      await libraryFile(page, path, source);
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await expect(page.locator(".cm-content")).toContainText("##Goals");
+      await page
+        .getByRole("button", { name: "Tidy review", exact: true })
+        .click();
+      await expect(page.locator(".tidyApplyAll")).toBeEnabled();
+      await expect(page.locator(".cm-lineNumbers")).toBeVisible();
+      expect(await readCurrentSheet(page)).toBe(source);
+      expect(
+        (await page.locator(".cm-content .cm-line").allTextContents()).join(
+          "\n",
+        ),
+      ).toBe(source);
+      // Structural ambiguities stay manual warnings even when a prototype shows Apply.
+      await expect(
+        page
+          .locator(".tidyFix")
+          .filter({ has: page.getByText("heading-space", { exact: true }) })
+          .getByRole("button", { name: "Manual", exact: true }),
+      ).toBeDisabled();
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a6-tidy-${theme}.png`);
     });
 
     test("A1 selection formatting toolbar", async ({ page }) => {

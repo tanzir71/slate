@@ -62,6 +62,9 @@ jobs:
       - name: Verify Windows (WebKit storage is checked on Linux and macOS)
         if: matrix.os == 'windows-latest'
         run: pnpm e2e --project=chromium --project=firefox --project=mobile
+      - name: Verify Tidy worker budgets (Linux reference)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm perf:tidy
       - name: Verify block menu latency in fresh browsers (Linux reference)
         if: matrix.os == 'ubuntu-latest'
         run: pnpm perf:menu

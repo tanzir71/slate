@@ -4,7 +4,7 @@ After `pnpm build:site`, run `pnpm visual`. Docker must be running. The command 
 
 The reference is Playwright 1.65.1 Noble, pinned by digest in `scripts/visual-test.mjs`. Tests use bundled fonts, a 1440 × 900 viewport at 1×, en-US/UTC, fixed time, reduced motion and a fixed storage-usage readout. A1/A2/A3/A5 retain the real seven-sheet Sample Space into an OPFS browser library, pin Launch Plan and select its notebook. Service workers are blocked in these visual contexts; offline, updates, installability and each browser engine remain covered by the functional suite.
 
-The twenty-two committed PNGs in `e2e/visual/__screenshots__/` cover:
+The twenty-four committed PNGs in `e2e/visual/__screenshots__/` cover:
 
 | View | Light and Dark coverage |
 |---|---|
@@ -16,6 +16,7 @@ The twenty-two committed PNGs in `e2e/visual/__screenshots__/` cover:
 | A4 | Dedicated snippet search, real global defaults and original icons |
 | A7 | File-backed snippet and custom-block settings, actual definitions and scopes |
 | A5 | Read-only shortcut sheet, header search, current browser profile and command labels |
+| A6 | Real-worker Tidy review, exact Source text, line numbers/tints, rule cards, controls and settings entry |
 | A11 | Browser first-run cards, branding, theme and footer |
 
 The maximum changed-pixel ratio is **0.002 (0.2%)**. Expected/actual/diff images and traces appear in `test-results/visual/`; the HTML report is `playwright-report/visual/index.html`. A failed comparison must be reviewed before changing a baseline. Fix accidental layout drift in code.
@@ -38,3 +39,5 @@ Final local F-41 comparison passes all twelve scenes after reviewing A3/A5 Light
 The unreleased F-50 integration adds A4 snippet picker and A7 snippet settings Light/Dark baselines, plus two actual web commands in A5. The picker adapts the original A4 modal shell for its dedicated Mod-semicolon entry point; it does not claim the later unified palette. A7 shows the real built-in definitions and scopes. Review new A4/A7 images and refresh only the intentionally changed A5 command references; keep A1/A2/A3/A11 images intact. Native snippet integration remains pending.
 
 The unreleased F-30 integration adds four A2 grouped-result references, Light and Dark for both Space templates and snippets. The fixture writes real private-library files and searches their shared name. The chosen result shows the original 16px family asset, source and rendered defaults; trigger text remains visible for snippets. Review all four new images before comparing the complete 20-story, 22-image set. Existing references and the 0.002 tolerance stay unchanged.
+
+The unreleased F-62 integration adds A6 Light/Dark references. Its fixture writes the original dirty Markdown to the actual Space file, refreshes it and verifies both disk and Source editor text before capture. Opening review must not trigger table-input formatting. Source uses 14px Geist Mono with 26px lines with neutral syntax colors. The original wand/check/eye/close/chevron assets retain 16px slots; switches render their original 28×17px assets inside larger touch targets. Separate functional checks cover geometry, both switch variants, hover styles and panel/Diff accessibility in all four profiles. Cards/counts reflect real reports, including disabled manual structural warnings. The 20 existing stories and 22 reference images remain unchanged; A6 extends the suite to 22 stories and 24 images. Wait for the real Tidy count before captures, and copy the library-file fixture helper into the pinned visual runtime.

@@ -24,6 +24,9 @@ try {
   await page.evaluate(async () => {
     await document.fonts.ready;
   });
+  await page.waitForFunction(() =>
+    /^Tidy · \d+$/.test(document.querySelector(".tidyStatusControl")?.textContent ?? ""),
+  );
   const directory = resolve(root, "docs/assets");
   await mkdir(directory, { recursive: true });
   for (const theme of ["light", "dark"]) {

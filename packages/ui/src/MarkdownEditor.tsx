@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, lineNumbers } from "@codemirror/view";
 import {
   createSlateMarkdownExtensions,
   createFormattingBindings,
@@ -18,6 +18,12 @@ import {
   editorSnippetFields,
   requestEditorSnippet,
   insertEditorSnippet,
+  tidyEditorHistory,
+  editorSource,
+  editorSourceEffect,
+  editorTidyLines,
+  applyEditorTidy,
+  livePreviewSettings,
   type SmartListOptions,
   type SaveClipboardImage,
   type WikiLinkHit
@@ -56,6 +62,8 @@ function documentChange(previous: string, next: string) {
 }
 
 interface MarkdownEditorProps {
+  sourceMode?: boolean;
+  tidyLines?: readonly number[];
   value: string;
   onChange: (value: string, changes: readonly TextChange[]) => void;
   onNavigateWikiLink?: (link: WikiLinkHit) => void;
@@ -93,7 +101,7 @@ interface MarkdownEditorProps {
   onSnippet?: ((definition: ScopedSnippet, target: SnippetTarget, context?: BlockInsertionContext) => boolean) | undefined;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks, {
     templates: templateMenuLibrary, snippets: snippetMenuLibrary, note: blockNote, canInsert: canInsertBlock,
     onSnippet(view, request, definition, separate, context, onInserted) {
@@ -113,6 +121,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const onNavigateWikiLinkRef = useRef(onNavigateWikiLink);
   const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
+  const tidyView = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
   const smartListKeys = useRef(new Compartment());
   const tableKeys = useRef(new Compartment());
@@ -187,6 +196,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
           ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
+          tidyEditorHistory(value),
+          tidyView.current.of([]),
           fenceRules.current.of(fenceInput.extension),
           pasteRules.current.of(paste.extension),
           tableKeys.current.of(createSmartTableBindings(smartTables)),
@@ -243,7 +254,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
             if (update.docChanged && update.transactions.some((transaction) => transaction.docChanged && !transaction.annotation(externalValue))) {
               const changes: TextChange[] = [];
               update.changes.iterChanges((...change) => { changes.push({ from: change[0], to: change[1], text: change[4].toString() }); });
-              const content = update.state.doc.toString();
+              const content = editorSource(update.state);
               lastEmittedValue.current = content;
               onChangeRef.current(content, changes);
             }
@@ -257,6 +268,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
 
     viewRef.current = view;
     onHandleRef.current?.({
+      source: () => editorSource(view.state),
+      applyTidy: (result) => applyEditorTidy(view, result),
       runTable(id) { const applied = runTableCommand(view, id); if (applied) view.focus(); return applied; },
       tableColumns() { return editorTableColumns(view.state); },
       runFormat(id) { const applied = runFormattingCommand(view, id); if (applied) view.focus(); return applied; },
@@ -292,6 +305,13 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       onHandleRef.current?.(undefined);
     };
   }, []);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: [
+      tidyView.current.reconfigure(sourceMode ? [lineNumbers(), livePreviewSettings.of({ sourceMode: true, hideSyntax: false, highContrastMarkers: false }), EditorView.theme({ "&": { fontFamily: "var(--font-mono)", fontSize: "14px", lineHeight: "26px" }, ".cm-scroller": { fontFamily: "var(--font-mono)" }, ".cm-line span": { fontStyle: "normal", fontWeight: "400" } })] : []),
+      editorTidyLines(sourceMode ? tidyLines ?? [] : []),
+    ], annotations: Transaction.addToHistory.of(false) });
+  }, [sourceMode, tidyLines]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: editable.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) });
@@ -341,13 +361,17 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     lastEmittedValue.current = undefined;
     const previous = view.state.doc.toString();
     const normalized = value.replace(/\r\n?/g, "\n");
-    if (previous === normalized) return;
+    if (previous === normalized) {
+      if (editorSource(view.state) !== value) view.dispatch({ effects: editorSourceEffect(value), annotations: Transaction.addToHistory.of(false) });
+      return;
+    }
 
     view.dispatch({
       changes: documentChange(previous, normalized),
+      effects: editorSourceEffect(value),
       annotations: [externalValue.of(true), Transaction.addToHistory.of(false)]
     });
   }, [value]);
 
-  return <>{blocks.menu}{gutter.dialog}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
+  return <>{blocks.menu}{gutter.dialog}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className={sourceMode ? "editorHost tidySourceEditor" : "editorHost"} aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 });

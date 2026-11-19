@@ -3,6 +3,7 @@ import type { GoalProgress, SheetStats } from "@slate/core";
 import type { createCursorStore } from "../commands";
 import { GoalRing } from "./SheetRow";
 import { WorkspaceDialog } from "./WorkspaceDialog";
+import { TidyIcon } from "../tidy/TidyIcon";
 
 interface StatusBarProps {
   saveState: string;
@@ -15,6 +16,7 @@ interface StatusBarProps {
   onSave(): void;
   onGoal(): void;
   onJump(line: number): void;
+  tidy?: { count: number | undefined; pending: boolean; error: boolean; open: boolean; available: boolean; onOpen(): void };
 }
 export function WorkspaceStatusBar({
   saveState,
@@ -27,6 +29,7 @@ export function WorkspaceStatusBar({
   onSave,
   onGoal,
   onJump,
+  tidy,
 }: StatusBarProps) {
   const position = useSyncExternalStore(
     cursor.subscribe,
@@ -97,6 +100,7 @@ export function WorkspaceStatusBar({
         >
           {unsupported ? "—" : (stats?.readingTimeMinutes ?? 0)} min read
         </button>
+        {tidy && <button className="tidyStatusControl" aria-label="Tidy review" aria-pressed={tidy.open} title="Tidy (Alt Shift F)" disabled={!tidy.available} onClick={tidy.onOpen}><TidyIcon name="wand" />{tidy.pending ? "Tidy…" : tidy.error ? "Tidy · !" : `Tidy · ${tidy.count ?? "—"}`}</button>}
         <button
           className="cursorControl"
           title="Go to line"

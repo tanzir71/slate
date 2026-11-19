@@ -28,6 +28,7 @@ runtime=/tmp/slate-visual
 mkdir -p "$runtime/e2e/visual" "$runtime/scripts"
 cp /source/playwright.visual.config.ts "$runtime/playwright.visual.config.ts"
 cp /source/e2e/helpers.ts "$runtime/e2e/helpers.ts"
+cp /source/e2e/libraryFiles.ts "$runtime/e2e/libraryFiles.ts"
 cp /source/e2e/visual/*.ts "$runtime/e2e/visual/"
 cp /source/scripts/serve-static.mjs "$runtime/scripts/serve-static.mjs"
 ln -s /source/site-dist "$runtime/site-dist"

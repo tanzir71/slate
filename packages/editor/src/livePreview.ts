@@ -20,6 +20,7 @@ import {
 export interface LivePreviewSettings {
   hideSyntax: boolean;
   highContrastMarkers: boolean;
+  sourceMode?: boolean;
 }
 const defaults: LivePreviewSettings = {
   hideSyntax: true,
@@ -151,6 +152,7 @@ function frontmatterEnd(view: EditorView) {
 export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   const { state } = view;
   const settings = state.facet(livePreviewSettings);
+  if (settings.sourceMode) return Decoration.none;
   const tree = syntaxTree(state);
   const ranges: Range<Decoration>[] = [];
   const visited = new Set<string>();

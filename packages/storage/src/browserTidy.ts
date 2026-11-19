@@ -1,7 +1,7 @@
 import {
   readTidyConfiguration,
   type TidyConfiguration,
-} from "@slate/core/tidy";
+} from "@slate/core/tidy/settings";
 import { decodeText } from "./browserFiles";
 import type { BrowserSpace, BrowserWriteResult } from "./browserSpace";
 

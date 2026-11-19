@@ -1,6 +1,10 @@
 # Tidy core (unreleased)
 
-The development engine is available through `@slate/core/tidy`. The public app remains v0.2.1. The worker, review panel, on-save integration and batch review are still being implemented. A separate settings-file adapter is available through `@slate/storage/browser-tidy`; its review/settings UI is not connected yet.
+The development engine is available through `@slate/core/tidy`. The public app remains v0.2.1. The unreleased browser workspace now connects a real Web Worker, review panel and settings-file adapter. On-save formatting, batch review and native review controls remain required work.
+
+In the development browser app, choose `Tidy · N` in the status bar or press `Alt Shift F`. The panel temporarily shows Source mode with line numbers and issue tints. Review a proposed diff without writing, apply one fix or all safe fixes, or persist an ignored rule. Every application is one undo step; closing the panel restores the previous pane layout. Structural warnings require a manual edit. Reports and fixes run in a worker, with bounded latest-only queuing and fresh source/path/configuration/ownership checks before applying. A worker failure stays visible and leaves the note intact.
+
+The settings dialog retains its opening file snapshot. An external JSON edit wins the canonical path; saving a stale proposal preserves a conflict copy and keeps the draft visible. Unknown JSON text and numeric spelling are retained. Unsupported bytes are read-only, while malformed JSON in readable UTF-8 text can be explicitly repaired. Markdown BOM/CRLF survive Tidy and Undo through disk storage. Source review is temporary; persistent Live/Source/Read controls belong to F-11.
 
 `lint(source, configuration)` returns source-bound issues with original UTF-16 edit spans. `fix(source, configuration, issueIds?)` returns proposed output, a minimal original-source change, applied/rejected issues and remaining diagnostics. Passing selected issue IDs applies only those requests; an empty selection changes nothing. Neither function writes files.
 
@@ -44,5 +48,14 @@ Individual boolean rule overrides take precedence. With `keepHardBreaks: true`, 
 Parser selection uses CommonMark only when no GFM construct can occur; candidate syntax, escapes and entities retain the full GFM parser. Exact tree/position equivalence is checked against the full parser. Apply-all can combine disjoint repairs and subsumed tab/blank/pipe repairs into one proof; per-rule/per-issue checks handle overlaps and rejected proposals.
 
 Large-document acceptance is still open. Latest local CPU diagnostics for 50,000 body words measure approximately 50 ms for flat lint, 114 ms for dirty-flat fix, and 78 ms for paragraph lint. A 5,000-item list still takes about 906 ms, above the 150 ms target. These are engine diagnostics, not a passing browser-worker gate. Prior measurements are retained in `artifacts/f61-*`; no release limit has been relaxed.
+
+The first real-worker benchmark on the F-62 review runtime also fails the unchanged 150 ms limit. All 16 source-binding/output checks and the untouched-sheet assertions pass before timing assertions. Request-to-reply times below are local pinned-Linux diagnostics with Node 26.13.1 and Playwright 1.65.1; GitHub Actions Linux with Node 24 remains the release reference. The first request includes worker construction/startup. Separate internal CPU measurements, raw results, traces and screenshots remain in `artifacts/f62-tidy-first*`; no case was retried.
+
+| 50,000 body words | Chromium | Firefox | WebKit | Mobile |
+| --- | ---: | ---: | ---: | ---: |
+| Flat lint, including startup | 117.6 ms | 119 ms | 81 ms | 165 ms |
+| Dirty-flat fix | 141.1 ms | 170 ms | 114 ms | 169.7 ms |
+| 500-paragraph lint | 75.2 ms | 120 ms | 114 ms | 97.4 ms |
+| 5,000-item-list fix | 656 ms | 2,413 ms | 1,380 ms | 788.1 ms |
 
 `createTidyFileStore(space)` reads `.slate/tidy.json` without creating it. Missing settings use caller-selected defaults; malformed text stays available for explicit repair. Unsupported bytes and read failures remain visible and cannot be saved over through those snapshots. Saves validate known fields and retain the exact entered JSON, including UTF-8 BOM, whitespace and unknown numeric spelling. The Space serializes writes, checks original bytes and returns a separate conflict copy if an external edit won. UI callers must show conflicts and keep on-save disabled when configuration cannot be read.

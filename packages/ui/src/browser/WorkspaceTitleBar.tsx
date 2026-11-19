@@ -37,6 +37,7 @@ interface TitleBarProps {
   menuControls?: ReactNode;
   actions: { label: string; disabled?: boolean; run(): void }[];
   canWrite: boolean;
+  viewLabel?: string;
 }
 
 export function WorkspaceTitleBar({
@@ -57,6 +58,7 @@ export function WorkspaceTitleBar({
   menuControls,
   actions,
   canWrite,
+  viewLabel = "Live",
 }: TitleBarProps) {
   const menu = useRef<HTMLDetailsElement>(null);
   const menuButton = useRef<HTMLElement>(null);
@@ -126,7 +128,7 @@ export function WorkspaceTitleBar({
       </nav>
       <div className="workspaceHeaderTools">
         <span className="liveModeLabel" title="Live Markdown preview">
-          Live
+          {viewLabel}
         </span>
         <button
           aria-label="Search sheets"

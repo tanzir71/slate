@@ -11,3 +11,7 @@ export {
   type TidyRuleId,
 } from "./configuration.js";
 export type { TidyIssue, TidyReport, TidyResult } from "./types.js";
+export {
+  editTidyConfiguration,
+  type TidyConfigurationPatch,
+} from "./configurationEdits.js";

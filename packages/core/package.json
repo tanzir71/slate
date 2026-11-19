@@ -7,6 +7,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./tidy/settings": {
+      "types": "./dist/tidy/settings.d.ts",
+      "import": "./dist/tidy/settings.js"
+    },
     "./tidy": {
       "types": "./dist/tidy/index.d.ts",
       "import": "./dist/tidy/index.js"

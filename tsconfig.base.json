@@ -19,10 +19,12 @@
     "baseUrl": ".",
     "paths": {
       "@slate/core": ["packages/core/src/index.ts"],
+      "@slate/core/tidy/settings": ["packages/core/src/tidy/settings.ts"],
       "@slate/core/tidy": ["packages/core/src/tidy/index.ts"],
       "@slate/export": ["packages/export/src/index.ts"],
       "@slate/publish": ["packages/publish/src/index.ts"],
       "@slate/storage": ["packages/storage/src/index.ts"],
+      "@slate/storage/browser-tidy": ["packages/storage/src/browserTidy.ts"],
       "@slate/storage/browser-files": ["packages/storage/src/browserFiles.ts"],
       "@slate/storage/browser-import": ["packages/storage/src/browserImport.ts"],
       "@slate/storage/browser-space": ["packages/storage/src/browserSpace.ts"],

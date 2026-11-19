@@ -29,6 +29,7 @@ import { importBlockImage } from "./importBlockImage";
 import { importClipboardImage } from "./importClipboardImage";
 import { EditorSettingsDialog } from "../EditorSettingsDialog";
 import { useEditorPreferences } from "../editorPreferences";
+import { useTidyReview } from "../tidy/useTidyReview";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
@@ -38,6 +39,7 @@ const SnippetPicker = lazy(() => import("../snippets/SnippetPicker"));
 const SnippetPrompt = lazy(() => import("../snippets/SnippetPrompt"));
 const BlockSettings = lazy(() => import("../blocks/BlockSettings"));
 const SnippetSettings = lazy(() => import("../snippets/SnippetSettings"));
+const TidyPanel = lazy(() => import("../tidy/TidyPanel"));
 interface TemplateRequest {
   notebook: string; selection: string; returnFocus: HTMLElement | undefined;
   initialTemplateId?: string; initialDestination?: string;
@@ -64,6 +66,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const blocks = useBlockLibrary(store);
   const templates = useTemplateLibrary(store);
   const refreshLibraries = useRef({ templates: templates.library, blocks: blocks.library, snippets: snippets.library });
+  const refreshTidy = useRef<(() => Promise<void>) | undefined>(undefined);
   useLayoutEffect(() => {
     refreshLibraries.current = { templates: templates.library, blocks: blocks.library, snippets: snippets.library };
   }, [templates.library, blocks.library, snippets.library]);
@@ -111,6 +114,35 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const queryGeneration = useRef(0);
   const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
+  const tidy = useTidyReview({
+    space: store.space,
+    source: editorReady && selected && !selected.unsupportedEncoding ? selected.content : undefined,
+    path: selected && !selected.unsupportedEncoding ? selected.path : undefined,
+    canWrite: () => store.api.getState().owned,
+    apply(result) {
+      const current = store.api.getState();
+      const sheet = current.sheets.find((item) => item.path === current.selectedPath);
+      if (!current.owned || current.selectedPath !== selected?.path || sheet?.content !== result.source || editorHandle.current?.source() !== result.source) return false;
+      return editorHandle.current.applyTidy(result);
+    },
+  });
+  const tidyLines = useMemo(() => tidy.report ? [...new Set(tidy.report.issues.map((issue) => issue.line))] : [], [tidy.report]);
+  const tidyLayout = useRef({ sheets: true, inspector: false });
+  useLayoutEffect(() => { refreshTidy.current = tidy.refresh; }, [tidy.refresh]);
+  function openTidy() {
+    if (!selected || selected.unsupportedEncoding) return;
+    if (!tidy.open) tidyLayout.current = { sheets: sheetsVisible, inspector };
+    setSheetsVisible(false);
+    setInspector(false);
+    setPane("editor");
+    tidy.setOpen(true);
+  }
+  function closeTidy() {
+    tidy.setOpen(false);
+    setSheetsVisible(tidyLayout.current.sheets);
+    setInspector(tidyLayout.current.inspector);
+    editorHandle.current?.focus();
+  }
   const documents = useSheetSummaries(state.sheets);
   const summariesPending = !sheetStructureReady(state.sheets, documents);
   const document = documents.find((sheet) => sheet.path === state.selectedPath);
@@ -223,6 +255,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (id.startsWith("format.")) { if (state.owned) editorHandle.current?.runFormat(id); return; }
     const actions: Record<string, () => void> = {
       "app.palette": () => setPalette((open) => !open),
+      "tidy.document": openTidy,
       "sheet.new": requestNewSheet,
       "sheet.fromTemplate": () => {
         if (!state.owned) return;
@@ -304,6 +337,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         run(store.refresh);
         if (!["Unsaved", "Saving…"].includes(store.api.getState().saveState)) {
           for (const library of Object.values(refreshLibraries.current)) if (library) run(library.refresh);
+          if (refreshTidy.current) run(refreshTidy.current);
         }
       }
     };
@@ -440,7 +474,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
-    <WorkspaceTitleBar windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
+    <WorkspaceTitleBar viewLabel={tidy.open ? "Source" : "Live"} windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
       onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={focusSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
       controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); openEditorSettings(); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
@@ -467,7 +501,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     {!state.owned && <div className="notice" role="status">Slate is open in another tab <button onClick={() => run(onTakeover)}>Use here</button></div>}
     {state.error && <div className="errorNotice" role="alert">{state.error}<button onClick={() => run(store.flush)}>Retry saving</button></div>}
     {state.notice && <div className="notice" role="status">{state.notice}<button aria-label="Dismiss notice" onClick={() => store.api.setState({ notice: "" })}>×</button></div>}
-    <div className={`browserPanes ${inspector ? "withInspector" : ""} ${sidebarVisible ? "" : "withoutSidebar"} ${sheetsVisible ? "" : "withoutSheets"}`} data-pane={pane}>
+    <div className={`browserPanes ${tidy.open ? "withTidy" : ""} ${inspector ? "withInspector" : ""} ${sidebarVisible ? "" : "withoutSidebar"} ${sheetsVisible ? "" : "withoutSheets"}`} data-pane={pane}>
       <aside className="browserSidebar" aria-label="Workspace navigation">
         <div className="spaceHeading"><button className="spaceSwitcher" title="Switch Space" onClick={() => run(onSwitchSpace)}><span className="spaceAvatar"><BrandMark size={17} /></span><strong>{state.record.name}</strong><ChevronDown size={13} /></button><button title={`Search sheets (${shortcut("sheet.search")})`} aria-label="Search workspace" onClick={focusSearch}><Search size={16} /></button></div>
         <button className={!filter ? "navItem selected" : "navItem"} onClick={() => selectFilter("")}><BookOpen size={16} />All sheets<span>{state.sheets.length}</span></button>
@@ -493,13 +527,14 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <section className="browserEditor" aria-label="Editor">
         <div className="documentToolbar"><span>{document?.title || "Your next idea starts here"}</span></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} initialCursor={state.initialCursor?.path === selected.path ? state.initialCursor.position : undefined} value={selected.content} smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} completionTags={tags} wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion} templateMenuLibrary={templates.library} snippetMenuLibrary={snippets.library} blockNote={blockNote} canInsertBlock={canInsertBlock} customBlockLibrary={blocks.library} onManageBlocks={openBlockSettings} snippetIndex={snippets.snapshot?.index} onSnippet={expandSnippet} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onImportClipboardImage={copyClipboardImage} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks} pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}>New Sheet</button></div>}
+        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor sourceMode={tidy.open} tidyLines={tidyLines} key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} initialCursor={state.initialCursor?.path === selected.path ? state.initialCursor.position : undefined} value={selected.content} smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} completionTags={tags} wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion} templateMenuLibrary={templates.library} snippetMenuLibrary={snippets.library} blockNote={blockNote} canInsertBlock={canInsertBlock} customBlockLibrary={blocks.library} onManageBlocks={openBlockSettings} snippetIndex={snippets.snapshot?.index} onSnippet={expandSnippet} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onImportClipboardImage={copyClipboardImage} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks} pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}>New Sheet</button></div>}
       </section>
+      {tidy.open && <Suspense fallback={<aside className="tidyPanel" aria-label="Tidy review"><p role="status">Opening Tidy…</p></aside>}><TidyPanel review={tidy} readOnly={!state.owned} onClose={closeTidy} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} /></Suspense>}
       {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
     </div>
     <input ref={input} type="file" aria-label="Import files" multiple accept=".md,.zip" className="visuallyHidden" onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
-    <WorkspaceStatusBar saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.flush)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
+    <WorkspaceStatusBar tidy={{ count: tidy.report?.issues.length, pending: tidy.pending, error: !!tidy.error, open: tidy.open, available: !!selected && !selected.unsupportedEncoding, onOpen: openTidy }} saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.flush)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
     <LaunchActions key={state.record.id} store={store} />
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
     {snippetPicker && snippets.library && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPicker.target.element} onClose={() => setSnippetPicker(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetPicker library={snippets.library} invocation={snippetPicker} spaceName={state.record.name} onClose={() => setSnippetPicker(undefined)} onChoose={(definition) => { applySnippet(snippetPicker, definition); setSnippetPicker(undefined); }} onManage={() => { openSnippetSettings(snippetPicker.target.element); setSnippetPicker(undefined); }} /></Suspense>}
