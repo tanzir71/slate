@@ -48,9 +48,16 @@ test("palette blocks retain selected words and CRLF bytes, and Undo restores the
   await modal.locator("input").fill("/ heading 2");
   await modal.getByRole("button", { name: "Heading 2", exact: true }).click();
   await expect(editor).toContainText("Alpha words.");
-  await expect.poll(() => libraryFile(page, "alpha.md")).toEqual(Array.from(Buffer.from(first + "\r\n## ")));
+  let injected = false, reads = 0;
+  const read = async () => {
+    const bytes = await libraryFile(page, "alpha.md"); reads++;
+    if (!injected) { injected = true; throw new DOMException("Injected transient snapshot failure", "NotReadableError"); }
+    return bytes;
+  };
+  await expect(async () => { expect(await read()).toEqual(Array.from(Buffer.from(first + "\r\n## "))); }).toPass({ timeout: 5_000 });
+  expect(injected).toBe(true); expect(reads).toBeGreaterThanOrEqual(2);
   await editor.press("ControlOrMeta+z");
-  await expect.poll(() => libraryFile(page, "alpha.md")).toEqual(Array.from(Buffer.from(first)));
+  await expect(async () => { expect(await libraryFile(page, "alpha.md")).toEqual(Array.from(Buffer.from(first))); }).toPass({ timeout: 5_000 });
 });
 
 test("palette snippets resolve current scoped definitions and use the real prompt flow", async ({ page }) => {
