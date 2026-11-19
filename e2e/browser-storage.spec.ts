@@ -254,10 +254,9 @@ test("writes selected-folder files and reconnects the saved handle", async ({ pa
   });
   expect(diskText).toBe("# Folder writing\n\nSaved in my folder.");
   await page.locator(".cm-content").focus();
-  await page.keyboard.press("ControlOrMeta+End");
-  await page.keyboard.press("Enter");
-  await page.keyboard.press("Enter");
-  await page.keyboard.type("/");
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText("/");
+  await expect(page.locator(".cm-content .cm-line")).toHaveText(["/"]);
   const blocks = page.getByRole("dialog", { name: "Insert block", exact: true });
   await expect(blocks.getByText("Templates", { exact: true })).toBeVisible();
   await expect(blocks.getByText("Snippets", { exact: true })).toBeVisible();
