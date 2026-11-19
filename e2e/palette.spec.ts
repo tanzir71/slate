@@ -57,8 +57,11 @@ test("Quick open distinguishes duplicate titles, moves to exact same-file headin
 test("palette blocks retain selected words and CRLF bytes, and Undo restores the exact original", async ({ page }) => {
   await seed(page); const quick = await open(page, true); await quick.locator("input").fill("alpha.md");
   await quick.getByRole("button", { name: "Same", exact: true }).click();
-  const editor = page.locator(".cm-content"); await editor.press("ControlOrMeta+Home");
-  await editor.press("ControlOrMeta+Shift+End");
+  const editor = page.locator(".cm-content");
+  const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
+  await editor.press(`${modifier}+a`);
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toContain("Alpha words.");
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toContain("## First goal");
   await workspaceAction(page, "Command palette"); const modal = dialog(page);
   await modal.locator("input").fill("/ heading 2");
   await modal.getByRole("button", { name: "Heading 2", exact: true }).click();
@@ -71,7 +74,7 @@ test("palette blocks retain selected words and CRLF bytes, and Undo restores the
   };
   await expect(async () => { expect(await read()).toEqual(Array.from(Buffer.from(first + "\r\n## "))); }).toPass({ timeout: 5_000 });
   expect(injected).toBe(true); expect(reads).toBeGreaterThanOrEqual(2);
-  await editor.press("ControlOrMeta+z");
+  await editor.press(`${modifier}+z`);
   await expect(async () => { expect(await libraryFile(page, "alpha.md")).toEqual(Array.from(Buffer.from(first))); }).toPass({ timeout: 5_000 });
 });
 
