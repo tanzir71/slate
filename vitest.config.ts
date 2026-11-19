@@ -6,6 +6,7 @@ const fromRoot = (path: string): string => fileURLToPath(new URL(path, import.me
 export default defineConfig({
   resolve: {
     alias: {
+      "@slate/storage/tidy-batch": fromRoot("./packages/storage/src/tidyBatch.ts"),
       "@slate/storage/tauri-workspace-index": fromRoot("./packages/storage/src/tauriWorkspaceIndex.ts"),
       "@slate/storage/tauri-files": fromRoot("./packages/storage/src/tauriFiles.ts"),
       "@slate/storage/file-io": fromRoot("./packages/storage/src/fileIO.ts"),

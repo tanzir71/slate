@@ -3,6 +3,10 @@
   "version": "0.3.0",
   "type": "module",
   "exports": {
+    "./tidy-batch": {
+      "types": "./dist/tidyBatch.d.ts",
+      "import": "./dist/tidyBatch.js"
+    },
     "./tauri-workspace-index": {
       "types": "./dist/tauriWorkspaceIndex.d.ts",
       "import": "./dist/tauriWorkspaceIndex.js"

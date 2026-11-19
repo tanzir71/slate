@@ -82,6 +82,8 @@ export const slateCommands: readonly CommandDefinition[] = [
   { id: "block.settings", label: "Manage custom blocks", group: "Workspace", surfaces: ["web"] },
   { id: "snippet.settings", label: "Manage snippets", group: "Workspace", surfaces: ["web"] },
   { id: "tidy.document", label: "Tidy document", group: "Edit", context: "editor", shortcut: "Alt+Shift+f", surfaces: ["web"] },
+  { id: "tidy.batch", label: "Batch Tidy", group: "Edit", surfaces: ["web"] },
+  { id: "tidy.undoBatch", label: "Undo batch Tidy", group: "Edit", surfaces: ["web"] },
   { id: "appearance.light", label: "Use Light appearance", group: "View" },
   { id: "appearance.dark", label: "Use Dark appearance", group: "View" },
   { id: "appearance.system", label: "Follow system appearance", group: "View" },

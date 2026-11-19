@@ -12,6 +12,7 @@ interface SheetListProps {
   readOnlyPaths: ReadonlySet<string>;
   onOpen(path: string): void;
   onBulk(action: "move" | "trash", paths: string[]): void;
+  onTidy?(paths: string[]): void;
 }
 export function SheetList({
   sheets,
@@ -22,6 +23,7 @@ export function SheetList({
   readOnlyPaths,
   onOpen,
   onBulk,
+  onTidy,
 }: SheetListProps) {
   const container = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ top: 0, height: 600 });
@@ -132,6 +134,7 @@ export function SheetList({
             >
               Delete
             </button>
+            {onTidy && <button disabled={pending || !selected.length} onClick={() => onTidy(selected)}>Tidy selected</button>}
           </>
         )}
       </div>

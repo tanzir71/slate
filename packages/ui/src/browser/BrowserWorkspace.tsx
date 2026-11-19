@@ -42,6 +42,7 @@ const SnippetPrompt = lazy(() => import("../snippets/SnippetPrompt"));
 const BlockSettings = lazy(() => import("../blocks/BlockSettings"));
 const SnippetSettings = lazy(() => import("../snippets/SnippetSettings"));
 const TidyPanel = lazy(() => import("../tidy/TidyPanel"));
+const BatchTidyDialog = lazy(() => import("../tidy/BatchTidyDialog"));
 interface TemplateRequest {
   notebook: string; selection: string; returnFocus: HTMLElement | undefined;
   initialTemplateId?: string; initialDestination?: string;
@@ -98,6 +99,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [collapsed, setCollapsed] = useState(() => new Set(state.preferences.collapsedNotebooks));
   const [actionBusy, setActionBusy] = useState(false);
   const [actionPaths, setActionPaths] = useState<string[]>([]);
+  const [tidyBatch, setTidyBatch] = useState<{ paths: string[]; returnFocus: HTMLElement | undefined }>();
   const cursor = useMemo(createCursorStore, []);
   const os = shortcutOS();
   const surface = runtime?.surface ?? "web";
@@ -259,12 +261,19 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     run(snippets.library.refresh);
   }
 
+  function openBatchTidy(paths: readonly string[]) {
+    const active = window.document.activeElement;
+    setTidyBatch({ paths: [...paths], returnFocus: active instanceof HTMLElement ? active : undefined });
+  }
+
   function dispatchCommand(id: string) {
     if (id.startsWith("table.")) { if (state.owned) editorHandle.current?.runTable(id); return; }
     if (id.startsWith("format.")) { if (state.owned) editorHandle.current?.runFormat(id); return; }
     const actions: Record<string, () => void> = {
       "app.palette": () => setPalette((open) => !open),
       "tidy.document": openTidy,
+      "tidy.batch": () => openBatchTidy(store.api.getState().sheets.map((sheet) => sheet.path)),
+      "tidy.undoBatch": () => run(store.undoTidyBatch),
       "sheet.new": requestNewSheet,
       "sheet.fromTemplate": () => {
         if (!state.owned) return;
@@ -520,6 +529,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         { label: "Insert snippet", disabled: !state.owned || !selected || selected.unsupportedEncoding || !snippets.library, run: openSnippetPicker },
         { label: "Manage custom blocks", disabled: !blocks.library, run: () => openBlockSettings() },
         { label: "Manage snippets", disabled: !snippets.library, run: () => openSnippetSettings() },
+        { label: "Batch Tidy", run: () => dispatchCommand("tidy.batch") },
+        { label: "Undo batch Tidy", disabled: !state.owned || !state.hasTidyBatchUndo, run: () => dispatchCommand("tidy.undoBatch") },
         { label: "Notebook default template", disabled: !state.owned, run: () => openNotebookTemplate(filter && !/^[#@]/.test(filter) ? filter : "Inbox") },
         { label: pinned ? "Unpin sheet" : "Pin sheet", disabled: !selected || !state.owned, run: () => dispatchCommand("sheet.pin") },
         { label: "Rename sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setAction("rename"); setActionValue(selected?.path.split("/").pop()?.replace(/\.md$/i, "") ?? ""); } },
@@ -557,7 +568,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       <aside className="browserSheetList" aria-label="Sheets">
         <div className="listHeading"><strong>{listTitle}</strong><small>{visible.length}</small><label className="densityControl"><span className="visuallyHidden">Sheet density</span><select aria-label="Sheet density" value={state.preferences.density} disabled={!state.owned} onChange={(event) => run(() => store.setDensity(event.target.value as "comfortable" | "compact"))}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label><button title={`New sheet (${shortcut("sheet.new")})`} aria-label="New Sheet" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}><Plus size={17} /></button></div>
         <label className="browserSearch"><Search size={15} /><input ref={search} aria-label="Search sheets" placeholder={filter ? `Filter ${listTitle}…` : "Search sheets…"} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} pending={summariesPending} readOnlyPaths={new Set(state.sheets.filter((sheet) => sheet.unsupportedEncoding).map((sheet) => sheet.path))} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} />
+        <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} pending={summariesPending} readOnlyPaths={new Set(state.sheets.filter((sheet) => sheet.unsupportedEncoding).map((sheet) => sheet.path))} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} onTidy={openBatchTidy} />
         {!visible.length && <div className="browserEmpty"><strong>{query ? "No sheets match" : "A little room to think"}</strong><p>{query ? "Try another search." : "Create your first sheet or import your notes."}</p></div>}
         <div className="listFoot">{visible.length} sheets</div>
       </aside>
@@ -572,6 +583,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <WorkspaceStatusBar tidy={{ count: tidy.report?.issues.length, pending: tidy.pending, error: !!tidy.error, open: tidy.open, available: !!selected && !selected.unsupportedEncoding, onOpen: openTidy }} saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.save)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
     {!runtime && <LaunchActions key={state.record.id} store={store} />}
+    {tidyBatch && <Suspense fallback={<WorkspaceDialog title="Batch Tidy" returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)}><p role="status">Opening batch review…</p></WorkspaceDialog>}><BatchTidyDialog store={store} paths={tidyBatch.paths} returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)} /></Suspense>}
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
     {snippetPicker && snippets.library && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPicker.target.element} onClose={() => setSnippetPicker(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetPicker library={snippets.library} invocation={snippetPicker} spaceName={state.record.name} onClose={() => setSnippetPicker(undefined)} onChoose={(definition) => { applySnippet(snippetPicker, definition); setSnippetPicker(undefined); }} onManage={() => { openSnippetSettings(snippetPicker.target.element); setSnippetPicker(undefined); }} /></Suspense>}
     {snippetPrompt && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPrompt.target.element} onClose={() => setSnippetPrompt(undefined)}><p role="status">Opening snippet fields…</p></WorkspaceDialog>}><SnippetPrompt request={snippetPrompt} onClose={() => setSnippetPrompt(undefined)} /></Suspense>}

@@ -7,6 +7,7 @@ import { notebookTemplate, previousDailyNote, readWorkspacePreferences, starterK
 import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 import type { StarterKitInstallation } from "../templates/starterKits";
 import type { EditorChangeOrigin } from "../commands";
+import type { BatchTidySession } from "@slate/storage/tidy-batch";
 
 export interface NoteSaveSnapshot {
   readonly path: string;
@@ -23,11 +24,12 @@ export interface WorkspaceState {
   error: string;
   notice: string;
   preferences: WorkspacePreferences;
+  hasTidyBatchUndo: boolean;
   initialCursor?: { path: string; position: number } | undefined;
 }
 
 export function createWorkspaceStore(record: BrowserSpaceRecord, files: WorkspaceFiles) {
-  const api = createStore<WorkspaceState>(() => ({ record, sheets: [], selectedPath: "", owned: record.id === "sample", saveState: "Saved", error: "", notice: "", preferences: readWorkspacePreferences() }));
+  const api = createStore<WorkspaceState>(() => ({ record, sheets: [], selectedPath: "", owned: record.id === "sample", saveState: "Saved", error: "", notice: "", preferences: readWorkspacePreferences(), hasTidyBatchUndo: false }));
   const space = createFileSpace(files, () => api.getState().owned);
   const bases = new Map<string, string>();
   const drafts = new Map<string, Draft>();
@@ -39,6 +41,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   let linking: Promise<unknown> = Promise.resolve();
   let updatingPreferences: Promise<unknown> = Promise.resolve();
   const pendingKits = new Set<StarterKitInstallation>();
+  const tidyBatches: BatchTidySession[] = [];
   const preferencesPath = ".slate/view.json";
 
   async function readPreferences() {
@@ -71,6 +74,18 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   async function finishCreated(notice: string) {
     try { onSaved(); await refresh(); }
     catch { api.setState({ notice }); }
+  }
+
+  async function finishTidyBatch(batch: BatchTidySession) {
+    if (batch.hasUndo() && !tidyBatches.includes(batch)) tidyBatches.push(batch);
+    while (tidyBatches.length && !tidyBatches.at(-1)!.hasUndo()) tidyBatches.pop();
+    api.setState({ hasTidyBatchUndo: tidyBatches.length > 0 });
+    if (batch.rows().some((row) => ["applied", "undo-failed", "undone"].includes(row.status)))
+      await finishCreated("Your batch changes are saved. Refresh the workspace when available to update its lists.");
+    else {
+      try { await refresh(); }
+      catch { api.setState({ notice: "Your files are kept. Refresh the workspace when available to update its lists." }); }
+    }
   }
 
   function journal(edit?: RecoveryEdit) {
@@ -146,6 +161,33 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
 
   return {
     api, space, refresh, flush,
+    applyTidyBatch(batch: BatchTidySession, paths: readonly string[]): Promise<void> {
+      const selected = new Set(paths);
+      const next = linking.then(async () => {
+        await flush();
+        try {
+          await batch.apply([...selected]);
+          const failed = batch.rows().find((row) => selected.has(row.path) && (row.status === "failed" || row.status === "conflict"));
+          if (failed) throw new Error(`${failed.path}: ${failed.error}`);
+        } finally { await finishTidyBatch(batch); }
+      });
+      linking = next.catch(() => undefined);
+      return next;
+    },
+    undoTidyBatch(): Promise<void> {
+      const next = linking.then(async () => {
+        const batch = tidyBatches.at(-1);
+        if (!batch) return;
+        await flush();
+        try {
+          await batch.undo();
+          const failed = batch.rows().find((row) => row.status === "undo-failed");
+          if (failed) throw new Error(`${failed.path}: ${failed.error}`);
+        } finally { await finishTidyBatch(batch); }
+      });
+      linking = next.catch(() => undefined);
+      return next;
+    },
     subscribeNoteSaved(observer: (snapshot: NoteSaveSnapshot) => void) {
       noteSaved.add(observer);
       return () => { noteSaved.delete(observer); };

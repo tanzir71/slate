@@ -9,7 +9,9 @@ type ContextFactory = (options?: BrowserContextOptions) => Promise<BrowserContex
 export const test = base.extend<{ createContext: ContextFactory }>({
   createContext: async ({ browser, playwright, browserName, contextOptions, baseURL, viewport, userAgent, isMobile, hasTouch, deviceScaleFactor, locale, colorScheme, timezoneId }, use) => {
     const contexts: BrowserContext[] = [];
-    const defaults: BrowserContextOptions = { ...contextOptions, viewport, isMobile, hasTouch, deviceScaleFactor, locale, colorScheme,
+    const defaults: BrowserContextOptions = { ...contextOptions, viewport, isMobile, hasTouch,
+      ...(deviceScaleFactor === undefined ? {} : { deviceScaleFactor }),
+      ...(locale === undefined ? {} : { locale }), ...(colorScheme === undefined ? {} : { colorScheme }),
       ...(baseURL ? { baseURL } : {}), ...(userAgent ? { userAgent } : {}), ...(timezoneId ? { timezoneId } : {}) };
     await use(async (options = {}) => {
       const context = browserName === "webkit"

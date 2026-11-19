@@ -12,7 +12,7 @@ export async function libraryPaths(page: Page, includePrivate = false) {
       for await (const [name, handle] of directory.entries()) {
         if (name === ".slate" && !includePrivate) continue;
         if (handle.kind === "directory")
-          await scan(handle, prefix + name + "/");
+          await scan(handle as FileSystemDirectoryHandle, prefix + name + "/");
         else paths.push(prefix + name);
       }
     }

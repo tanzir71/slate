@@ -18,6 +18,7 @@
     "exactOptionalPropertyTypes": true,
     "baseUrl": ".",
     "paths": {
+      "@slate/storage/tidy-batch": ["packages/storage/src/tidyBatch.ts"],
       "@slate/ui/native": ["packages/ui/src/native/NativeApp.tsx"],
       "@slate/storage/tauri-workspace-index": ["packages/storage/src/tauriWorkspaceIndex.ts"],
       "@slate/storage/tauri-files": ["packages/storage/src/tauriFiles.ts"],

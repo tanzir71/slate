@@ -21,6 +21,70 @@
 .tidyIcon--chevron {
   --tidy-icon: url("../assets/templates/chevron-down.svg");
 }
+.tidyBatchDialog {
+  inline-size: min(960px, calc(100% - 32px));
+}
+.tidyBatchDialog[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tidyBatchDialog > header,
+.tidyBatchDialog p {
+  margin: 0;
+}
+.tidyBatchActions,
+.tidyBatchRowHeader {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tidyBatchActions button,
+.tidyBatchRow > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tidyBatchDialog .tidyBatchChoice {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-block-size: 44px;
+  min-inline-size: 0;
+}
+.tidyBatchChoice strong {
+  overflow-wrap: anywhere;
+}
+.tidyBatchDialog input[type="checkbox"] {
+  flex: 0 0 16px;
+  inline-size: 16px;
+  block-size: 16px;
+  padding: 0;
+  accent-color: var(--accent-default);
+}
+.tidyBatchRows {
+  display: grid;
+  gap: 8px;
+  min-block-size: 0;
+  overflow: auto;
+}
+.tidyBatchRowHeader > span {
+  margin-inline-start: auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.tidyBatchFooter {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+@media (pointer: coarse) {
+  .tidyBatchDialog button {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+}
 .tidyPanel {
   grid-column: 4;
   display: flex;
