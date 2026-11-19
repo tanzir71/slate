@@ -29,7 +29,7 @@ function folded(value: string) {
     : value;
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
-function score(value: string, query: string) {
+function score(value: string, query: string, characters: readonly string[]) {
   if (!query || value === query) return 0;
   if (value.length < query.length) return Infinity;
   let occurrence = value.indexOf(query);
@@ -42,7 +42,8 @@ function score(value: string, query: string) {
     return 3;
   }
   let position = 0;
-  for (const character of query) {
+  for (let index = 0; index < characters.length; index++) {
+    const character = characters[index]!;
     const found = value.indexOf(character, position);
     if (found < 0) return Infinity;
     position = found + character.length;
@@ -51,11 +52,11 @@ function score(value: string, query: string) {
 }
 interface IndexedEntry { item: PaletteEntry; label: string; other: readonly string[] }
 interface Match { entry: IndexedEntry; score: number }
-function entryScore(entry: IndexedEntry, query: string) {
-  let rank = score(entry.label, query);
+function entryScore(entry: IndexedEntry, query: string, characters: readonly string[]) {
+  let rank = score(entry.label, query, characters);
   if (rank === 0) return rank;
   for (const value of entry.other) {
-    rank = Math.min(rank, score(value, query) + 0.25);
+    rank = Math.min(rank, score(value, query, characters) + 0.25);
     if (rank === 0.25) break;
   }
   return rank;
@@ -114,11 +115,12 @@ export function createPaletteIndex(entries: readonly PaletteEntry[]) {
         }
         return { mode, total, items };
       }
+      const characters = Array.from(query);
       const matches: Match[] = [];
       let total = 0;
       for (const entry of candidates) {
         if (options.accept?.(entry.item) === false) continue;
-        const rank = entryScore(entry, query);
+        const rank = entryScore(entry, query, characters);
         if (!Number.isFinite(rank)) continue;
         total++;
         if (limit) retainBest(matches, { entry, score: rank }, limit);

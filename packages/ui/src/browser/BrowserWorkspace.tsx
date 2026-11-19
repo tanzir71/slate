@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { useStore } from "zustand";
 import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X, Settings } from "lucide-react";
 import { commandAvailable, matchCommand, resolveCommandKeymap, type PaletteEntry, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
@@ -297,11 +298,12 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   function openPalette(mode: "all" | "sheets") {
     const current = store.api.getState(), handle = editorHandle.current;
     const active = window.document.activeElement;
-    setPalette({ mode, catalog: paletteCatalog, target: handle?.creationTarget(),
+    const request: PaletteRequest = { mode, catalog: paletteCatalog, target: handle?.creationTarget(),
       returnFocus: active instanceof HTMLElement ? active : undefined,
       editor: current.owned && !!selected && !selected.unsupportedEncoding,
       selection: handle?.hasSelection() ?? false, tableColumns: handle?.tableColumns() ?? 0,
-    });
+    };
+    flushSync(() => setPalette(request));
   }
   function paletteAvailable(entry: PaletteEntry): boolean {
     const action = palette?.catalog.actions.get(paletteIdentity(entry));

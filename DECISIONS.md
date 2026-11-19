@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Complete native palette opening inside its user action
+
+The global native keyboard listener captures document identity, source selection and current action context before committing the palette state synchronously. The shared native dialog then opens and focuses during layout before dispatch returns. This keeps a real imperative browser interaction in one user action; only palette opening uses this explicit React flush. Existing composition, ownership, stale-source, pending-choice and return-focus guards remain in the execution paths. A real workspace browser regression fails in all four profiles with the deferred state update.
+
+Prepare a nonempty search query's Unicode code points once and reuse them across indexed fields. Match each field with an indexed loop while retaining original UTF-16 score lengths and code-point positions, including astral characters. Do not split surrogate pairs to obtain a cheaper subsequence test. Operation counts and semantic order tests accompany the change; first-frame budgets still measure the actual visible browser frame under unchanged limits and profiles.
+
 ## 2026-11-20 - Bound repeated palette and heading work
 
 Normalize and deduplicate only internal search fields; retain literal metadata and aliases in returned actions. Label-identical secondary fields cannot improve the label score because they carry an additional penalty. Order empty-query entries once with the existing deterministic comparator and count without constructing unused ranked matches. Context predicates still run before counting and truncation. Suppress an unchanged ordered summary publication only when every hydrated immutable document reference is retained; acknowledge worker replies and continue queued jobs normally. Changed source, order, membership and first heading upgrades still publish.

@@ -23,6 +23,21 @@ async function seed(page: Page) {
   await expect(page.locator(".sheetRowContainer").filter({ hasText: "Same" })).toHaveCount(2);
 }
 
+test("the native palette shortcut is visible before dispatch returns", async ({ page }) => {
+  await openLibrary(page); await createSheet(page, "# Before paint\n\nWords kept.");
+  const result = await page.evaluate(() => {
+    const mac = /Mac/.test(navigator.platform);
+    const event = new KeyboardEvent("keydown", { key: "k", code: "KeyK", ctrlKey: !mac, metaKey: mac, bubbles: true, cancelable: true });
+    window.dispatchEvent(event);
+    const modal = document.querySelector<HTMLDialogElement>(".slatePalette");
+    return { prevented: event.defaultPrevented, open: modal?.open === true,
+      focused: !!modal && document.activeElement === modal.querySelector(".paletteInput") };
+  });
+  expect(result).toEqual({ prevented: true, open: true, focused: true });
+  await expect(dialog(page)).toBeVisible(); await page.keyboard.press("Escape");
+  await expect(dialog(page)).toBeHidden(); await expect(page.locator(".cm-content")).toBeFocused();
+});
+
 test("Quick open distinguishes duplicate titles, moves to exact same-file headings and keeps original bytes offline", async ({ page, context }) => {
   await seed(page); await context.setOffline(true);
   let modal = await open(page, true); await modal.locator("input").fill("Same");

@@ -91,6 +91,27 @@ describe("indexed palette search", () => {
     expect(choices.search("CAFE").items[0]?.id).toBe("accent");
     expect(choices.search("কলম").items[0]?.id).toBe("plain");
   });
+  it("retains Unicode code points and existing order in subsequence matching", () => {
+    const choices = createPaletteIndex([
+      { id: "fuzzy", kind: "sheets", label: "x🙂ya" },
+      { id: "exact", kind: "sheets", label: "🙂a" },
+      { id: "split-surrogate", kind: "sheets", label: "x\uD83Dya\uDE42" },
+    ]);
+    expect(choices.search("🙂a").items.map((entry) => entry.id)).toEqual(["exact", "fuzzy"]);
+  });
+  it("reads a query's code points once across all candidate fields", () => {
+    const choices = createPaletteIndex([{ id: "row", kind: "sheets", label: "Sigma" }]);
+    const original = String.prototype[Symbol.iterator];
+    let reads = 0;
+    const iterator = vi.spyOn(String.prototype, Symbol.iterator).mockImplementation(function (this: string) {
+      if (String(this) === "sma") reads++;
+      return original.call(this);
+    });
+    let result;
+    try { result = choices.search("sma"); } finally { iterator.mockRestore(); }
+    expect(result?.items.map((entry) => entry.id)).toEqual(["row"]);
+    expect(reads).toBeLessThanOrEqual(1);
+  });
   it("captures immutable metadata until a new index is built", () => {
     const source = [{ id: "one", kind: "sheets" as const, label: "Original", aliases: ["first"] }];
     const captured = createPaletteIndex(source);
