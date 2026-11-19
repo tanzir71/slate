@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X, Settings } from "lucide-react";
 import { matchCommand, resolveCommandKeymap, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
@@ -63,6 +63,10 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const snippets = useSnippetLibrary(store);
   const blocks = useBlockLibrary(store);
   const templates = useTemplateLibrary(store);
+  const refreshLibraries = useRef({ templates: templates.library, blocks: blocks.library, snippets: snippets.library });
+  useLayoutEffect(() => {
+    refreshLibraries.current = { templates: templates.library, blocks: blocks.library, snippets: snippets.library };
+  }, [templates.library, blocks.library, snippets.library]);
   const [blockSettings, setBlockSettings] = useState<{ returnFocus: HTMLElement | undefined }>();
   const [snippetPicker, setSnippetPicker] = useState<SnippetInvocation>();
   const [snippetPrompt, setSnippetPrompt] = useState<PreparedSnippet>();
@@ -298,9 +302,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const refresh = () => {
       if (active && window.document.visibilityState === "visible") {
         run(store.refresh);
-        if (templates.library && !["Unsaved", "Saving…"].includes(store.api.getState().saveState)) run(templates.library.refresh);
-        if (blocks.library && !["Unsaved", "Saving…"].includes(store.api.getState().saveState)) run(blocks.library.refresh);
-        if (snippets.library && !["Unsaved", "Saving…"].includes(store.api.getState().saveState)) run(snippets.library.refresh);
+        if (!["Unsaved", "Saving…"].includes(store.api.getState().saveState)) {
+          for (const library of Object.values(refreshLibraries.current)) if (library) run(library.refresh);
+        }
       }
     };
     let observer: FolderObserver | undefined;
@@ -336,7 +340,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       window.removeEventListener("pagehide", save);
       window.removeEventListener("beforeunload", beforeUnload);
     };
-  }, [store, snippets.library, blocks.library, templates.library]);
+  }, [store, run]);
 
   useEffect(() => {
     function route() {
