@@ -1,8 +1,6 @@
-import remarkGfm from "remark-gfm";
-import remarkParse from "remark-parse";
-import { unified } from "unified";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { markdownBodyFrom } from "../markdownBody.js";
+import { parseTidyAst, type TidyDocument } from "./source.js";
 
 type Projection =
   | null
@@ -11,11 +9,6 @@ type Projection =
   | string
   | Projection[]
   | { [key: string]: Projection };
-
-const parser = /* @__PURE__ */ unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .freeze();
 
 function astProjection(value: unknown): Projection {
   if (Array.isArray(value)) return value.map(astProjection);
@@ -143,9 +136,12 @@ function metadataProjection(source: string, bodyFrom: number): Projection {
 }
 
 /** Compare meaning and literal data, allowing only the plan's presentation differences. */
-export function contentProjection(source: string): string {
-  const bodyFrom = markdownBodyFrom(source);
-  const body = source.slice(bodyFrom);
+export function projectTidyDocument({
+  source,
+  bodyFrom,
+  body,
+  root,
+}: Pick<TidyDocument, "source" | "bodyFrom" | "body" | "root">): string {
   return JSON.stringify({
     bom: source.startsWith("\uFEFF"),
     metadata: metadataProjection(source, bodyFrom),
@@ -155,7 +151,18 @@ export function contentProjection(source: string): string {
       body.matchAll(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g),
       (match) => match[0],
     ),
-    markdown: astProjection(parser.parse(body)),
+    markdown: astProjection(root),
+  });
+}
+
+export function contentProjection(source: string): string {
+  const bodyFrom = markdownBodyFrom(source),
+    body = source.slice(bodyFrom);
+  return projectTidyDocument({
+    source,
+    bodyFrom,
+    body,
+    root: parseTidyAst(body),
   });
 }
 

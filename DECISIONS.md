@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-19 - Keep Tidy proposals source-bound and independently reviewable
+
+The core exposes pure lint()/fix() with all23 Appendix-D rule IDs, original UTF-16 spans and one minimal final change. Selected IDs stay bound to their original report source; overlapping repairs remap offsets or fall back to independent guarded repairs. Apply-all proves disjoint/subsumed repairs atomically, while preserving individual diagnostics and selection. Structural ambiguities remain manual warnings rather than bypassing the mdast content guarantee. A false keepHardBreaks setting removes trailing-space markers by using equivalent backslashes; it never silently removes a semantic line break.
+
+Use strict version1 configuration with on-save off by default, preserved unknown model fields and explicit rule overrides. Minimal limits fixes to whitespace; GitHub excludes Slate-specific YAML/table alignment; Slate enables Appendix-D conventions with bare URLs off. Actual file IO, worker/review UI, on-save and batch remain separate required integrations.
+
+Choose the CommonMark parser only when raw source cannot contain a GFM construct, including decoded autolink candidates; otherwise use full GFM. Exact AST and position parity is covered by explicit and generated reference comparisons. Linear assembly applies validated original-offset edits without repeatedly copying the whole document, preserving same-position insertion order. The dense-list150ms target is still unmet and cannot be waived by faster plain-text results.
+
 ## 2026-11-19 - Bind folder observation to the open Space lifecycle
 
 Lazy template, snippet and block libraries are refresh consumers, not owners of the file observer, polling timer or unload flush handlers. Keep those subscriptions stable for the workspace store and read current committed libraries from a layout-updated ref. Continue rejecting callbacks after cleanup and disconnecting a subscription that completes after its owner closes. The selected-folder regression delays observer completion through library loading, tracks active instances accurately, requires one observer for the open Space, and retains exact saved bytes, a 500 ms external-refresh check and reconnect behavior. An older observer disconnecting must not make a mock falsely report that every observer is disconnected.
