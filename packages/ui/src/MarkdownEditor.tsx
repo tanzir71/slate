@@ -22,13 +22,15 @@ import {
   type SaveClipboardImage,
   type WikiLinkHit
 } from "@slate/editor";
-import { createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget, type SnippetIndex, type ScopedSnippet } from "@slate/core";
+import { prepareBlockSnippet, createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget, type SnippetIndex, type ScopedSnippet } from "@slate/core";
 import type { SnippetTarget } from "./snippets/snippetTypes";
 import type { EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
 import type { BlockLibrary } from "./blocks/blockLibrary";
-import { useBlockMenu } from "./useBlockMenu";
+import type { TemplateLibrary } from "./blocks/templateLibrary";
+import type { SnippetLibrary } from "./snippets/snippetLibrary";
+import { useBlockMenu, type BlockMenuNote, type BlockInsertionContext } from "./useBlockMenu";
 import { useBlockGutter } from "./useBlockGutter";
 import { useDatePicker } from "./useDatePicker";
 import { useSmartPaste } from "./useSmartPaste";
@@ -83,12 +85,24 @@ interface MarkdownEditorProps {
   frontmatter?: boolean;
   snippetIndex?: SnippetIndex | undefined;
   customBlockLibrary?: BlockLibrary | undefined;
+  templateMenuLibrary?: TemplateLibrary | undefined;
+  snippetMenuLibrary?: SnippetLibrary | undefined;
+  blockNote?: BlockMenuNote | undefined;
+  canInsertBlock?: (() => boolean) | undefined;
   onManageBlocks?: (() => void) | undefined;
-  onSnippet?: ((definition: ScopedSnippet, target: SnippetTarget) => boolean) | undefined;
+  onSnippet?: ((definition: ScopedSnippet, target: SnippetTarget, context?: BlockInsertionContext) => boolean) | undefined;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks }: MarkdownEditorProps) {
-  const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks);
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock }: MarkdownEditorProps) {
+  const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks, {
+    templates: templateMenuLibrary, snippets: snippetMenuLibrary, note: blockNote, canInsert: canInsertBlock,
+    onSnippet(view, request, definition, separate, context, onInserted) {
+      const target = snippetTarget(view, request, separate);
+      if (!target) return false;
+      const tracked: SnippetTarget = { ...target, insert(expansion) { const accepted = target.insert(expansion); if (accepted) onInserted(); return accepted; } };
+      return onSnippetRef.current?.(definition, tracked, context) ?? false;
+    },
+  });
   const gutter = useBlockGutter(({ view, target, rect }) => blocks.openAt(view, target, rect));
   const dates = useDatePicker(dateCompletion);
   const fenceInput = useFenceInput(fences, frontmatter);
@@ -131,11 +145,11 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => { onCursorRef.current = onCursorChange; }, [onCursorChange]);
   useEffect(() => { onSnippetRef.current = onSnippet; }, [onSnippet]);
 
-  function snippetTarget(view: EditorView, request = requestEditorSnippet(view.state)): SnippetTarget | undefined {
-    if (!request) return;
+  function snippetTarget(view: EditorView, request = requestEditorSnippet(view.state), separate?: boolean): SnippetTarget | undefined {
+    if (!request || canInsertBlock?.() === false) return;
     const { from, to } = request.selection.main;
     return { source: request.source.toString(), selection: request.source.sliceString(from, to), element: view.contentDOM,
-      insert: (expansion) => insertEditorSnippet(view, request, expansion) };
+      insert: (expansion) => canInsertBlock?.() !== false && insertEditorSnippet(view, request, separate === undefined ? expansion : prepareBlockSnippet(expansion, { source: request.source.toString(), from: request.from, to: request.to }, separate)) };
   }
   function snippetExtensions(index: SnippetIndex | undefined) {
     return index ? [editorSnippetFields(), createSnippetTriggers({ index, onExpand(view, request, definition) {

@@ -1,7 +1,12 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary, expectSavedSheet as saved } from "./helpers";
+import {
+  createSheet,
+  openLibrary,
+  expectSavedSheet as saved,
+  readCurrentSheet,
+} from "./helpers";
 const actions = (page: Page) =>
   page.getByRole("dialog", { name: "Block actions", exact: true });
 
@@ -20,32 +25,23 @@ test("block-action save assertions tolerate one unavailable snapshot and still r
   await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
     "Saved",
   );
-  await page.evaluate(() => {
-    const original = navigator.storage.getDirectory.bind(navigator.storage);
-    const probe = { reads: 0, failures: 0 };
-    Reflect.set(window, "blockSaveSnapshot", probe);
-    navigator.storage.getDirectory = async () => {
-      probe.reads++;
-      if (probe.failures === 0) {
-        probe.failures++;
+  let reads = 0,
+    failures = 0;
+  await saved(page, "Keep these words.\n\n# First", async (currentPage) => {
+    reads++;
+    if (failures === 0) {
+      failures++;
+      await currentPage.evaluate(() => {
         throw new DOMException(
           "One unavailable block snapshot",
           "NotFoundError",
         );
-      }
-      return original();
-    };
+      });
+    }
+    return readCurrentSheet(currentPage);
   });
-  await saved(page, "Keep these words.\n\n# First");
-  const probe = await page.evaluate(
-    () =>
-      Reflect.get(window, "blockSaveSnapshot") as {
-        reads: number;
-        failures: number;
-      },
-  );
-  expect(probe.reads).toBeGreaterThanOrEqual(2);
-  expect(probe.failures).toBe(1);
+  expect(reads).toBeGreaterThanOrEqual(2);
+  expect(failures).toBe(1);
   await page.reload();
   await expect(editor).toBeVisible();
   await saved(page, "Keep these words.\n\n# First");

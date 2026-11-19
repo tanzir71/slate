@@ -23,10 +23,17 @@ import {
   Braces,
   FileText,
 } from "lucide-react";
-import type { BlockDefinition, CustomBlock } from "@slate/core";
+import {
+  blockMenuOptionId,
+  type CreationMenuEntry,
+} from "./blocks/menuCatalog";
 import type { BlockMenuAnchor } from "./blockMenuController";
 import { BlockPreview } from "./BlockPreview";
 
+const familyIcons = {
+  template: new URL("./assets/blocks/template.svg", import.meta.url).href,
+  snippet: new URL("./assets/blocks/braces.svg", import.meta.url).href,
+};
 const icons = {
   table: Table2,
   heading1: Heading1,
@@ -52,6 +59,8 @@ export function BlockMenu({
   results,
   active,
   markdown,
+  renderedMarkdown,
+  previewIssue,
   listId,
   onSelect,
   onInsert,
@@ -63,9 +72,11 @@ export function BlockMenu({
   catalogError,
 }: {
   anchor: BlockMenuAnchor;
-  results: readonly (BlockDefinition | CustomBlock)[];
-  active: BlockDefinition | CustomBlock | undefined;
+  results: readonly CreationMenuEntry[];
+  active: CreationMenuEntry | undefined;
   markdown: string;
+  renderedMarkdown?: string | undefined;
+  previewIssue?: string | undefined;
   listId: string;
   onManage?: (() => void) | undefined;
   catalogError?: string | undefined;
@@ -148,7 +159,7 @@ export function BlockMenu({
             aria-autocomplete="list"
             aria-controls={listId}
             aria-activedescendant={
-              active ? `${listId}-${active.id}` : undefined
+              active ? blockMenuOptionId(listId, active.id) : undefined
             }
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
@@ -173,6 +184,7 @@ export function BlockMenu({
           )}
           {results.map((block, index) => {
             const Icon = icons[block.id as keyof typeof icons] ?? FileText;
+            const family = "kind" in block ? block.kind : undefined;
             return (
               <div key={block.id}>
                 {(index === 0 || results[index - 1]?.group !== block.group) && (
@@ -184,20 +196,34 @@ export function BlockMenu({
                   type="button"
                   role="option"
                   tabIndex={-1}
-                  id={`${listId}-${block.id}`}
+                  id={blockMenuOptionId(listId, block.id)}
                   aria-selected={active?.id === block.id}
                   className="blockMenuOption"
+                  data-family={family}
                   onPointerDown={(event) => event.preventDefault()}
                   onPointerMove={() => onSelect(block.id)}
                   onClick={() => onInsert(block.id)}
                 >
                   <span className="blockMenuIcon">
-                    <Icon size={16} strokeWidth={1.75} />
+                    {family ? (
+                      <span
+                        className="blockMenuAsset"
+                        aria-hidden="true"
+                        style={{
+                          maskImage: 'url("' + familyIcons[family] + '")',
+                        }}
+                      />
+                    ) : (
+                      <Icon size={16} strokeWidth={1.75} />
+                    )}
                   </span>
-                  <span>
+                  <span className="blockMenuText">
                     <strong>{block.label}</strong>
                     <small>{block.description}</small>
                   </span>
+                  {"kind" in block && block.kind === "snippet" && (
+                    <code className="blockMenuTrigger">{block.trigger}</code>
+                  )}
                 </button>
               </div>
             );
@@ -220,7 +246,12 @@ export function BlockMenu({
                 <code>{markdown}</code>
               </pre>
               <small>PREVIEW</small>
-              <BlockPreview markdown={markdown} />
+              {previewIssue && (
+                <p className="blockMenuEmpty" role="status">
+                  {previewIssue}
+                </p>
+              )}
+              <BlockPreview markdown={renderedMarkdown ?? markdown} />
             </>
           )}
           {onManage && (

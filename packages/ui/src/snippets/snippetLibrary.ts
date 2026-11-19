@@ -50,11 +50,13 @@ const failure = (error: unknown) =>
 export function createSnippetLibrary(
   space: BrowserSpace,
   openGlobal: () => Promise<FileStore> = openGlobalSnippetFileStore,
+  canInsert: () => boolean = () => true,
 ) {
   const local = createSnippetFileStore(space),
     listeners = new Set<() => void>();
   let global: Promise<FileStore> | undefined,
-    generation = 0;
+    generation = 0,
+    disposed = false;
   let snapshot: SnippetLibrarySnapshot = {
     loading: true,
     global: undefined,
@@ -81,6 +83,7 @@ export function createSnippetLibrary(
     before.source === after.source &&
     before.error === after.error;
   async function refresh() {
+    if (disposed) return;
     const current = ++generation;
     const [globalFile, spaceFile] = await Promise.all([
       globalStore()
@@ -92,7 +95,7 @@ export function createSnippetLibrary(
         })),
       local.read(),
     ]);
-    if (current !== generation) return;
+    if (disposed || current !== generation) return;
     if (
       !snapshot.loading &&
       unchanged(snapshot.global, globalFile) &&
@@ -117,6 +120,19 @@ export function createSnippetLibrary(
       errors,
     });
   }
+  function assertCurrent() {
+    if (disposed)
+      throw new Error("This Space is closed. Choose the snippet again.");
+    if (!canInsert())
+      throw new Error("This Space is read-only. Choose Use here to edit.");
+  }
+  const sameDefinition = (a: ScopedSnippet, b: ScopedSnippet) =>
+    a.origin === b.origin &&
+    a.trigger === b.trigger &&
+    a.name === b.name &&
+    a.body === b.body &&
+    a.expandOn === b.expandOn &&
+    a.enabled === b.enabled;
   return {
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
@@ -126,13 +142,42 @@ export function createSnippetLibrary(
       };
     },
     refresh,
+    async resolve(preview: ScopedSnippet): Promise<ScopedSnippet> {
+      assertCurrent();
+      const find = () =>
+        snapshot.snippets.find(
+          (entry) =>
+            entry.trigger === preview.trigger &&
+            entry.origin === preview.origin,
+        );
+      const selected = find();
+      if (!selected || !sameDefinition(selected, preview))
+        throw new Error(
+          "This snippet changed. Review its preview and choose it again.",
+        );
+      await refresh();
+      assertCurrent();
+      const current = find();
+      if (!current)
+        throw new Error(
+          snapshot.errors[0] ??
+            "This snippet is unavailable. Choose another snippet.",
+        );
+      if (!sameDefinition(current, preview))
+        throw new Error(
+          "This snippet changed. Review its preview and choose it again.",
+        );
+      return current;
+    },
     async save(scope: SnippetScope, base: SnippetFile, source: string) {
+      assertCurrent();
       const store = scope === "global" ? await globalStore() : local;
       const result = await store.save(base, source);
       await refresh();
       return result;
     },
     dispose() {
+      disposed = true;
       generation++;
       listeners.clear();
     },

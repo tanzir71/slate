@@ -1,7 +1,11 @@
 import { isolateHistory } from "@codemirror/commands";
 import type { EditorSelection, EditorState, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { planCustomBlock, type BlockPlan, type CustomBlock } from "@slate/core";
+import {
+  planCustomBlock,
+  type BlockPlan,
+  type MarkdownFragment,
+} from "@slate/core";
 import { editorBlockQuery } from "./blockInsertion.js";
 import type { EditorBlockTarget } from "./editorBlocks.js";
 
@@ -46,7 +50,7 @@ export function requestEditorCustomBlock(
 export function insertEditorCustomBlock(
   view: EditorView,
   request: EditorCustomBlockRequest,
-  block: CustomBlock,
+  block: MarkdownFragment,
 ): BlockPlan {
   const { state } = view;
   if (

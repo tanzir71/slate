@@ -209,3 +209,32 @@ it("leaves selected, read-only and composing source untouched", () => {
     expect(view.state.doc.toString()).toBe(";x");
   }
 });
+
+it.each(["Tab", " "])(
+  "defers %j to an eligible slash query instead of expanding only its trigger suffix",
+  (key) => {
+    const { view, onExpand } = editor("/;x");
+    expect(press(view, key)).toBe(false);
+    expect(onExpand).not.toHaveBeenCalled();
+    expect(view.state.doc.toString()).toBe("/;x");
+  },
+);
+it("defers native Space input while a slash query owns the insertion", () => {
+  const { view, onExpand } = editor("/;x");
+  expect(
+    view.state
+      .facet(EditorView.inputHandler)
+      .some((handler) =>
+        handler(view, 3, 3, " ", () =>
+          view.state.update({ changes: { from: 3, insert: " " } }),
+        ),
+      ),
+  ).toBe(false);
+  expect(onExpand).not.toHaveBeenCalled();
+});
+it("retains ordinary snippet activation after a literal slash and whitespace", () => {
+  const { view, onExpand } = editor("/ ;x");
+  expect(press(view, " ")).toBe(true);
+  expect(onExpand).toHaveBeenCalledOnce();
+  expect(view.state.doc.toString()).toBe("/ Name Role");
+});

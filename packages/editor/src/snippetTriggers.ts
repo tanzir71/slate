@@ -1,3 +1,4 @@
+import { editorBlockQuery } from "./blockInsertion.js";
 import { completionStatus } from "@codemirror/autocomplete";
 import { Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -44,7 +45,8 @@ export function createSnippetTriggers({
       main.head,
     );
     const definition = matchSnippet(index, before, activation);
-    if (!definition) return false;
+    // A slash query owns activation keys, including native Space without keydown.
+    if (!definition || editorBlockQuery(state)) return false;
     const request = requestEditorSnippet(
       state,
       main.head - definition.trigger.length,

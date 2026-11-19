@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-19 - Slash queries take priority over implicit snippet activation
+
+A Space-enabled trigger can otherwise match the suffix of /;trigger and replace only that suffix, leaving a stray slash. Preserve the shared block-query eligibility as the priority boundary: after the cheap cached suffix match, skip implicit Tab/Space expansion for an eligible slash query, including native Space input with no keydown. Space remains query text; Enter explicitly selects a grouped result. Ordinary triggers, protected syntax and a literal slash followed by whitespace keep their established behavior. Unit and actual-browser failing-before regressions cover this conflict.
+
+## 2026-11-19 - Insert template choices into the current sheet
+
+F-30 says Enter inserts a grouped result, so slash templates use the current sheet and its guarded replacement span. Prepare only the template body and ordinary note properties; omit filename/destination planning fields used by New from template. Keep that existing file-creation flow intact. Template variables, prompts and explicit clipboard input retain F-40 rendering; snippets retain F-50 tab stops. A prepared UTF-16 cursor maps through the literal fragment planner's BOM removal, line endings and blank separation, while ordinary custom files still default to their end. Reject out-of-range cursors. Editor insertion shares the existing immutable document/selection, composition, connection and editability guards and one history transaction. The browser menu subscribes to cached libraries; explicit choices revalidate files outside ordinary typing. Template fields load in a lazy native dialog, while snippets reuse the existing prompt and linked-field transaction. Gutter selections retain their original selection snapshot. Only successful insertions update ranking history; original Figma template and braces assets provide the family icons.
+
 ## 2026-11-19 - Inject assertion-read failures at the reader boundary
 
 The macOS WebKit paste-regression trace contains three saved-sheet evaluations: the injected NotFoundError, the previous bytes and then the exact pasted bytes. The browser StorageManager override nevertheless reports one read, so its count is not a reliable measure of assertion attempts. Give the test helper an optional reader, defaulting to the unchanged real-file reader. The regression injects one genuine browser DOMException through that boundary, counts attempts in the runner, and then reads real files. Keep the existing5-second deadline, exact content, Saved status, one-failure count and reload assertions. Production paste and storage code are unchanged.

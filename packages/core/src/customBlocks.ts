@@ -60,9 +60,15 @@ export function readCustomBlock(source: string, path: string): CustomBlock {
   };
 }
 
+export interface MarkdownFragment {
+  readonly source: string;
+  /** A prepared template may choose a UTF-16 caret; literal files default to their end. */
+  readonly cursor?: number;
+}
+
 /** Replace only the requested span; adapters enforce syntax, ownership and stale-source guards. */
 export function planCustomBlock(
-  block: Pick<CustomBlock, "source">,
+  block: MarkdownFragment,
   context: Pick<BlockContext, "source" | "from" | "to">,
 ): Extract<BlockPlan, { kind: "insert" }> {
   const { source, from, to } = context;
@@ -75,12 +81,23 @@ export function planCustomBlock(
   )
     throw new RangeError("Invalid custom block insertion range.");
   checkSize(block.source);
+  const offset = block.cursor ?? block.source.length;
+  if (
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    offset > block.source.length
+  )
+    throw new RangeError("Invalid fragment cursor.");
   const eol = source.match(/\r\n|\n|\r/)?.[0] ?? "\n";
   const text = block.source.replace(/^\uFEFF/, "").replace(/\r\n?|\n/g, eol);
   const prefix = source.slice(0, from);
   const before = markdownBoundary(prefix === "\uFEFF" ? "" : prefix, text, eol);
   const after = markdownBoundary(text, source.slice(to), eol);
-  const cursor = from + before.length + text.length;
+  const cursorText = block.source
+    .slice(0, offset)
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?|\n/g, eol);
+  const cursor = from + before.length + cursorText.length;
   return {
     kind: "insert",
     changes: [{ from, to, text: before + text + after }],

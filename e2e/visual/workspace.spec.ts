@@ -83,6 +83,68 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page).toHaveScreenshot(`a4-snippets-${theme}.png`);
     });
 
+    test("A2 grouped template and snippet results", async ({ page }) => {
+      await writingFixture(page);
+      await page.evaluate(async () => {
+        const root = await (
+          await (
+            await navigator.storage.getDirectory()
+          ).getDirectoryHandle("spaces")
+        ).getDirectoryHandle(decodeURIComponent(location.hash.split("/")[2]!));
+        const config = await root.getDirectoryHandle(".slate", {
+            create: true,
+          }),
+          templates = await config.getDirectoryHandle("templates", {
+            create: true,
+          });
+        const fragment = await (
+          await templates.getFileHandle("Group example.md", { create: true })
+        ).createWritable();
+        await fragment.write(
+          "---\ntemplate:\n  name: Group example template\n  description: Reusable review note\n---\n> A detail worth remembering.",
+        );
+        await fragment.close();
+        const snippets = await (
+          await config.getFileHandle("snippets.json", { create: true })
+        ).createWritable();
+        await snippets.write(
+          JSON.stringify({
+            version: 1,
+            snippets: [
+              {
+                trigger: ";example",
+                name: "Group example snippet",
+                description: "A greeting with linked fields",
+                body: "Hello ${1:Name}; ${1}$0",
+              },
+            ],
+          }),
+        );
+        await snippets.close();
+        window.dispatchEvent(new Event("focus"));
+      });
+      await page.keyboard.press("Control+End");
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Enter");
+      await page.keyboard.type("/Group example");
+      const menu = page.getByRole("dialog", {
+        name: "Insert block",
+        exact: true,
+      });
+      await expect(menu.getByRole("option")).toHaveCount(2);
+      await expect(menu.getByRole("option", { selected: true })).toContainText(
+        "Group example template",
+      );
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a2-grouped-template-${theme}.png`);
+      await page.keyboard.press("ArrowDown");
+      await expect(menu.getByRole("option", { selected: true })).toContainText(
+        "Group example snippet",
+      );
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a2-grouped-snippet-${theme}.png`);
+    });
+
     test("A7 custom block settings", async ({ page }) => {
       await writingFixture(page);
       await workspaceAction(page, "Manage custom blocks");

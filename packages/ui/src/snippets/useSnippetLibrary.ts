@@ -20,7 +20,11 @@ export function useSnippetLibrary(store: WorkspaceStore) {
     void Promise.all([import("./snippetLibrary"), import("./snippetSession")])
       .then(([{ createSnippetLibrary }, session]) => {
         if (!active) return;
-        current = createSnippetLibrary(store.space);
+        current = createSnippetLibrary(
+          store.space,
+          undefined,
+          () => store.api.getState().owned,
+        );
         setSelected({ store, library: current, session });
         reload();
       })

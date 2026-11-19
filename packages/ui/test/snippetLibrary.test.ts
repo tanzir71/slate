@@ -161,3 +161,60 @@ it("keeps the cached index and snapshot stable when focus or a folder poll finds
   expect(source.getSnapshot().index).toBe(previous.index);
   expect(notify).not.toHaveBeenCalled();
 });
+
+it("revalidates explicit menu choices and rejects stale preview bodies and configuration errors", async () => {
+  const { library: source, localFiles } = library({
+    [spaceSnippetPath]: config([
+      { trigger: ";menu", name: "Menu", body: "First" },
+    ]),
+  });
+  await source.refresh();
+  const preview = source
+    .getSnapshot()
+    .snippets.find((entry) => entry.trigger === ";menu")!;
+  expect((await source.resolve(preview)).body).toBe("First");
+  await localFiles.write(
+    spaceSnippetPath,
+    new TextEncoder().encode(
+      config([{ trigger: ";menu", name: "Menu", body: "Second" }]),
+    ),
+  );
+  await expect(source.resolve(preview)).rejects.toThrow("changed");
+  await expect(source.resolve(preview)).rejects.toThrow("changed");
+  const current = source
+    .getSnapshot()
+    .snippets.find((entry) => entry.trigger === ";menu")!;
+  await localFiles.write(spaceSnippetPath, new TextEncoder().encode("{"));
+  await expect(source.resolve(current)).rejects.toThrow();
+  expect(source.getSnapshot().snippets).toEqual([]);
+});
+it("rejects menu resolution before or after ownership loss and after closing the Space", async () => {
+  let owned = true;
+  const localFiles = createMemoryFiles(),
+    globalFiles = createMemoryFiles();
+  const globalStore = createSnippetFileStore(
+    createBrowserSpace(globalFiles),
+    globalSnippetPath,
+    (action) => action(),
+  );
+  const source = createSnippetLibrary(
+    createBrowserSpace(localFiles),
+    async () => globalStore,
+    () => owned,
+  );
+  await source.refresh();
+  const preview = source.getSnapshot().snippets[0]!;
+  owned = false;
+  const read = vi.spyOn(localFiles, "read");
+  await expect(source.resolve(preview)).rejects.toThrow("read-only");
+  expect(read).not.toHaveBeenCalled();
+  owned = true;
+  read.mockImplementationOnce(async () => {
+    owned = false;
+    return undefined;
+  });
+  await expect(source.resolve(preview)).rejects.toThrow("read-only");
+  owned = true;
+  source.dispose();
+  await expect(source.resolve(preview)).rejects.toThrow("closed");
+});

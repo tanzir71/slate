@@ -203,3 +203,20 @@ it("preserves a note BOM and its original slash through insertion and undo", () 
   expect(undo(view)).toBe(true);
   expect(view.state.doc.toString()).toBe(original);
 });
+
+it("places a prepared template cursor and keeps the insertion one undo step", () => {
+  const { view } = editor("/template"),
+    request = requestEditorCustomBlock(view.state)!;
+  expect(
+    insertEditorCustomBlock(view, request, {
+      source: "\uFEFFHello\r\nthere",
+      cursor: 8,
+    }).kind,
+  ).toBe("insert");
+  expect(view.state.doc.toString()).toBe("Hello\nthere");
+  expect(view.state.selection.main.head).toBe(6);
+  expect(undo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe("/template");
+  expect(redo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe("Hello\nthere");
+});

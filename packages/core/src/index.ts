@@ -422,3 +422,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isGoalType(value: unknown): value is GoalType {
   return value === "words" || value === "characters" || value === "readingTimeMinutes";
 }
+
+export * from "./templateInsertion.js";
+export * from "./blockSnippet.js";
