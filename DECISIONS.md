@@ -11,6 +11,9 @@ The core exposes pure lint()/fix() with all23 Appendix-D rule IDs, original UTF-
 Use strict version1 configuration with on-save off by default, preserved unknown model fields and explicit rule overrides. Minimal limits fixes to whitespace; GitHub excludes Slate-specific YAML/table alignment; Slate enables Appendix-D conventions with bare URLs off. Actual file IO, worker/review UI, on-save and batch remain separate required integrations.
 
 Choose the CommonMark parser only when raw source cannot contain a GFM construct, including decoded autolink candidates; otherwise use full GFM. Exact AST and position parity is covered by explicit and generated reference comparisons. Linear assembly applies validated original-offset edits without repeatedly copying the whole document, preserving same-position insertion order. The dense-list150ms target is still unmet and cannot be waived by faster plain-text results.
+## 2026-11-19 - Publish measured block-menu anchors after CodeMirror writes
+
+The menu can commit React state before paint without running React effects inside CodeMirror measurement. A synchronous callback in requestMeasure.write let flushSync run a pending editor reconfiguration while CodeMirror was still updating, causing a real Firefox offline-reopen crash. Queue that measured notification in a microtask and recheck the live editor/current query before delivery. Keep existing pre-input geometry reuse, keyboard priority and deadlines. Closing, replacing the query or destroying the editor cancels the stale notification; no extra animation frame is requested.
 
 ## 2026-11-19 - Bind folder observation to the open Space lifecycle
 
