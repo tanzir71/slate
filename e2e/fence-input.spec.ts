@@ -3,6 +3,7 @@ import {
   createSheet,
   openLibrary,
   expectSavedSheet as saved,
+  readCurrentSheet,
   workspaceAction,
 } from "./helpers";
 import AxeBuilder from "@axe-core/playwright";
@@ -24,33 +25,23 @@ test("fence save assertions keep their deadline after one unavailable snapshot",
   await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
     "Saved",
   );
-  await page.evaluate(() => {
-    const read = navigator.storage.getDirectory.bind(navigator.storage);
-    const probe = { reads: 0, failures: 0 };
-    Reflect.set(window, "fenceSaveSnapshot", probe);
-    navigator.storage.getDirectory = async () => {
-      probe.reads++;
-      if (probe.failures === 0) {
-        probe.failures++;
+  const probe = { reads: 0, failures: 0 };
+  const closed = original + "\n\n" + fence;
+  await saved(page, closed, async (currentPage) => {
+    probe.reads++;
+    if (probe.failures === 0) {
+      probe.failures++;
+      await currentPage.evaluate(() => {
         throw new DOMException(
           "One unavailable fence snapshot",
           "NotFoundError",
         );
-      }
-      return read();
-    };
+      });
+    }
+    return readCurrentSheet(currentPage);
   });
-  const closed = original + "\n\n" + fence;
-  await saved(page, closed);
-  expect(
-    await page.evaluate(() => Reflect.get(window, "fenceSaveSnapshot")),
-  ).toMatchObject({ failures: 1 });
-  expect(
-    await page.evaluate(
-      () =>
-        (Reflect.get(window, "fenceSaveSnapshot") as { reads: number }).reads,
-    ),
-  ).toBeGreaterThanOrEqual(2);
+  expect(probe.failures).toBe(1);
+  expect(probe.reads).toBeGreaterThanOrEqual(2);
   await page.reload();
   await expect(editor).toBeVisible();
   await saved(page, closed);
