@@ -144,7 +144,7 @@ test("autosave persists original input before the worker, with one Undo and no T
   await page.waitForTimeout(850);
   expect(await readCurrentSheet(page)).toBe(dirty + "More.");
   expect((await gate(page)).fixes).toBe(1);
-  await editor.press("ControlOrMeta+y");
+  await editor.press(process.platform === "darwin" ? "Meta+Shift+z" : "ControlOrMeta+y");
   await expectSavedSheet(page, formatted);
   await page.waitForTimeout(850);
   expect((await gate(page)).fixes).toBe(1);
