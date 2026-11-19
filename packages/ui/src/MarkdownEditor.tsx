@@ -30,7 +30,7 @@ import {
 } from "@slate/editor";
 import { prepareBlockSnippet, createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget, type SnippetIndex, type ScopedSnippet } from "@slate/core";
 import type { SnippetTarget } from "./snippets/snippetTypes";
-import type { EditorCursor, MarkdownEditorHandle } from "./commands";
+import type { EditorChangeOrigin, EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
 import type { BlockLibrary } from "./blocks/blockLibrary";
@@ -65,7 +65,7 @@ interface MarkdownEditorProps {
   sourceMode?: boolean;
   tidyLines?: readonly number[];
   value: string;
-  onChange: (value: string, changes: readonly TextChange[]) => void;
+  onChange: (value: string, changes: readonly TextChange[], origin: EditorChangeOrigin) => void;
   onNavigateWikiLink?: (link: WikiLinkHit) => void;
   readOnly?: boolean;
   documentKey?: string;
@@ -256,7 +256,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
               update.changes.iterChanges((...change) => { changes.push({ from: change[0], to: change[1], text: change[4].toString() }); });
               const content = editorSource(update.state);
               lastEmittedValue.current = content;
-              onChangeRef.current(content, changes);
+              const history = update.transactions.some((transaction) => transaction.isUserEvent("undo") || transaction.isUserEvent("redo"));
+              const tidy = update.transactions.some((transaction) => transaction.isUserEvent("input.tidy"));
+              onChangeRef.current(content, changes, history ? "history" : tidy ? "tidy" : "input");
             }
             if (preferenceKey && (update.selectionSet || update.docChanged)) {
               try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: update.state.selection.main.head, scroll: observedScroll })); } catch { /* View preferences are optional. */ }

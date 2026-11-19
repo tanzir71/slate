@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-19 - Format only a captured successful note save
+
+Keep canonical note-save subscriptions separate from catalog/preference notifications. Publish the exact saved source, path and edit origin after refresh; failed writes and conflict copies cannot authorize formatting. Explicit Save stages the current supported note even when unchanged, using the same optimistic conflict protection as autosave. Initial load/import and recovery flushes do not request formatting. Observer failures cannot turn completed writes into unsaved drafts.
+
+The browser's optional on-save flow waits for a matching worker lint report, then uses the existing guarded proposal/application path. Original input reaches disk before formatting; worker failure leaves it saved. Consume each intent once, require readable enabled settings and current source/path/rules/ownership, and discard stale intents. A save that precedes the initial settings read waits for the actual file; enabling the setting later does not revive saves made while it was disabled.
+
+CodeMirror reports input, Tidy and history origins separately. Background saves from Tidy, Undo/Redo and recovery never trigger another automatic edit. One Undo therefore restores the original source and stays restored through autosave; another user edit may format again, and explicit Save intentionally requests formatting again. Native review/configuration IO and batch review remain separate required work. This unreleased integration does not waive worker, menu or strict next-frame publication gates.
+
 ## 2026-11-19 - Use the released parser fix for dense-list array movement
 
 The measured worker bottleneck includes mdast-util-from-markdown 2.0.3 repeatedly inserting list-item events into a growing array. The standalone CPU profile identifies that parser work and allocation cost; a deterministic regression counts 5,040,000 shifted entries for 600 items. Upgrade the six locked parser dependency edges to the released 2.1.0 within their existing 2.x ranges. Its upstream [release notes](https://github.com/syntax-tree/mdast-util-from-markdown/releases/tag/2.1.0) describe batched list-item handling and compiler allocation improvements. Keep every other toolchain/dependency version unchanged and verify the scoped lockfile with frozen install and the published integrity.

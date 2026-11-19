@@ -115,6 +115,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
   const tidy = useTidyReview({
+    subscribeNoteSaved: store.subscribeNoteSaved,
     space: store.space,
     source: editorReady && selected && !selected.unsupportedEncoding ? selected.content : undefined,
     path: selected && !selected.unsupportedEncoding ? selected.path : undefined,
@@ -267,7 +268,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "view.sidebar": toggleNavigation,
       "view.sheets": toggleSheets,
       "view.density": () => { if (state.owned) run(() => store.setDensity(state.preferences.density === "compact" ? "comfortable" : "compact")); },
-      "sheet.save": () => run(store.flush),
+      "sheet.save": () => run(store.save),
       "space.export": () => run(exportZip),
       "space.switch": () => run(onSwitchSpace),
       "view.inspector": () => setInspector((open) => !open),
@@ -534,7 +535,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     </div>
     <input ref={input} type="file" aria-label="Import files" multiple accept=".md,.zip" className="visuallyHidden" onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
-    <WorkspaceStatusBar tidy={{ count: tidy.report?.issues.length, pending: tidy.pending, error: !!tidy.error, open: tidy.open, available: !!selected && !selected.unsupportedEncoding, onOpen: openTidy }} saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.flush)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
+    <WorkspaceStatusBar tidy={{ count: tidy.report?.issues.length, pending: tidy.pending, error: !!tidy.error, open: tidy.open, available: !!selected && !selected.unsupportedEncoding, onOpen: openTidy }} saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.save)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
     <LaunchActions key={state.record.id} store={store} />
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
     {snippetPicker && snippets.library && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPicker.target.element} onClose={() => setSnippetPicker(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetPicker library={snippets.library} invocation={snippetPicker} spaceName={state.record.name} onClose={() => setSnippetPicker(undefined)} onChoose={(definition) => { applySnippet(snippetPicker, definition); setSnippetPicker(undefined); }} onManage={() => { openSnippetSettings(snippetPicker.target.element); setSnippetPicker(undefined); }} /></Suspense>}

@@ -8,6 +8,8 @@ import {
 import type { SnippetTarget } from "./snippets/snippetTypes";
 import type { TidyResult } from "@slate/core/tidy";
 
+export type EditorChangeOrigin = "input" | "tidy" | "history";
+
 export function shortcutOS(platform = navigator.platform): ShortcutOS {
   return /Mac|iPhone|iPad/.test(platform)
     ? "mac"

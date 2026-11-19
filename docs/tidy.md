@@ -1,6 +1,6 @@
 # Tidy core (unreleased)
 
-The development engine is available through `@slate/core/tidy`. The public app remains v0.2.1. The unreleased browser workspace now connects a real Web Worker, review panel and settings-file adapter. On-save formatting, batch review and native review controls remain required work.
+The development engine is available through `@slate/core/tidy`. The public app remains v0.2.1. The unreleased browser workspace connects a real Web Worker, review panel, settings-file adapter and optional on-save formatting. Batch review and native review/on-save controls remain required work.
 
 In the development browser app, choose `Tidy · N` in the status bar or press `Alt Shift F`. The panel temporarily shows Source mode with line numbers and issue tints. Review a proposed diff without writing, apply one fix or all safe fixes, or persist an ignored rule. Every application is one undo step; closing the panel restores the previous pane layout. Structural warnings require a manual edit. Reports and fixes run in a worker, with bounded latest-only queuing and fresh source/path/configuration/ownership checks before applying. A worker failure stays visible and leaves the note intact.
 
@@ -43,7 +43,11 @@ Missing fields use defaults. Invalid JSON, unsupported versions, explicit null f
 | `github` | Common markdownlint conventions; Slate-specific table alignment and YAML style stay off. |
 | `minimal` | Whitespace cleanup plus heading-level, fence-language and table-column warnings. |
 
-Individual boolean rule overrides take precedence. With `keepHardBreaks: true`, a genuine Markdown hard break keeps two trailing spaces. Setting it to false replaces those spaces with the equivalent backslash marker; the line break itself is preserved by the content guarantee. On-save defaults to off and has no runtime integration yet.
+Individual boolean rule overrides take precedence. With `keepHardBreaks: true`, a genuine Markdown hard break keeps two trailing spaces. Setting it to false replaces those spaces with the equivalent backslash marker; the line break itself is preserved by the content guarantee.
+
+On-save defaults to off. Enable **Tidy on save** in the browser review panel to format after a successful input save or explicit Save. Enabling the switch and opening/importing a note do not format it. Recovery saves preserve the recovered source without triggering Tidy. Explicit Save also handles an unchanged open note. Invalid, unsupported or unavailable settings disable automatic changes.
+
+The original input is saved first. A matching worker report supplies one isolated Tidy transaction; normal autosave persists its output. One Undo restores the original source and stays restored through background saving. Redo and Tidy's own save cannot start a formatting loop. Another real edit or explicit Save can format again. New typing, another path, changed rules or lost ownership invalidate stale proposals. Worker errors keep the original saved input and appear in the review panel.
 
 Parser selection uses CommonMark only when no GFM construct can occur; candidate syntax, escapes and entities retain the full GFM parser. Exact tree/position equivalence is checked against the full parser. Apply-all can combine disjoint repairs and subsumed tab/blank/pipe repairs into one proof; per-rule/per-issue checks handle overlaps and rejected proposals.
 

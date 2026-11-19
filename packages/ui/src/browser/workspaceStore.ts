@@ -6,8 +6,14 @@ import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
 import { notebookTemplate, previousDailyNote, readWorkspacePreferences, starterKitRoot, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
 import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 import type { StarterKitInstallation } from "../templates/starterKits";
+import type { EditorChangeOrigin } from "../commands";
 
-interface Draft { content: string; baseContent: string | undefined }
+export interface NoteSaveSnapshot {
+  readonly path: string;
+  readonly source: string;
+  readonly origin: EditorChangeOrigin | "explicit-save" | "recovery";
+}
+interface Draft { content: string; baseContent: string | undefined; origin?: NoteSaveSnapshot["origin"] }
 export interface WorkspaceState {
   record: BrowserSpaceRecord;
   sheets: BrowserSheet[];
@@ -29,6 +35,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
   let timer: ReturnType<typeof setTimeout> | undefined;
   let saving: Promise<void> | undefined;
   let onSaved: () => void = () => undefined;
+  const noteSaved = new Set<(snapshot: NoteSaveSnapshot) => void>();
   let linking: Promise<unknown> = Promise.resolve();
   let updatingPreferences: Promise<unknown> = Promise.resolve();
   const pendingKits = new Set<StarterKitInstallation>();
@@ -103,17 +110,19 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     if (!drafts.size) return;
     api.setState({ saveState: "Saving…" });
     saving = (async () => {
+      const completed: NoteSaveSnapshot[] = [];
       for (const [path, draft] of [...drafts]) {
         const saved = await space.save(path, draft.content, draft.baseContent);
         const current = drafts.get(path);
         if (saved.conflict) {
           drafts.delete(path);
-          if (current && current !== draft) drafts.set(saved.path, { content: current.content, baseContent: saved.content });
+          if (current && current !== draft) drafts.set(saved.path, { ...current, baseContent: saved.content });
           api.setState((state) => ({
             selectedPath: state.selectedPath === path ? saved.path : state.selectedPath,
             notice: `An external edit was preserved. Your words are in ${saved.path}.`
           }));
         } else {
+          completed.push({ path, source: saved.content, origin: draft.origin ?? "recovery" });
           if (current === draft) drafts.delete(path);
           else if (current) drafts.set(path, { ...current, baseContent: saved.content });
         }
@@ -122,6 +131,10 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
       }
       await refresh();
       api.setState({ saveState: drafts.size ? "Unsaved" : "Saved", error: "" });
+      for (const snapshot of completed) for (const observer of noteSaved) {
+        // A completed disk write must stay Saved even when an optional observer fails.
+        try { observer(snapshot); } catch { /* Other observers still receive the save. */ }
+      }
       onSaved();
     })().catch((error: unknown) => {
       api.setState({ saveState: "Unsaved", error: error instanceof Error ? error.message : "Saving failed. Your draft is retained." });
@@ -133,6 +146,19 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
 
   return {
     api, space, refresh, flush,
+    subscribeNoteSaved(observer: (snapshot: NoteSaveSnapshot) => void) {
+      noteSaved.add(observer);
+      return () => { noteSaved.delete(observer); };
+    },
+    async save() {
+      const { owned, selectedPath, sheets } = api.getState();
+      const sheet = sheets.find((entry) => entry.path === selectedPath);
+      if (!owned || !sheet || sheet.unsupportedEncoding) return;
+      const previous = drafts.get(selectedPath);
+      drafts.set(selectedPath, { content: sheet.content, baseContent: previous ? previous.baseContent : bases.get(selectedPath), origin: "explicit-save" });
+      journal();
+      await flush();
+    },
     setOnSaved(callback: () => void) { onSaved = callback; },
     notifySaved() { onSaved(); },
     setOwned(owned: boolean) {
@@ -161,12 +187,12 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
       }
       if (preferredPath && api.getState().sheets.some((sheet) => sheet.path === preferredPath)) api.setState({ selectedPath: preferredPath });
     },
-    edit(content: string, changes?: readonly TextChange[]) {
+    edit(content: string, changes?: readonly TextChange[], origin: EditorChangeOrigin = "input") {
       const { selectedPath, owned } = api.getState();
       if (!owned || !selectedPath) return;
       const previous = drafts.get(selectedPath);
       const before = previous?.content ?? api.getState().sheets.find((sheet) => sheet.path === selectedPath)?.content ?? "";
-      drafts.set(selectedPath, { content, baseContent: previous ? previous.baseContent : bases.get(selectedPath) });
+      drafts.set(selectedPath, { content, baseContent: previous ? previous.baseContent : bases.get(selectedPath), origin });
       api.setState((state) => ({ sheets: state.sheets.map((sheet) => sheet.path === selectedPath ? { ...sheet, content } : sheet), saveState: "Unsaved" }));
       journal(changes ? { path: selectedPath, before: before.replace(/\r\n?/g, "\n"), changes } : undefined);
       clearTimeout(timer);

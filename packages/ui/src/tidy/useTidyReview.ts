@@ -15,6 +15,7 @@ import {
 import type { TidyReport, TidyResult } from "@slate/core/tidy";
 import type { BrowserSpace } from "@slate/storage/browser-space";
 import type { TidyFile } from "@slate/storage/browser-tidy";
+import type { NoteSaveSnapshot } from "../browser/workspaceStore";
 import { createTidyWorkerClient } from "./tidyWorkerClient";
 
 const defaults = readTidyConfiguration();
@@ -28,6 +29,9 @@ interface TidyReviewOptions {
   readonly path: string | undefined;
   readonly canWrite: () => boolean;
   readonly apply: (result: TidyResult) => boolean;
+  readonly subscribeNoteSaved?: (
+    listener: (snapshot: NoteSaveSnapshot) => void,
+  ) => () => void;
 }
 
 export function useTidyReview({
@@ -36,6 +40,7 @@ export function useTidyReview({
   path,
   canWrite,
   apply,
+  subscribeNoteSaved,
 }: TidyReviewOptions) {
   const owner = useMemo(() => ({ active: true }), [space]);
   const loader = useMemo(() => {
@@ -69,6 +74,11 @@ export function useTidyReview({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [retry, setRetry] = useState(0);
+  const [savedIntent, setSavedIntent] = useState<{
+    owner: object;
+    snapshot: NoteSaveSnapshot;
+    configuration: TidyConfiguration | undefined;
+  }>();
   const refreshId = useRef(0);
   const client = useRef<ReturnType<typeof createTidyWorkerClient> | undefined>(
     undefined,
@@ -78,10 +88,30 @@ export function useTidyReview({
     source !== undefined &&
     path !== undefined &&
     (file?.status === "valid" || file?.status === "missing");
-  const target = useRef({ source, path, configuration, canWrite, apply });
+  const target = useRef({ source, path, configuration, file, canWrite, apply });
   useLayoutEffect(() => {
-    target.current = { source, path, configuration, canWrite, apply };
+    target.current = { source, path, configuration, file, canWrite, apply };
   });
+  useEffect(
+    () =>
+      subscribeNoteSaved?.((snapshot) => {
+        if (snapshot.origin !== "input" && snapshot.origin !== "explicit-save")
+          return;
+        const current = target.current;
+        if (
+          current.file &&
+          (current.file.status !== "valid" || !current.configuration.onSave)
+        )
+          return;
+        // A save can precede React's commit or the initial settings read. Validate in the effect.
+        setSavedIntent({
+          owner,
+          snapshot,
+          configuration: current.file ? current.configuration : undefined,
+        });
+      }),
+    [owner, subscribeNoteSaved],
+  );
   const refresh = useCallback(async () => {
     const id = ++refreshId.current;
     const next = await (await loader()).read();
@@ -160,50 +190,97 @@ export function useTidyReview({
     analysis.configuration === configuration
       ? analysis.report
       : undefined;
-  async function propose(issueIds?: readonly string[], preview = false) {
-    if (!currentReport || busy || !client.current) return;
-    const captured = target.current;
-    if (captured.source === undefined) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const result = await client.current.fix(
-        captured.source,
-        captured.configuration,
-        issueIds,
-      );
-      if (!owner.active) return;
-      const now = target.current;
-      if (
-        now.source !== captured.source ||
-        now.path !== captured.path ||
-        now.configuration !== captured.configuration
-      )
-        throw new Error(
-          "The sheet or rules changed. Review the current fixes again.",
+  const propose = useCallback(
+    async (issueIds?: readonly string[], preview = false) => {
+      if (!currentReport || busy || !client.current) return;
+      const captured = target.current;
+      if (captured.source === undefined) return;
+      setBusy(true);
+      setError("");
+      setNotice("");
+      try {
+        const result = await client.current.fix(
+          captured.source,
+          captured.configuration,
+          issueIds,
         );
-      if (preview) setDiff(result);
-      else {
-        if (!now.canWrite())
-          throw new Error("This Space is read-only. Choose Use here to edit.");
-        if (result.changes.length && !now.apply(result))
-          throw new Error("The sheet changed. Review the current fixes again.");
-        setDiff(undefined);
-        setNotice(
-          result.rejected.length
-            ? "Some proposals need a manual edit. Their original content was kept."
-            : result.changes.length
-              ? "Tidy applied. Undo restores the previous source."
-              : "No safe changes to apply.",
-        );
+        if (!owner.active) return;
+        const now = target.current;
+        if (
+          now.source !== captured.source ||
+          now.path !== captured.path ||
+          now.configuration !== captured.configuration
+        )
+          throw new Error(
+            "The sheet or rules changed. Review the current fixes again.",
+          );
+        if (preview) setDiff(result);
+        else {
+          if (!now.canWrite())
+            throw new Error(
+              "This Space is read-only. Choose Use here to edit.",
+            );
+          if (result.changes.length && !now.apply(result))
+            throw new Error(
+              "The sheet changed. Review the current fixes again.",
+            );
+          setDiff(undefined);
+          setNotice(
+            result.rejected.length
+              ? "Some proposals need a manual edit. Their original content was kept."
+              : result.changes.length
+                ? "Tidy applied. Undo restores the previous source."
+                : "No safe changes to apply.",
+          );
+        }
+      } catch (cause) {
+        if (owner.active && !aborted(cause)) setError(failure(cause));
+      } finally {
+        if (owner.active) setBusy(false);
       }
-    } catch (cause) {
-      if (owner.active && !aborted(cause)) setError(failure(cause));
-    } finally {
-      if (owner.active) setBusy(false);
+    },
+    [currentReport, busy, owner],
+  );
+  useEffect(() => {
+    if (!savedIntent) return;
+    const now = target.current;
+    if (
+      savedIntent.owner !== owner ||
+      !owner.active ||
+      savedIntent.snapshot.path !== path ||
+      savedIntent.snapshot.source !== source ||
+      !now.canWrite()
+    ) {
+      setSavedIntent(undefined);
+      return;
     }
-  }
+    if (!file) return;
+    if (
+      file.status !== "valid" ||
+      !configuration.onSave ||
+      (savedIntent.configuration !== undefined &&
+        savedIntent.configuration !== configuration)
+    ) {
+      setSavedIntent(undefined);
+      return;
+    }
+    // Autosave precedes the lint debounce. Wait for the exact source/rules report.
+    if (!currentReport || busy) return;
+    setSavedIntent(undefined);
+    if (currentReport.issues.some((issue) => issue.changes.length))
+      void propose();
+  }, [
+    savedIntent,
+    owner,
+    source,
+    path,
+    file,
+    configuration,
+    currentReport,
+    busy,
+    canWrite,
+    propose,
+  ]);
   async function saveSettings(
     sourceText: string,
     snapshot: TidyFile | undefined = file,
