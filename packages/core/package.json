@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./tidy": {
+      "types": "./dist/tidy/index.d.ts",
+      "import": "./dist/tidy/index.js"
     }
   },
   "scripts": {
