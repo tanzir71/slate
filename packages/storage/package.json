@@ -3,6 +3,10 @@
   "version": "0.3.0",
   "type": "module",
   "exports": {
+    "./browser-tidy": {
+      "types": "./dist/browserTidy.d.ts",
+      "import": "./dist/browserTidy.js"
+    },
     "./browser-import": {
       "types": "./dist/browserImport.d.ts",
       "import": "./dist/browserImport.js"

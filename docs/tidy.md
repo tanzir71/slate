@@ -1,6 +1,6 @@
 # Tidy core (unreleased)
 
-The development engine is available through `@slate/core/tidy`. The public app remains v0.2.1. The worker, review panel, settings-file adapter, on-save integration and batch review are still being implemented.
+The development engine is available through `@slate/core/tidy`. The public app remains v0.2.1. The worker, review panel, on-save integration and batch review are still being implemented. A separate settings-file adapter is available through `@slate/storage/browser-tidy`; its review/settings UI is not connected yet.
 
 `lint(source, configuration)` returns source-bound issues with original UTF-16 edit spans. `fix(source, configuration, issueIds?)` returns proposed output, a minimal original-source change, applied/rejected issues and remaining diagnostics. Passing selected issue IDs applies only those requests; an empty selection changes nothing. Neither function writes files.
 
@@ -44,3 +44,5 @@ Individual boolean rule overrides take precedence. With `keepHardBreaks: true`, 
 Parser selection uses CommonMark only when no GFM construct can occur; candidate syntax, escapes and entities retain the full GFM parser. Exact tree/position equivalence is checked against the full parser. Apply-all can combine disjoint repairs and subsumed tab/blank/pipe repairs into one proof; per-rule/per-issue checks handle overlaps and rejected proposals.
 
 Large-document acceptance is still open. Latest local CPU diagnostics for 50,000 body words measure approximately 50 ms for flat lint, 114 ms for dirty-flat fix, and 78 ms for paragraph lint. A 5,000-item list still takes about 906 ms, above the 150 ms target. These are engine diagnostics, not a passing browser-worker gate. Prior measurements are retained in `artifacts/f61-*`; no release limit has been relaxed.
+
+`createTidyFileStore(space)` reads `.slate/tidy.json` without creating it. Missing settings use caller-selected defaults; malformed text stays available for explicit repair. Unsupported bytes and read failures remain visible and cannot be saved over through those snapshots. Saves validate known fields and retain the exact entered JSON, including UTF-8 BOM, whitespace and unknown numeric spelling. The Space serializes writes, checks original bytes and returns a separate conflict copy if an external edit won. UI callers must show conflicts and keep on-save disabled when configuration cannot be read.

@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## 2026-11-19 - Keep Tidy settings as explicit byte-checked file edits
+
+Expose the persisted adapter separately through @slate/storage/browser-tidy so future review/settings code can load it on demand. Reading .slate/tidy.json never creates a file or normalizes user text. Keep exact UTF-8 source and bytes, including a BOM, and validate only for interpretation/explicit save. Saving the entered JSON avoids rounding unknown future numeric fields through JSON reserialization. Use the Space mutation queue and saveSnapshot original-byte comparison: retain external edits as canonical and the proposal as a conflict copy, including changes that only add/remove the BOM. Keep invalid text repairable; unsupported bytes or failed reads require a fresh readable snapshot before saving. On-save/automatic formatting must remain disabled if configuration is invalid or unavailable. Review UI integration remains separate.
+
 ## 2026-11-19 - Keep Tidy proposals source-bound and independently reviewable
 
 The core exposes pure lint()/fix() with all23 Appendix-D rule IDs, original UTF-16 spans and one minimal final change. Selected IDs stay bound to their original report source; overlapping repairs remap offsets or fall back to independent guarded repairs. Apply-all proves disjoint/subsumed repairs atomically, while preserving individual diagnostics and selection. Structural ambiguities remain manual warnings rather than bypassing the mdast content guarantee. A false keepHardBreaks setting removes trailing-space markers by using equivalent backslashes; it never silently removes a semantic line break.

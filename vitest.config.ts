@@ -9,6 +9,7 @@ export default defineConfig({
       "@slate/storage/browser-files": fromRoot("./packages/storage/src/browserFiles.ts"),
       "@slate/storage/browser-space": fromRoot("./packages/storage/src/browserSpace.ts"),
       "@slate/storage/browser-catalog": fromRoot("./packages/storage/src/browserCatalog.ts"),
+      "@slate/core/tidy": fromRoot("./packages/core/src/tidy/index.ts"),
       "@slate/core": fromRoot("./packages/core/src/index.ts"),
       "@slate/export": fromRoot("./packages/export/src/index.ts"),
       "@slate/publish": fromRoot("./packages/publish/src/index.ts"),
