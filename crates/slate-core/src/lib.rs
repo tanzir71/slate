@@ -6,6 +6,8 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 mod assets;
 pub use assets::write_numbered_asset_to_space;
+mod tidy_settings;
+pub use tidy_settings::{read_tidy_settings_from_space, write_tidy_settings_to_space};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CryptoError {

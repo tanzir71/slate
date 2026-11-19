@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-19 - Keep native settings publication recoverable and refuse replacement races
+
+Native Tidy settings use two fixed-path commands within the existing default Space. They accept exact proposal/snapshot byte arrays and expose no arbitrary filesystem path. Reading never creates a directory or file. Reject linked private directories, linked/non-file settings and read-only replacements; preserve undecodable bytes for the UI instead of lossy conversion. The TypeScript adapter validates IPC shapes and JSON interpretation while retaining the literal source, BOM and unknown numeric spelling.
+
+A plain [Rust rename](https://doc.rust-lang.org/stable/std/fs/fn.rename.html) replaces an existing destination. Instead, reserve and sync a distinct proposal, verify hard-link publication works before detaching anything, then retain the actual previous inode under a reserved pending filename. Recheck those captured bytes against the opening snapshot and publish by creating a new canonical hard link, which refuses to replace a file that appeared during the handoff. Restore a raced previous file only if the canonical name remains absent; keep all versions otherwise. Serialize this process's readers/writers and retain previous/conflict copies rather than pruning user bytes.
+
+This is a recoverable handoff, with a brief canonical-name gap for other processes. Completed handoffs archive the pending name as a previous copy. A missing canonical file with a pending copy reports the interruption and retained path; reads and writes leave it untouched for explicit recovery. Deliberately deleting a completed canonical settings file still honors absence. Native settings controls/on-save and real per-Space desktop wiring remain required integrations; the current IPC follows the existing default-Space root.
+
 ## 2026-11-19 - Format only a captured successful note save
 
 Keep canonical note-save subscriptions separate from catalog/preference notifications. Publish the exact saved source, path and edit origin after refresh; failed writes and conflict copies cannot authorize formatting. Explicit Save stages the current supported note even when unchanged, using the same optimistic conflict protection as autosave. Initial load/import and recovery flushes do not request formatting. Observer failures cannot turn completed writes into unsaved drafts.

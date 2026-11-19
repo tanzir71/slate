@@ -1,7 +1,8 @@
 use serde::Serialize;
 use slate_core::{
-    list_markdown_files_in_space, read_markdown_file_from_space, write_sheet_to_space,
-    WriteSheetStatus, write_numbered_asset_to_space,
+    list_markdown_files_in_space, read_markdown_file_from_space, read_tidy_settings_from_space,
+    write_numbered_asset_to_space, write_sheet_to_space, write_tidy_settings_to_space,
+    WriteSheetStatus,
 };
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -41,7 +42,11 @@ fn list_markdown_files(app: tauri::AppHandle) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-fn write_numbered_asset(app: tauri::AppHandle, path: String, bytes: Vec<u8>) -> Result<String, String> {
+fn write_numbered_asset(
+    app: tauri::AppHandle,
+    path: String,
+    bytes: Vec<u8>,
+) -> Result<String, String> {
     write_numbered_asset_to_space(default_space_root(&app)?, &path, &bytes)
         .map_err(|error| error.to_string())
 }
@@ -50,6 +55,29 @@ fn write_numbered_asset(app: tauri::AppHandle, path: String, bytes: Vec<u8>) -> 
 fn read_markdown_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
     let root = default_space_root(&app)?;
     read_markdown_file_from_space(&root, &path).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn read_tidy_settings(app: tauri::AppHandle) -> Result<Option<Vec<u8>>, String> {
+    read_tidy_settings_from_space(default_space_root(&app)?).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn write_tidy_settings(
+    app: tauri::AppHandle,
+    bytes: Vec<u8>,
+    base_bytes: Option<Vec<u8>>,
+) -> Result<WriteSheetResponse, String> {
+    let outcome =
+        write_tidy_settings_to_space(default_space_root(&app)?, &bytes, base_bytes.as_deref())
+            .map_err(|error| error.to_string())?;
+    Ok(WriteSheetResponse {
+        status: match outcome.status {
+            WriteSheetStatus::Written => "written",
+            WriteSheetStatus::ConflictCopy => "conflict-copy",
+        },
+        path: outcome.path,
+    })
 }
 
 fn default_space_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -76,7 +104,9 @@ fn main() {
             write_sheet,
             write_numbered_asset,
             list_markdown_files,
-            read_markdown_file
+            read_markdown_file,
+            read_tidy_settings,
+            write_tidy_settings
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Slate desktop shell");

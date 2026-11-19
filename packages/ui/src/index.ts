@@ -11,3 +11,4 @@ export {
 export { SlateApp, type SheetMoveWriter, type SlateAppProps } from "./SlateApp";
 export { createTauriAutosaveWriter, type TauriAutosaveWriterOptions, type TauriInvoke } from "./tauriAutosave";
 export { createTauriAssetWriter, type NumberedAssetWriter } from "./tauriAssets";
+export { createTauriTidySettingsStore } from "./tauriTidySettings";
