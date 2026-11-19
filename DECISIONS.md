@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Prove a plain final paragraph before bypassing its tokenization
+
+A retained CPU profile and both first Linux CI runs identify general paragraph tokenization in the dirty-flat Tidy request. For a substantial final physical line containing only Unicode letters, numbers, combining marks and ASCII internal spaces, replace that line with one plain character and parse the complete prefix with full GFM. Reconstruct its exact value/end positions only when the resulting last root child is a separate paragraph with exactly that one text node at the expected source offsets and column. Retain every other node, field, line ending and UTF-16 position. A small tail or a prefix larger than one quarter of it uses the existing parser immediately, bounding speculative work. Syntax, leading/trailing or other whitespace, merged paragraphs, quotes, lists, HTML, fences and definitions continue through the existing full parser unless that independent root-paragraph proof holds.
+
+This changes the construction cost of an identical AST, not the engine's accepted edits or canonical content proof. An actual-parser operation-count regression fails before the change; full-tree comparisons cover long Unicode tails, mixed line endings and syntax boundaries, alongside the existing legacy/CommonMark/GFM and adversarial content checks. Node CPU profiles are diagnostics only. The original real-worker 150ms request limit, strict next-frame typing gates, all reference profiles, zero retries and prior failed measurements remain mandatory for publication.
+
 ## 2026-11-19 - Review batch Tidy against exact files and retain originals before writing
 
 Run batch proposals in a dedicated lazy worker, sequentially over captured ordinary Markdown paths. Reading a review creates no files. Preserve raw UTF-8 BOMs and physical line endings; display unsupported/unavailable files independently. Bind each proposal to its exact source, changes and Tidy-file bytes, retaining the existing engine content proof. The user chooses files after reviewing their before/after text. Recheck rules and write ownership after history creation, and save through FileSpace.saveSnapshot so a changed file is refused or retained alongside a conflict copy. Never reinterpret an unreadable source as a missing file.

@@ -3,6 +3,7 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { markdownBodyFrom } from "../markdownBody.js";
 import { plainListAst } from "./plainList.js";
+import { plainTailAst } from "./plainTail.js";
 
 interface Point {
   readonly line: number;
@@ -57,6 +58,8 @@ const commonmarkParser = /* @__PURE__ */ unified().use(remarkParse).freeze();
 export function parseTidyAst(body: string): TidyNode {
   const plainList = plainListAst(body);
   if (plainList) return plainList;
+  const plainTail = plainTailAst(body, (prefix) => parser.parse(prefix));
+  if (plainTail) return plainTail;
   // GFM additions require brackets, pipes, tildes, HTML, or autolink candidates.
   // Escapes/entities can produce such candidates during decoding, so keep GFM
   // for them too. All other input has the identical CommonMark syntax tree.
