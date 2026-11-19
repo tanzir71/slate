@@ -92,6 +92,9 @@ jobs:
         if: matrix.os == 'windows-latest'
         continue-on-error: true
         run: pnpm perf:typing --project=chromium --project=firefox --project=mobile
+      - name: Verify 10k-sheet palette latency in fresh browsers (Linux reference)
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && (steps.tidy_budget.outcome == 'success' || steps.tidy_budget.outcome == 'failure') }}
+        run: pnpm perf:palette
       - name: Upload failed verification evidence
         if: failure() || steps.lighthouse-diagnostic.outcome == 'failure' || steps.typing-macos.outcome == 'failure' || steps.typing-windows.outcome == 'failure' || steps.menu-macos.outcome == 'failure' || steps.menu-windows.outcome == 'failure'
         uses: actions/upload-artifact@v4

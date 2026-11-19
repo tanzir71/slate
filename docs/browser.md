@@ -18,7 +18,11 @@ Only one tab can write a Space. Other tabs show **Use here**, which asks the cur
 
 Markdown editing uses UTF-8. Files with other encodings remain read-only, with **Download original** and Space export preserving their bytes. Convert a copy to UTF-8 outside Slate and import that copy to edit it.
 
-Use **Alt N** for a new sheet, **Ctrl/Command K** for commands, **Ctrl/Command B/I** for bold/italic, **Ctrl/Command Shift F** for search, and **Ctrl/Command Shift I** for the inspector. Browser-reserved new-window shortcuts keep their browser meaning.
+Use **Alt N** for a new sheet, **Ctrl/Command K** for the palette, **Ctrl/Command P** for Quick open, **Ctrl/Command B/I** for bold/italic, **Ctrl/Command Shift F** for search, and **Ctrl/Command Shift I** for the inspector. With selected text, **Ctrl/Command K** inserts a link. Browser-reserved new-window shortcuts keep their browser meaning.
+
+In the palette, type `>` for commands, `#` for tags, `@` for headings, `/` for blocks and templates, or `;` for snippets. Quick open starts with sheets. Duplicate titles show their file paths. Arrow keys choose a result, Enter runs it, Tab previews it, and Escape closes the palette. File and heading choices read the current file; a stale heading is rejected without replacing your words. Block and snippet choices use the editor selection captured when the palette opened.
+
+Typing and block insertion preserve a UTF-8 BOM and existing line endings. Undo restores the original text.
 
 The New sheet, Today and Capture app shortcuts request confirmation before creating or appending files. Opening Markdown through the installed-app file handler also asks before importing, preserving existing files.
 

@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla";
 import { createFileSpace, type FileSheet } from "@slate/storage/file-space";
-import { decodeText, type WorkspaceFiles } from "@slate/storage/file-io";
+import { decodeText, safeWorkspacePath, type WorkspaceFiles } from "@slate/storage/file-io";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
 import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
 import { notebookTemplate, previousDailyNote, readWorkspacePreferences, starterKitRoot, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
@@ -36,6 +36,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   const recovery = record.id === "sample" ? undefined : createRecoveryJournal(record.id);
   let timer: ReturnType<typeof setTimeout> | undefined;
   let saving: Promise<void> | undefined;
+  let editGeneration = 0;
   let onSaved: () => void = () => undefined;
   const noteSaved = new Set<(snapshot: NoteSaveSnapshot) => void>();
   let linking: Promise<unknown> = Promise.resolve();
@@ -232,6 +233,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
     edit(content: string, changes?: readonly TextChange[], origin: EditorChangeOrigin = "input") {
       const { selectedPath, owned } = api.getState();
       if (!owned || !selectedPath) return;
+      editGeneration++;
       const previous = drafts.get(selectedPath);
       const before = previous?.content ?? api.getState().sheets.find((sheet) => sheet.path === selectedPath)?.content ?? "";
       drafts.set(selectedPath, { content, baseContent: previous ? previous.baseContent : bases.get(selectedPath), origin });
@@ -241,6 +243,34 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       timer = setTimeout(() => { void flush().catch(() => undefined); }, 250);
     },
     async select(path: string) { await flush(); api.setState({ selectedPath: path, initialCursor: undefined }); },
+    /** Read only the selected destination; a cached heading is never an authority for disk text. */
+    async openSheet(path: string, target?: { source: string; position: number }): Promise<FileSheet> {
+      const safe = safeWorkspacePath(path);
+      if (!/\.md$/i.test(safe)) throw new Error("Choose a Markdown sheet.");
+      await flush();
+      const generation = editGeneration, selectedPath = api.getState().selectedPath;
+      const bytes = await files.read(safe);
+      if (bytes === undefined) throw new Error("This file no longer exists. Refresh your Space.");
+      if (generation !== editGeneration || api.getState().selectedPath !== selectedPath)
+        throw new Error("The current sheet changed while opening. Your words are kept; choose the destination again.");
+      if (drafts.has(safe))
+        throw new Error("This sheet has a retained draft. Choose Use here to finish saving before reopening it.");
+      let sheet: FileSheet;
+      try { sheet = { path: safe, content: decodeText(bytes, true) }; }
+      catch { sheet = { path: safe, content: "", unsupportedEncoding: true }; }
+      const previous = api.getState().sheets.find((item) => item.path === safe);
+      if (previous?.content === sheet.content && previous.unsupportedEncoding === sheet.unsupportedEncoding) sheet = previous;
+      else api.setState((state) => ({ sheets: [...state.sheets.filter((item) => item.path !== safe), sheet].sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0) }));
+      if (!sheet.unsupportedEncoding) bases.set(safe, sheet.content);
+      if (target) {
+        if (sheet.unsupportedEncoding) throw new Error("This file needs UTF-8. Open the sheet to download its original bytes.");
+        if (target.source !== sheet.content) throw new Error("This sheet changed. Search again before jumping to its heading.");
+        if (!Number.isSafeInteger(target.position) || target.position < 0 || target.position > sheet.content.length)
+          throw new Error("This heading position is unavailable. Search again.");
+      }
+      api.setState({ selectedPath: safe, initialCursor: target ? { path: safe, position: target.position } : undefined });
+      return sheet;
+    },
     clearInitialCursor() { api.setState({ initialCursor: undefined }); },
     async readNotebookTemplate(notebook: string): Promise<string | undefined> {
       await updatingPreferences;

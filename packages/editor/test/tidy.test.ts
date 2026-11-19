@@ -127,7 +127,7 @@ it("keeps subsequent typing separately undoable and restores the raw Tidy snapsh
       changes: { from: 0, insert: "A" },
       annotations: Transaction.userEvent.of("input.type"),
     });
-    expect(editorSource(view.state)).toBe("A" + normalized(result.output));
+    expect(editorSource(view.state)).toBe("A" + result.output);
     expect(undo(view)).toBe(true);
     expect(editorSource(view.state)).toBe(result.output);
     expect(undo(view)).toBe(true);
@@ -135,7 +135,7 @@ it("keeps subsequent typing separately undoable and restores the raw Tidy snapsh
     expect(redo(view)).toBe(true);
     expect(editorSource(view.state)).toBe(result.output);
     expect(redo(view)).toBe(true);
-    expect(editorSource(view.state)).toBe("A" + normalized(result.output));
+    expect(editorSource(view.state)).toBe("A" + result.output);
   } finally {
     close();
   }

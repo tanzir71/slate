@@ -28,6 +28,7 @@ test("functional and fresh-browser timing configs retain every Linux reference p
     "../../playwright.performance.config.ts",
     "../../playwright.block-menu-performance.config.ts",
     "../../playwright.tidy-performance.config.ts",
+    "../../playwright.palette-performance.config.ts",
   ]) {
     const config = await source(path);
     assert.match(config, /\.\.\.base\s*,/);
@@ -43,6 +44,7 @@ for (const command of [
   "pnpm perf:tidy",
   "pnpm perf:menu",
   "pnpm perf:typing",
+  "pnpm perf:palette",
 ]) {
   test(`publication runs ${command} with every profile before uploading or deploying`, () => {
     const runs = [...deploy.matchAll(/^ {6}- run: (.+)$/gm)];

@@ -10,7 +10,11 @@ import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
 import { applyTextChanges } from "@slate/core";
 import type { TidyResult } from "@slate/core/tidy";
 
-const rawSource = StateEffect.define<string | undefined>();
+interface LineEndings {
+  readonly endings: readonly string[];
+  readonly preferred: string;
+}
+const rawSource = StateEffect.define<LineEndings | undefined>();
 const tidyLines = StateEffect.define<readonly number[]>();
 const lineTints = StateField.define<DecorationSet>({
   create: () => Decoration.none,
@@ -38,17 +42,42 @@ const lineTints = StateField.define<DecorationSet>({
   },
   provide: (field) => EditorView.decorations.from(field),
 });
-const retainedSource = StateField.define<string | undefined>({
+function updateEndings(previous: LineEndings | undefined, transaction: Transaction): LineEndings | undefined {
+  // Grouped history inverses run newest first, so the oldest snapshot wins.
+  for (let index = transaction.effects.length - 1; index >= 0; index--) {
+    const effect = transaction.effects[index];
+    if (effect?.is(rawSource)) return effect.value;
+  }
+  if (!previous || !transaction.docChanged) return previous;
+  const replacements: { from: number; to: number; count: number }[] = [];
+  transaction.changes.iterChanges((from, to, _newFrom, _newTo, inserted) => {
+    const first = transaction.startState.doc.lineAt(from).number - 1;
+    const last = transaction.startState.doc.lineAt(to).number - 1;
+    if (first !== last || inserted.lines > 1)
+      replacements.push({ from: first, to: last, count: inserted.lines - 1 });
+  });
+  // Character edits retain the same small metadata reference in both state and history.
+  if (!replacements.length) return previous;
+  const endings: string[] = [];
+  let cursor = 0;
+  for (const change of replacements) {
+    while (cursor < change.from) endings.push(previous.endings[cursor++]!);
+    for (let line = 0; line < change.count; line++) endings.push(previous.preferred);
+    cursor = change.to;
+  }
+  while (cursor < previous.endings.length) endings.push(previous.endings[cursor++]!);
+  return { endings, preferred: previous.preferred };
+}
+const retainedSource = StateField.define<LineEndings | undefined>({
   create: () => undefined,
-  update(previous, transaction) {
-    for (const effect of transaction.effects)
-      if (effect.is(rawSource)) return effect.value;
-    return transaction.docChanged ? undefined : previous;
-  },
+  update: updateEndings,
 });
 const normalize = (source: string) => source.replace(/\r\n?/g, "\n");
-const retained = (source: string) =>
-  source.includes("\r") ? source : undefined;
+function retained(source: string): LineEndings | undefined {
+  if (!source.includes("\r")) return undefined;
+  const endings = source.match(/\r\n|\r|\n/g) ?? [];
+  return { endings, preferred: endings[0] ?? "\r\n" };
+}
 
 /** Retain raw EOL metadata only when needed, without adding whole-file snapshots per keystroke. */
 export function tidyEditorHistory(initialSource: string): Extension {
@@ -57,22 +86,27 @@ export function tidyEditorHistory(initialSource: string): Extension {
     lineTints,
     invertedEffects.of((transaction) => {
       const previous = transaction.startState.field(retainedSource);
-      const changed = transaction.effects.some((effect) =>
-        effect.is(rawSource),
-      );
-      return (transaction.docChanged || changed) &&
-        (previous !== undefined || changed)
+      return transaction.state.field(retainedSource) !== previous
         ? [rawSource.of(previous)]
         : [];
     }),
   ];
 }
 export function editorSource(state: EditorState): string {
-  return state.field(retainedSource, false) ?? state.doc.toString();
+  const metadata = state.field(retainedSource, false);
+  if (!metadata) return state.doc.toString();
+  const parts: string[] = [];
+  const lines = state.doc.iterLines();
+  let index = 0;
+  while (!lines.next().done) {
+    parts.push(lines.value);
+    if (index < metadata.endings.length) parts.push(metadata.endings[index++]!);
+  }
+  return parts.join("");
 }
 export function editorSourceEffect(
   source: string,
-): StateEffect<string | undefined> {
+): StateEffect<LineEndings | undefined> {
   return rawSource.of(retained(source));
 }
 const normalizedOffset = (source: string, offset: number) =>

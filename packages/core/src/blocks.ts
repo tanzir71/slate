@@ -501,7 +501,7 @@ function validDate(value: string) {
 }
 
 export interface MarkdownPreviewNode {
-  position?: { start: { offset?: number }; end: { offset?: number } };
+  position?: { start: { offset?: number; line?: number }; end: { offset?: number; line?: number } };
   type: string;
   depth?: number;
   value?: string;
@@ -519,9 +519,9 @@ function createMarkdownPreviewParser() {
   return unified().use(remarkParse).use(remarkGfm).freeze();
 }
 const markdownPreviewParser = /* @__PURE__ */ createMarkdownPreviewParser();
-function nodeText(node: MarkdownPreviewNode): string {
+export function markdownNodeText(node: MarkdownPreviewNode): string {
   if (node.type === "html") return "";
-  return node.value ?? node.alt ?? (node.children ?? []).map(nodeText).join("");
+  return node.value ?? node.alt ?? (node.children ?? []).map(markdownNodeText).join("");
 }
 /** Shared heading links for inserted TOCs; code and front-matter are excluded. */
 export function tableOfContents(source: string): string {
@@ -532,7 +532,7 @@ export function tableOfContents(source: string): string {
   const headings: { depth: number; text: string }[] = [];
   function visit(node: MarkdownPreviewNode) {
     if (node.type === "heading") {
-      const text = nodeText(node).replace(/\s+/g, " ").trim();
+      const text = markdownNodeText(node).replace(/\s+/g, " ").trim();
       if (text) headings.push({ depth: node.depth!, text });
     } else node.children?.forEach(visit);
   }

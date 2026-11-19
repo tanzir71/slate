@@ -41,6 +41,13 @@ export const slateCommands: readonly CommandDefinition[] = [
     context: "no-selection",
   },
   {
+    id: "app.quickOpen",
+    label: "Quick open",
+    group: "Workspace",
+    shortcut: "Mod+p",
+    surfaces: ["web"],
+  },
+  {
     id: "sheet.new",
     label: "New sheet",
     group: "Workspace",

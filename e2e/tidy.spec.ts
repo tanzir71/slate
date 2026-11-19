@@ -45,9 +45,9 @@ test("Tidy is searchable in shortcuts and the palette opens review without editi
     exact: true,
   });
   await palette
-    .getByRole("textbox", { name: "Search commands", exact: true })
+    .getByRole("textbox", { name: "Search commands and sheets", exact: true })
     .fill("tidy");
-  await expect(palette.locator(".commandResults button > span")).toHaveText([
+  await expect(palette.locator('.commandResults section[aria-label="commands"] .commandLabel')).toHaveText([
     "Tidy document", "Batch Tidy", "Undo batch Tidy",
   ]);
   await palette.getByRole("button", { name: /Tidy document/ }).click();

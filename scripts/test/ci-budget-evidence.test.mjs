@@ -31,6 +31,10 @@ const following = [
     step("Verify typing budgets in fresh browsers (Linux reference)"),
     "pnpm perf:typing",
   ],
+  [
+    step("Verify 10k-sheet palette latency in fresh browsers (Linux reference)"),
+    "pnpm perf:palette",
+  ],
 ];
 
 function runs(
@@ -64,7 +68,7 @@ function runs(
   );
 }
 
-test("Linux CI measures menu and typing after a failed worker budget or earlier budget", () => {
+test("Linux CI measures menu, typing and palette after a failed worker budget or earlier budget", () => {
   for (const [step] of following) {
     assert.equal(
       runs(step, { outcome: "failure", failed: true }),

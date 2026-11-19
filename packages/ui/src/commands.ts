@@ -71,7 +71,14 @@ export function commandShortcut(
 }
 
 /** No CodeMirror import: the workspace can stay lazy until a sheet is opened. */
+export interface EditorCreationTarget {
+  matches(): boolean;
+  block(id: string, expectedSource?: string): boolean;
+  snippet(): SnippetTarget | undefined;
+}
+
 export interface MarkdownEditorHandle {
+  documentKey(): string | undefined;
   source(): string;
   applyTidy(result: TidyResult): boolean;
   runFormat(id: string): boolean;
@@ -82,7 +89,9 @@ export interface MarkdownEditorHandle {
   hasSelection(): boolean;
   selectedText(): string;
   snippetTarget(): SnippetTarget | undefined;
+  creationTarget(): EditorCreationTarget | undefined;
   goToLine(line: number): void;
+  goToSourceOffset(source: string, offset: number): boolean;
 }
 
 export interface EditorCursor { line: number; column: number; lines: number }

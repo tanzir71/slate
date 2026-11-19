@@ -54,15 +54,48 @@ it("applies only the latest worker snapshot, preserves source/frontmatter/date v
   expect(document).toEqual({
     ...parseSheet(latest[0]!.content, "B.md"),
     preview: "Exact words #tag",
+    headings: [],
   });
   expect(document.updatedAt).toBeInstanceOf(Date);
   client.read(latest);
   reply(worker, 3, latest);
+  expect(changed).toHaveBeenCalledTimes(1);
+  const another = [...latest, { path: "C.md", content: "# Another" }];
+  client.read(another); reply(worker, 4, another);
   expect(changed.mock.calls[1]![0][0]).toBe(document);
   client.close();
   client.read(old);
-  expect(worker.postMessage).toHaveBeenCalledTimes(3);
+  expect(worker.postMessage).toHaveBeenCalledTimes(4);
   expect(worker.onmessage).toBeNull();
+});
+
+it.each(["worker", "fallback"])("publishes only changed ordered snapshots through the %s path", (path) => {
+  vi.useFakeTimers();
+  const worker = path === "worker" ? fakeWorker() : undefined;
+  const changed = vi.fn<(documents: SheetDocument[]) => void>();
+  const client = createSheetSummaryClient(worker, changed);
+  let request = 0;
+  function read(sheets: SummaryInput[]) {
+    client.read(sheets);
+    if (worker) reply(worker, ++request, sheets);
+    else vi.runAllTimers();
+  }
+  const first = [{ path: "A.md", content: "# First" }, { path: "B.md", content: "# Kept" }];
+  read(first);
+  const documents = changed.mock.calls[0]![0];
+  expect(documents[0]?.headings).toMatchObject([{ label: "First" }]);
+  read(first.map((sheet) => ({ ...sheet })));
+  expect(changed).toHaveBeenCalledTimes(1);
+  read([...first].reverse());
+  expect(changed).toHaveBeenCalledTimes(2);
+  expect(changed.mock.calls[1]![0]).toEqual([documents[1], documents[0]]);
+  read([{ path: "A.md", content: "# Changed" }, first[1]!]);
+  expect(changed).toHaveBeenCalledTimes(3);
+  expect(changed.mock.calls[2]![0][0]?.headings).toMatchObject([{ label: "Changed" }]);
+  expect(changed.mock.calls[2]![0][1]).toBe(documents[1]);
+  read([]); expect(changed).toHaveBeenCalledTimes(4);
+  read([]); expect(changed).toHaveBeenCalledTimes(4);
+  client.close();
 });
 
 it.each(["unavailable", "startup error", "post failure"])(

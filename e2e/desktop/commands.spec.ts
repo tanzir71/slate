@@ -164,13 +164,13 @@ test("desktop palette executes formatting and appearance and preserves invoker f
   await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
   await page.getByRole("button", { name: "Command palette", exact: true }).click();
   let palette = page.getByRole("dialog", { name: "Command palette", exact: true });
-  await palette.getByRole("textbox", { name: "Search commands" }).fill("Bold");
+  await palette.getByRole("textbox", { name: "Search commands and sheets" }).fill("Bold");
   await palette.getByRole("button", { name: /Bold/ }).click();
   await expect(editor).toHaveText("**My words.**");
   await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
   await page.getByRole("button", { name: "Command palette", exact: true }).click();
   palette = page.getByRole("dialog", { name: "Command palette", exact: true });
-  await palette.getByRole("textbox", { name: "Search commands" }).fill("Use Dark");
+  await palette.getByRole("textbox", { name: "Search commands and sheets" }).fill("Use Dark");
   await palette.getByRole("button", { name: "Use Dark appearance", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   const shortcuts = page.getByRole("button", { name: "Keyboard shortcuts", exact: true });
@@ -227,7 +227,7 @@ test("desktop table keys and palette columns save through IPC with atomic undo",
   await editor.press("Tab");
   await editor.press("ControlOrMeta+k");
   const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
-  await palette.getByRole("textbox", { name: "Search commands" }).fill("table");
+  await palette.getByRole("textbox", { name: "Search commands and sheets" }).fill("table");
   await palette.getByRole("button", { name: "Align table column right", exact: true }).click();
   await expect.poll(saved).toContain("| a   | b    |\n| --- | ---: |\n|     |      |");
   await editor.press("ControlOrMeta+z");

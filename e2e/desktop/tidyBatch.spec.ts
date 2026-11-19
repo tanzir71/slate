@@ -15,7 +15,7 @@ test("native batch review writes only selected notes, keeps raw originals and un
   await expect(page.locator(".browserWorkspace")).toHaveAttribute("data-editor-ready", "true");
   await action(page, "Command palette");
   const commands = page.getByRole("dialog", { name: "Command palette", exact: true });
-  await commands.getByRole("textbox", { name: "Search commands", exact: true }).fill("Batch Tidy");
+  await commands.getByRole("textbox", { name: "Search commands and sheets", exact: true }).fill("Batch Tidy");
   await commands.getByRole("button", { name: "Batch Tidy", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Batch Tidy", exact: true });
   await expect(dialog.getByRole("button", { name: "Apply to 2 sheets", exact: true })).toBeEnabled();

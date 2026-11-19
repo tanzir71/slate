@@ -1,7 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X, Settings } from "lucide-react";
-import { matchCommand, resolveCommandKeymap, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
+import { commandAvailable, matchCommand, resolveCommandKeymap, type PaletteEntry, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
 import { useTemplateLibrary } from "../blocks/useTemplateLibrary";
 import { useBlockLibrary } from "../blocks/useBlockLibrary";
 import { useSnippetLibrary } from "../snippets/useSnippetLibrary";
@@ -14,9 +14,11 @@ import type { BrowserAppProps } from "./BrowserApp";
 import { LaunchActions } from "./LaunchActions";
 import { AppearanceControl, type useAppearance } from "../appearance";
 import { BrandMark } from "../BrandMark";
-import { commandShortcut, createCursorStore, keyboardInput, readKeymap, shortcutOS, workspaceCommands, type MarkdownEditorHandle } from "../commands";
+import { commandShortcut, createCursorStore, keyboardInput, readKeymap, shortcutOS, workspaceCommands, type EditorCreationTarget, type MarkdownEditorHandle } from "../commands";
 import type { WorkspaceRuntime } from "./workspaceRuntime";
 import { CommandDialog } from "./CommandDialog";
+import { PaletteDialog } from "./PaletteDialog";
+import { paletteIdentity, workspacePalette, type WorkspacePalette } from "./workspacePalette";
 import { WorkspaceTitleBar } from "./WorkspaceTitleBar";
 import { WorkspaceStatusBar } from "./WorkspaceStatusBar";
 import { WorkspaceDialog } from "./WorkspaceDialog";
@@ -52,6 +54,18 @@ interface FolderObserver {
   disconnect(): void;
 }
 interface ObserverWindow extends Window { FileSystemObserver?: new(callback: () => void) => FolderObserver }
+interface PaletteRequest {
+  mode: "all" | "sheets";
+  catalog: WorkspacePalette;
+  target: EditorCreationTarget | undefined;
+  returnFocus: HTMLElement | undefined;
+  editor: boolean;
+  selection: boolean;
+  tableColumns: number;
+}
+const subscribeEmpty = () => () => undefined;
+const getEmpty = () => undefined;
+const emptyBlocks = [] as const, emptyTemplates = [] as const, emptySnippets = [] as const;
 interface WorkspaceProps {
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
@@ -69,6 +83,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const snippets = useSnippetLibrary(store, runtime?.openGlobalSnippets);
   const blocks = useBlockLibrary(store);
   const templates = useTemplateLibrary(store);
+  const paletteBlocks = useSyncExternalStore(blocks.library?.subscribe ?? subscribeEmpty, blocks.library?.getSnapshot ?? getEmpty);
+  const paletteTemplates = useSyncExternalStore(templates.library?.subscribe ?? subscribeEmpty, templates.library?.getSnapshot ?? getEmpty);
   const refreshLibraries = useRef({ templates: templates.library, blocks: blocks.library, snippets: snippets.library });
   const refreshTidy = useRef<(() => Promise<void>) | undefined>(undefined);
   useLayoutEffect(() => {
@@ -86,7 +102,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [inspector, setInspector] = useState(() => {
     try { return localStorage.getItem(inspectorKey) === "true"; } catch { return false; }
   });
-  const [palette, setPalette] = useState(false);
+  const [palette, setPalette] = useState<PaletteRequest>();
   const [shortcuts, setShortcuts] = useState(false);
   const [editorSettings, setEditorSettings] = useState(false);
   const [templateRequest, setTemplateRequest] = useState<TemplateRequest>();
@@ -123,6 +139,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const index = useRef<ReturnType<typeof createFreshIndex> | undefined>(undefined);
   const queryGeneration = useRef(0);
   const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
+  const pendingNavigation = useRef<{ path: string; source: string; position?: number } | undefined>(undefined);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
   const tidy = useTidyReview({
     subscribeNoteSaved: store.subscribeNoteSaved,
@@ -155,6 +172,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     editorHandle.current?.focus();
   }
   const documents = useSheetSummaries(state.sheets);
+  const fileIdentities = useMemo(() => JSON.stringify(state.sheets.map(({ path, unsupportedEncoding }) => ({ path, ...(unsupportedEncoding ? { unsupportedEncoding: true } : {}) }))), [state.sheets]);
+  const paletteFiles = useMemo(() => JSON.parse(fileIdentities) as { path: string; unsupportedEncoding?: boolean }[], [fileIdentities]);
+  const paletteCatalog = useMemo(() => workspacePalette({ commands: registry, files: paletteFiles, documents,
+    blocks: paletteBlocks?.blocks ?? emptyBlocks, templates: paletteTemplates?.items ?? emptyTemplates, snippets: snippets.snapshot?.snippets ?? emptySnippets,
+  }), [registry, paletteFiles, documents, paletteBlocks?.blocks, paletteTemplates?.items, snippets.snapshot?.snippets]);
   const summariesPending = !sheetStructureReady(state.sheets, documents);
   const document = documents.find((sheet) => sheet.path === state.selectedPath);
   const blockNote = useMemo(() => ({ space: state.record.name, path: state.selectedPath, title: document?.title ?? "Untitled" }), [state.record.name, state.selectedPath, document?.title]);
@@ -188,20 +210,26 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }, [store]);
   const receiveEditor = useCallback((handle: MarkdownEditorHandle | undefined) => { editorHandle.current = handle; }, []);
   const focusCreatedSheet = useCallback(() => {
-    const pending = store.api.getState().initialCursor;
-    if (!templateRequest && !starterKitRequest && pending?.path === store.api.getState().selectedPath && editorHandle.current) {
-      editorHandle.current.focus();
-      store.clearInitialCursor();
+    if (templateRequest || starterKitRequest || palette) return;
+    const current = store.api.getState(), handle = editorHandle.current;
+    const navigation = pendingNavigation.current;
+    if (navigation && current.selectedPath === navigation.path && handle?.documentKey() === `${current.record.id}/${navigation.path}` && handle.source() === navigation.source) {
+      if (navigation.position === undefined) handle.focus();
+      else if (!handle.goToSourceOffset(navigation.source, navigation.position)) return;
+      pendingNavigation.current = undefined; store.clearInitialCursor();
+    } else if (!navigation && current.initialCursor?.path === current.selectedPath && handle?.documentKey() === `${current.record.id}/${current.selectedPath}`) {
+      const source = current.sheets.find((sheet) => sheet.path === current.selectedPath)?.content;
+      if (source !== undefined && handle.goToSourceOffset(source, current.initialCursor.position)) store.clearInitialCursor();
     }
-  }, [store, templateRequest, starterKitRequest]);
+  }, [store, templateRequest, starterKitRequest, palette]);
   const editorBecameReady = useCallback(() => { setEditorReady(true); focusCreatedSheet(); }, [focusCreatedSheet]);
   useEffect(() => {
-    if (!templateRequest && !starterKitRequest && state.initialCursor) {
+    if (!templateRequest && !starterKitRequest && !palette && (state.initialCursor || pendingNavigation.current)) {
       // Native dialog cleanup restores its invoker; focus the new editor after it closes.
       const frame = requestAnimationFrame(focusCreatedSheet);
       return () => cancelAnimationFrame(frame);
     }
-  }, [templateRequest, starterKitRequest, state.initialCursor, focusCreatedSheet]);
+  }, [templateRequest, starterKitRequest, palette, state.initialCursor, focusCreatedSheet]);
   const navigateWiki = useCallback((link: Parameters<WorkspaceStore["followWikiLink"]>[0]) => run(() => store.followWikiLink(link)), [store, run]);
 
   function shortcut(id: string) { return commandShortcut(id, keymap, os); }
@@ -266,11 +294,69 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     setTidyBatch({ paths: [...paths], returnFocus: active instanceof HTMLElement ? active : undefined });
   }
 
+  function openPalette(mode: "all" | "sheets") {
+    const current = store.api.getState(), handle = editorHandle.current;
+    const active = window.document.activeElement;
+    setPalette({ mode, catalog: paletteCatalog, target: handle?.creationTarget(),
+      returnFocus: active instanceof HTMLElement ? active : undefined,
+      editor: current.owned && !!selected && !selected.unsupportedEncoding,
+      selection: handle?.hasSelection() ?? false, tableColumns: handle?.tableColumns() ?? 0,
+    });
+  }
+  function paletteAvailable(entry: PaletteEntry): boolean {
+    const action = palette?.catalog.actions.get(paletteIdentity(entry));
+    if (!action || !palette) return false;
+    const owned = store.api.getState().owned;
+    if (action.kind === "blocks" || action.kind === "snippets")
+      return owned && (palette.target?.matches() ?? false) && (action.kind !== "snippets" || !!snippets.library && !!snippets.session);
+    if (action.kind !== "commands") return true;
+    if (/^(format|table)\./.test(action.command.id) && !palette.target?.matches()) return false;
+    if (["sheet.new", "sheet.fromTemplate", "sheet.save", "sheet.pin", "view.density", "tidy.undoBatch", "snippet.picker"].includes(action.command.id) && !owned) return false;
+    return commandAvailable(action.command, { editor: palette.editor && owned, selection: palette.selection, tableColumns: palette.tableColumns });
+  }
+  function afterPalette(work: () => void) {
+    requestAnimationFrame(() => run(async () => { work(); }));
+  }
+  async function choosePalette(entry: PaletteEntry) {
+    const request = palette, action = request?.catalog.actions.get(paletteIdentity(entry));
+    if (!request || !action || !paletteAvailable(entry)) throw new Error("This action is unavailable. Close the palette and choose it again.");
+    if (action.kind === "sheets" || action.kind === "headings") {
+      const sheet = await store.openSheet(action.path, action.kind === "headings" ? { source: action.source, position: action.position } : undefined);
+      pendingNavigation.current = sheet.unsupportedEncoding ? undefined : { path: sheet.path, source: sheet.content, ...(action.kind === "headings" ? { position: action.position } : {}) };
+      setPane("editor");
+    } else if (action.kind === "tags") selectFilter(`#${action.tag}`);
+    else if (action.kind === "commands") {
+      afterPalette(() => {
+        if (/^(format|table)\./.test(action.command.id) && !request.target?.matches()) throw new Error("The sheet changed. Choose the command again.");
+        dispatchCommand(action.command.id);
+      });
+    } else if (action.kind === "blocks") {
+      afterPalette(() => { if (!request.target?.block(action.id, action.source)) throw new Error("The sheet or block changed or is read-only. Choose the block again."); });
+    } else {
+      const target = request.target?.snippet(), library = snippets.library, session = snippets.session;
+      if (!target || !library || !session) throw new Error("Place the cursor outside code to insert a snippet.");
+      const definition = await library.resolve(action.definition);
+      if (!request.target?.matches()) throw new Error("The sheet changed. Choose the snippet again.");
+      const current = store.api.getState();
+      const invocation = session.createSnippetInvocation(target, current.record.name, current.selectedPath);
+      afterPalette(() => {
+        if (!request.target?.matches() || !applySnippet(invocation, definition)) throw new Error("The sheet changed or is read-only. Choose the snippet again.");
+      });
+    }
+  }
+  function palettePreview(entry: PaletteEntry) {
+    const action = palette?.catalog.actions.get(paletteIdentity(entry));
+    const text = action?.kind === "sheets" || action?.kind === "headings" ? palette?.catalog.documents.get(action.path)?.raw
+      : action?.kind === "snippets" ? action.definition.body : action?.kind === "blocks" ? action.source : undefined;
+    return text === undefined ? <p>{entry.detail ?? "Choose this result to continue."}</p> : <pre>{text.slice(0, 3000)}{text.length > 3000 ? "\n…" : ""}</pre>;
+  }
+
   function dispatchCommand(id: string) {
     if (id.startsWith("table.")) { if (state.owned) editorHandle.current?.runTable(id); return; }
     if (id.startsWith("format.")) { if (state.owned) editorHandle.current?.runFormat(id); return; }
     const actions: Record<string, () => void> = {
-      "app.palette": () => setPalette((open) => !open),
+      "app.palette": () => { if (palette) setPalette(undefined); else openPalette("all"); },
+      "app.quickOpen": () => openPalette("sheets"),
       "tidy.document": openTidy,
       "tidy.batch": () => openBatchTidy(store.api.getState().sheets.map((sheet) => sheet.path)),
       "tidy.undoBatch": () => run(store.undoTidyBatch),
@@ -446,7 +532,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      if (event.key === "Escape") { setPalette(false); setShortcuts(false); if (!actionBusy) setAction(undefined); return; }
+      if (event.key === "Escape") { if (!window.document.querySelector("dialog[open]")) { setPalette(undefined); setShortcuts(false); if (!actionBusy) setAction(undefined); } return; }
       if (palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
@@ -524,6 +610,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
       actions={[
         { label: "Command palette", run: () => dispatchCommand("app.palette") },
+        { label: "Quick open", run: () => dispatchCommand("app.quickOpen") },
         { label: "New from template", disabled: !state.owned, run: () => dispatchCommand("sheet.fromTemplate") },
         { label: "Starter kits", disabled: !state.owned, run: () => setStarterKitRequest(captureTemplateRequest("Inbox")) },
         { label: "Insert snippet", disabled: !state.owned || !selected || selected.unsupportedEncoding || !snippets.library, run: openSnippetPicker },
@@ -589,7 +676,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     {snippetPrompt && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPrompt.target.element} onClose={() => setSnippetPrompt(undefined)}><p role="status">Opening snippet fields…</p></WorkspaceDialog>}><SnippetPrompt request={snippetPrompt} onClose={() => setSnippetPrompt(undefined)} /></Suspense>}
     {blockSettings && blocks.library && <Suspense fallback={<WorkspaceDialog title="Custom blocks" returnFocus={blockSettings.returnFocus} onClose={() => setBlockSettings(undefined)}><p role="status">Opening custom blocks…</p></WorkspaceDialog>}><BlockSettings library={blocks.library} store={store} returnFocus={blockSettings.returnFocus} onTakeover={onTakeover} onClose={() => setBlockSettings(undefined)} /></Suspense>}
     {snippetSettings && snippets.library && <Suspense fallback={<WorkspaceDialog title="Snippets" returnFocus={snippetSettings.returnFocus} onClose={() => setSnippetSettings(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetSettings library={snippets.library} store={store} returnFocus={snippetSettings.returnFocus} onTakeover={onTakeover} onClose={() => setSnippetSettings(undefined)} /></Suspense>}
-    {(palette || shortcuts) && <CommandDialog surface={surface} registry={registry} kind={shortcuts ? "shortcuts" : "palette"} keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => { setPalette(false); setShortcuts(false); }} onCommand={(id) => { setPalette(false); requestAnimationFrame(() => dispatchCommand(id)); }} />}
+    {shortcuts && <CommandDialog surface={surface} registry={registry} kind="shortcuts" keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => setShortcuts(false)} onCommand={dispatchCommand} />}
+    {palette && <PaletteDialog entries={palette.catalog.entries} index={palette.catalog.index} initialMode={palette.mode} returnFocus={palette.returnFocus} os={os}
+      shortcut={(entry) => entry.kind === "commands" ? shortcut(entry.id) : ""} available={paletteAvailable} visible={(entry) => entry.kind !== "commands" || paletteAvailable(entry)} preview={palettePreview} onChoose={choosePalette} onClose={() => setPalette(undefined)} />}
     {templateRequest && <Suspense fallback={<WorkspaceDialog title="New from template" returnFocus={templateRequest.returnFocus} onClose={() => { setTemplateRequest(undefined); if (templates.library) run(templates.library.refresh); }}><p role="status">Opening templates…</p></WorkspaceDialog>}><TemplateGallery store={store} notebook={templateRequest.notebook} selection={templateRequest.selection} returnFocus={templateRequest.returnFocus} initialTemplateId={templateRequest.initialTemplateId} initialDestination={templateRequest.initialDestination} onClose={() => { setTemplateRequest(undefined); if (templates.library) run(templates.library.refresh); }} onStarterKits={() => { setStarterKitRequest({ returnFocus: templateRequest.returnFocus }); setTemplateRequest(undefined); }} /></Suspense>}
     {starterKitRequest && <Suspense fallback={<WorkspaceDialog title="Starter kits" returnFocus={starterKitRequest.returnFocus} onClose={() => setStarterKitRequest(undefined)}><p role="status">Opening starter kits…</p></WorkspaceDialog>}><StarterKitDialog store={store} returnFocus={starterKitRequest.returnFocus} onTakeover={onTakeover} onClose={(root) => { setStarterKitRequest(undefined); if (root) { setFilter(root); setPane("editor"); } }} /></Suspense>}
     {notebookTemplateRequest && <Suspense fallback={<WorkspaceDialog title="Notebook default template" returnFocus={notebookTemplateRequest.returnFocus} onClose={() => setNotebookTemplateRequest(undefined)}><p role="status">Opening notebook preferences…</p></WorkspaceDialog>}><NotebookTemplateDialog store={store} notebook={notebookTemplateRequest.notebook} returnFocus={notebookTemplateRequest.returnFocus} onClose={() => setNotebookTemplateRequest(undefined)} /></Suspense>}

@@ -14,6 +14,7 @@ import { flushSync } from "react-dom";
 import {
   insertEditorBlock,
   insertEditorBlockAt,
+  editorBlockTarget,
   requestEditorCustomBlock,
   insertEditorCustomBlock,
   type EditorBlockTarget,
@@ -500,6 +501,17 @@ export function useBlockMenu(
   }, [anchor, active, listId]);
   return {
     extension: controller.extension,
+    insertAt(view: EditorView, id: string, expectedSource?: string) {
+      const entry = catalog.find((candidate) => candidate.id === id);
+      const source = entry && ("source" in entry ? entry.source : "kind" in entry && entry.kind === "template" ? entry.item.template.source : undefined);
+      if (!view.dom.isConnected || view.compositionStarted || view.state.readOnly || options.canInsert?.() === false ||
+          !entry || expectedSource !== undefined && source !== expectedSource) return false;
+      const position = Math.max(view.state.selection.main.head, view.state.sliceDoc(0, 1) === "\uFEFF" ? 1 : 0);
+      const target = editorBlockTarget(view.state, position);
+      if (!target) return false;
+      insert(id, view, { target, selection: view.state.selection, from: target.position, to: target.position, query: "" });
+      return true;
+    },
     openAt(
       view: EditorView,
       target: EditorBlockTarget,

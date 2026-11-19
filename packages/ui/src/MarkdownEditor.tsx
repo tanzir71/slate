@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import {
@@ -30,7 +30,7 @@ import {
 } from "@slate/editor";
 import { prepareBlockSnippet, createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget, type SnippetIndex, type ScopedSnippet } from "@slate/core";
 import type { SnippetTarget } from "./snippets/snippetTypes";
-import type { EditorChangeOrigin, EditorCursor, MarkdownEditorHandle } from "./commands";
+import type { EditorChangeOrigin, EditorCreationTarget, EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
 import type { BlockLibrary } from "./blocks/blockLibrary";
@@ -112,6 +112,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     },
   });
   const gutter = useBlockGutter(({ view, target, rect }) => blocks.openAt(view, target, rect));
+  const currentBlocks = useRef(blocks);
+  const creationAllowed = useRef(canInsertBlock);
+  const currentDocument = useRef(documentKey);
+  useLayoutEffect(() => { currentBlocks.current = blocks; creationAllowed.current = canInsertBlock; currentDocument.current = documentKey; }, [blocks, canInsertBlock, documentKey]);
   const dates = useDatePicker(dateCompletion);
   const fenceInput = useFenceInput(fences, frontmatter);
   const paste = useSmartPaste({ richText: pasteRichText, links: pasteLinks, images: pasteImages, tables: pasteTables, importImage: onImportClipboardImage });
@@ -155,10 +159,22 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => { onSnippetRef.current = onSnippet; }, [onSnippet]);
 
   function snippetTarget(view: EditorView, request = requestEditorSnippet(view.state), separate?: boolean): SnippetTarget | undefined {
-    if (!request || canInsertBlock?.() === false) return;
+    if (!request || creationAllowed.current?.() === false) return;
     const { from, to } = request.selection.main;
     return { source: request.source.toString(), selection: request.source.sliceString(from, to), element: view.contentDOM,
-      insert: (expansion) => canInsertBlock?.() !== false && insertEditorSnippet(view, request, separate === undefined ? expansion : prepareBlockSnippet(expansion, { source: request.source.toString(), from: request.from, to: request.to }, separate)) };
+      insert: (expansion) => creationAllowed.current?.() !== false && insertEditorSnippet(view, request, separate === undefined ? expansion : prepareBlockSnippet(expansion, { source: request.source.toString(), from: request.from, to: request.to }, separate)) };
+  }
+  function creationTarget(view: EditorView): EditorCreationTarget | undefined {
+    const source = view.state.doc, selection = view.state.selection, key = currentDocument.current;
+    const matches = () => view.dom.isConnected && !view.compositionStarted && !view.state.readOnly &&
+      view.state.facet(EditorView.editable) && creationAllowed.current?.() !== false &&
+      view.state.doc === source && view.state.selection.eq(selection) && currentDocument.current === key && selection.ranges.length === 1;
+    if (!matches()) return;
+    return {
+      matches,
+      block: (id, expectedSource) => matches() && currentBlocks.current.insertAt(view, id, expectedSource),
+      snippet: () => matches() ? snippetTarget(view) : undefined,
+    };
   }
   function snippetExtensions(index: SnippetIndex | undefined) {
     return index ? [editorSnippetFields(), createSnippetTriggers({ index, onExpand(view, request, definition) {
@@ -270,6 +286,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
 
     viewRef.current = view;
     onHandleRef.current?.({
+      documentKey: () => currentDocument.current,
       source: () => editorSource(view.state),
       applyTidy: (result) => applyEditorTidy(view, result),
       runTable(id) { const applied = runTableCommand(view, id); if (applied) view.focus(); return applied; },
@@ -280,6 +297,12 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       hasSelection() { return !view.state.selection.main.empty; },
       selectedText() { const { from, to } = view.state.selection.main; return view.state.sliceDoc(from, to); },
       snippetTarget() { return snippetTarget(view); },
+      creationTarget() { return creationTarget(view); },
+      goToSourceOffset(source, offset) {
+        if (!view.dom.isConnected || editorSource(view.state) !== source || !Number.isSafeInteger(offset) || offset < 0 || offset > source.length) return false;
+        const anchor = source.slice(0, offset).replace(/\r\n?/g, "\n").length;
+        view.dispatch({ selection: { anchor }, scrollIntoView: true }); view.focus(); return true;
+      },
       goToLine(number) { const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Math.trunc(number)))); view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true }); view.focus(); }
     });
     const initialLine = view.state.doc.lineAt(view.state.selection.main.head);

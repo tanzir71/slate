@@ -112,7 +112,7 @@ test("registry labels, shortcut search, palette formatting and focus restoration
   // Opening the palette outside the editor preserves its selection for formatting.
   await page.keyboard.press(`${modifier}+k`);
   const palette = page.getByRole("dialog", { name: "Command palette" });
-  await palette.getByRole("textbox", { name: "Search commands" }).fill("bold");
+  await palette.getByRole("textbox", { name: "Search commands and sheets" }).fill("bold");
   if (isMobile) {
     const close = await palette.getByRole("button", { name: "Close command palette", exact: true }).boundingBox();
     expect(close?.width).toBeGreaterThanOrEqual(44);

@@ -2,8 +2,12 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { parse as parseYaml } from "yaml";
+import { markdownFrontmatter } from "./markdownBody.js";
+import type { MarkdownHeading } from "./markdownHeadings.js";
 
 export * from "./commands.js";
+export * from "./palette.js";
+export * from "./markdownHeadings.js";
 export * from "./workspacePreferences.js";
 export * from "./textChanges.js";
 export * from "./blocks.js";
@@ -63,6 +67,7 @@ export interface SheetDocument {
   title: string;
   raw: string;
   body: string;
+  readonly headings?: readonly MarkdownHeading[];
   frontmatter: Record<string, unknown>;
   tags: Tag[];
   links: WikiLink[];
@@ -88,7 +93,6 @@ interface FrontmatterParts {
   body: string;
 }
 
-const frontmatterPattern = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 const wikiLinkPattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 const bodyTagPattern = /(^|[\s([>])#([A-Za-z0-9][A-Za-z0-9_-]*(?:\/[A-Za-z0-9][A-Za-z0-9_-]*)*)/g;
 const ulidLikePattern = /^(?:id:)?01[0-9A-HJKMNP-TV-Z]{24}$/i;
@@ -235,16 +239,16 @@ export function extractTags(data: Record<string, unknown>, body: string): Tag[] 
 }
 
 function parseFrontmatter(raw: string): FrontmatterParts {
-  const match = raw.match(frontmatterPattern);
-  if (!match) {
-    return { data: {}, body: raw };
+  const body = raw.startsWith("\uFEFF") ? raw.slice(1) : raw;
+  const range = markdownFrontmatter(raw);
+  if (!range) return { data: {}, body };
+  try {
+    const parsed: unknown = parseYaml(raw.slice(range.from, range.to).replace(/\r\n?/g, "\n"));
+    return { data: isRecord(parsed) ? parsed : {}, body: raw.slice(range.bodyFrom) };
+  } catch {
+    // A damaged header must not prevent editing this file or indexing other files.
+    return { data: {}, body };
   }
-
-  const parsed = parseYaml(match[1] ?? "");
-  return {
-    data: isRecord(parsed) ? parsed : {},
-    body: raw.slice(match[0].length)
-  };
 }
 
 function readFrontmatterTags(value: unknown): string[] {

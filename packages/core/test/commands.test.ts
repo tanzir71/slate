@@ -25,6 +25,17 @@ const profile = { os: "windows", surface: "web" } as const;
 const editor = { editor: true, selection: false };
 
 describe("shared command registry", () => {
+  it("registers Quick open on Mod P without changing selection-aware Mod K or IME input", () => {
+    for (const os of ["windows", "linux", "mac"] as const) {
+      const keymap = resolveCommandKeymap({ os, surface: "web" });
+      const modifiers = { ctrlKey: os !== "mac", metaKey: os === "mac" };
+      expect(keymap.issues).toEqual([]);
+      expect(matchCommand(keymap.bindings, input("p", modifiers), { editor: false, selection: false })).toBe("app.quickOpen");
+      expect(matchCommand(keymap.bindings, input("k", modifiers), { editor: true, selection: true })).toBe("format.link");
+      expect(matchCommand(keymap.bindings, input("k", modifiers), { editor: true, selection: false })).toBe("app.palette");
+      expect(matchCommand(keymap.bindings, input("p", { ...modifiers, isComposing: true }), editor)).toBeUndefined();
+    }
+  });
   it("offers custom block management only on the implemented browser surface", () => {
     expect(commandsForSurface("web").find((command) => command.id === "block.settings")?.label).toBe("Manage custom blocks");
     expect(commandsForSurface("desktop").some((command) => command.id === "block.settings")).toBe(false);

@@ -71,6 +71,17 @@ for (const theme of ["light", "dark"] as const) {
       }, theme);
     });
 
+    test("A4 command palette", async ({ page }) => {
+      await writingFixture(page); await workspaceAction(page, "Command palette");
+      const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+      await expect(palette.getByRole("textbox", { name: "Search commands and sheets", exact: true })).toBeFocused();
+      await palette.locator("input").fill("tidy");
+      const bounds = await palette.boundingBox();
+      expect(bounds?.width).toBe(640); expect(bounds?.x).toBe(400); expect(bounds?.y).toBe(92);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a4-palette-${theme}.png`);
+    });
+
     test("A4 snippet picker", async ({ page }) => {
       await writingFixture(page);
       await workspaceAction(page, "Insert snippet");

@@ -2,6 +2,7 @@ import type { SheetDocument } from "@slate/core";
 import { createSheetSummaryCache } from "./sheetSummaries";
 import {
   hydrateSummaries,
+  sheetWithHeadings,
   type SummaryInput,
   type SummaryReply,
   type SummaryRequest,
@@ -23,17 +24,23 @@ export function createSheetSummaryClient(
   let fallback = !worker;
   let latest: readonly SummaryInput[] = [];
   let documents: SheetDocument[] = [];
+  let published = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let inFlight: number | undefined;
   let completed = 0;
   const summarize = createSheetSummaryCache();
+  function publish(next: SheetDocument[]) {
+    if (published && next.length === documents.length && next.every((document, index) => document === documents[index])) return;
+    documents = next;
+    published = true;
+    onDocuments(documents);
+  }
   function readOnMainThread() {
     clearTimeout(timer);
     const requested = id;
     timer = setTimeout(() => {
       if (active && requested === id) {
-        documents = summarize(latest);
-        onDocuments(documents);
+        publish(summarize(latest).map(sheetWithHeadings));
       }
     }, 0);
   }
@@ -59,8 +66,7 @@ export function createSheetSummaryClient(
       inFlight = undefined;
       completed = event.data.id;
       if (completed === id) {
-        documents = hydrateSummaries(latest, event.data.summaries, documents);
-        onDocuments(documents);
+        publish(hydrateSummaries(latest, event.data.summaries, documents));
       }
       postLatest();
     };

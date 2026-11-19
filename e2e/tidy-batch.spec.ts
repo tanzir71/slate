@@ -23,7 +23,7 @@ async function review(page: Page, palette = false) {
   if (palette) {
     await workspaceAction(page, "Command palette");
     const commands = page.getByRole("dialog", { name: "Command palette", exact: true });
-    await commands.getByRole("textbox", { name: "Search commands", exact: true }).fill("Batch Tidy");
+    await commands.getByRole("textbox", { name: "Search commands and sheets", exact: true }).fill("Batch Tidy");
     await commands.getByRole("button", { name: "Batch Tidy", exact: true }).click();
   } else await workspaceAction(page, "Batch Tidy");
   const dialog = page.getByRole("dialog", { name: "Batch Tidy", exact: true });

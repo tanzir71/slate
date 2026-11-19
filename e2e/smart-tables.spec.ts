@@ -14,7 +14,7 @@ async function palette(page: import("@playwright/test").Page, name: string) {
     name: "Command palette",
     exact: true,
   });
-  await dialog.getByRole("textbox", { name: "Search commands" }).fill("table");
+  await dialog.getByRole("textbox", { name: "Search commands and sheets" }).fill("table");
   await dialog.getByRole("button", { name, exact: true }).click();
 }
 
@@ -82,12 +82,12 @@ test("palette columns align, insert and delete with undo, and protect the sole c
     name: "Command palette",
     exact: true,
   });
-  await dialog.getByRole("textbox", { name: "Search commands" }).fill("table");
+  await dialog.getByRole("textbox", { name: "Search commands and sheets" }).fill("table");
   await expect(
     dialog.getByRole("button", { name: "Delete table column", exact: true }),
   ).toHaveCount(0);
   expect(
-    (await new AxeBuilder({ page }).include(".commandDialog").analyze())
+    (await new AxeBuilder({ page }).include(".slatePalette").analyze())
       .violations,
   ).toEqual([]);
   await page.keyboard.press("Escape");
