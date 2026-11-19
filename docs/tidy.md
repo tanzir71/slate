@@ -58,4 +58,13 @@ The first real-worker benchmark on the F-62 review runtime also fails the unchan
 | 500-paragraph lint | 75.2 ms | 120 ms | 114 ms | 97.4 ms |
 | 5,000-item-list fix | 656 ms | 2,413 ms | 1,380 ms | 788.1 ms |
 
+The subsequent scoped parser 2.1.0 checkpoint removes the known per-item event-array movement and retains strict compatibility with the test-only 2.0.3 parser. Its first new-runtime measurements below still fail the 150 ms requirement. All source-binding, exact-output and untouched-sheet checks pass; no run is retried or substituted. Raw results and CPU profiles remain in `artifacts/parser-210-*` and `artifacts/f62-dense-*`.
+
+| 50,000 body words, parser 2.1.0 | Chromium | Firefox | WebKit | Mobile |
+| --- | ---: | ---: | ---: | ---: |
+| Flat lint, including startup | 58.1 ms | 111 ms | 74 ms | 67.1 ms |
+| Dirty-flat fix | 71.2 ms | 182 ms | 93 ms | 77 ms |
+| 500-paragraph lint | 46.5 ms | 124 ms | 99 ms | 58.9 ms |
+| 5,000-item-list fix | 503.8 ms | 1,286 ms | 749 ms | 435.3 ms |
+
 `createTidyFileStore(space)` reads `.slate/tidy.json` without creating it. Missing settings use caller-selected defaults; malformed text stays available for explicit repair. Unsupported bytes and read failures remain visible and cannot be saved over through those snapshots. Saves validate known fields and retain the exact entered JSON, including UTF-8 BOM, whitespace and unknown numeric spelling. The Space serializes writes, checks original bytes and returns a separate conflict copy if an external edit won. UI callers must show conflicts and keep on-save disabled when configuration cannot be read.

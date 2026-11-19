@@ -28,5 +28,7 @@
     "unified": "^11.0.5",
     "yaml": "^2.8.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "mdast-util-from-markdown-reference": "npm:mdast-util-from-markdown@2.0.3"
+  }
 }

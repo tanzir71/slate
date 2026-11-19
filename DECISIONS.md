@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Use the released parser fix for dense-list array movement
+
+The measured worker bottleneck includes mdast-util-from-markdown 2.0.3 repeatedly inserting list-item events into a growing array. The standalone CPU profile identifies that parser work and allocation cost; a deterministic regression counts 5,040,000 shifted entries for 600 items. Upgrade the six locked parser dependency edges to the released 2.1.0 within their existing 2.x ranges. Its upstream [release notes](https://github.com/syntax-tree/mdast-util-from-markdown/releases/tag/2.1.0) describe batched list-item handling and compiler allocation improvements. Keep every other toolchain/dependency version unchanged and verify the scoped lockfile with frozen install and the published integrity.
+
+Retain 2.0.3 only as an exact test-only alias for independent full-GFM tree/position comparisons. Compare 600 generated boundary/nesting/EOL cases in addition to the existing CommonMark/GFM parity suite. The unchanged GFM 4 extensions support both parser versions; a documented type bridge exists only at the legacy test oracle because 2.1 adds listener context fields. Product parser selection, normalized content proof and worker/application ownership guards are untouched. Count array movement rather than timing a flaky unit deadline. Browser worker acceptance, full source checks and publication gates remain required; CPU profiles do not establish the 150 ms budget.
+
 ## 2026-11-19 - Gate real Tidy worker round trips on every Linux profile
 
 Keep Tidy acceptance in a separate fresh-browser process, inheriting Chromium, Firefox, WebKit and mobile from the existing reference configuration. Measure the real emitted module worker through request/reply for four documents with 50,000 body words, including the known slow dense list. Include worker construction/startup in the first flat-lint result; retain internal CPU time separately. Validate original-source/request binding, exact fixes and untouched open-sheet bytes before asserting each 150 ms budget. Store all measurements before final assertions, with no selected reruns or threshold relaxation. Require perf:tidy in verify, Linux CI and Pages publication alongside the original menu/typing gates.
