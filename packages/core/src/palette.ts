@@ -32,9 +32,15 @@ function folded(value: string) {
 function score(value: string, query: string) {
   if (!query || value === query) return 0;
   if (value.length < query.length) return Infinity;
-  if (value.startsWith(query)) return 1;
-  if (value.includes(" " + query) || value.includes("/" + query) || value.includes("-" + query) || value.includes("_" + query)) return 2;
-  if (value.includes(query)) return 3;
+  let occurrence = value.indexOf(query);
+  if (occurrence === 0) return 1;
+  if (occurrence > 0) {
+    do {
+      if (" /-_".includes(value[occurrence - 1]!)) return 2;
+      occurrence = value.indexOf(query, occurrence + 1);
+    } while (occurrence >= 0);
+    return 3;
+  }
   let position = 0;
   for (const character of query) {
     const found = value.indexOf(character, position);

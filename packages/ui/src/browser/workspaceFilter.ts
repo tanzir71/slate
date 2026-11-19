@@ -4,7 +4,7 @@ export function matchesWorkspaceFilter(
   sheet: SheetDocument,
   filter: string,
   pinned: readonly string[],
-  now = new Date(),
+  now?: Date,
 ): boolean {
   if (!filter) return true;
   if (filter === "@pinned") return pinned.includes(sheet.path);
@@ -15,7 +15,7 @@ export function matchesWorkspaceFilter(
     );
   if (filter === "@goals") return !!sheet.goal && !sheet.goal.complete;
   if (filter === "@recent")
-    return evaluateSmartFilter(sheet, "modified:<7d", { now });
+    return evaluateSmartFilter(sheet, "modified:<7d", { now: now === undefined ? new Date() : now });
   if (filter.startsWith("#"))
     return sheet.tags.some(
       (tag) =>

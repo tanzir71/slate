@@ -39,10 +39,39 @@ describe("indexed palette search", () => {
       { id: "fuzzy", kind: "sheets", label: "Tropical island diary" },
       { id: "substring", kind: "sheets", label: "Untidy" },
       { id: "word", kind: "sheets", label: "A tidy note" },
+      { id: "later-word", kind: "sheets", label: "Untidy then tidy" },
       { id: "prefix", kind: "sheets", label: "Tidy rules" },
       { id: "exact", kind: "sheets", label: "Tidy" },
     ]);
-    expect(choices.search("tidy").items.map((item) => item.id)).toEqual(["exact", "prefix", "word", "substring", "fuzzy"]);
+    expect(choices.search("tidy").items.map((item) => item.id)).toEqual(["exact", "prefix", "word", "later-word", "substring", "fuzzy"]);
+  });
+  it.each([" ", "/", "-", "_"])("keeps a later word boundary %s ahead of an earlier unbounded substring", (separator) => {
+    const choices = createPaletteIndex([
+      { id: "substring", kind: "sheets", label: "Untidy" },
+      { id: "word", kind: "sheets", label: `Untidy${separator}tidy` },
+    ]);
+    expect(choices.search("tidy").items.map((entry) => entry.id)).toEqual(["word", "substring"]);
+  });
+  it("checks a missing contiguous query once before the existing subsequence match", () => {
+    const choices = createPaletteIndex([{ id: "row", kind: "sheets", label: "Sigma" }]);
+    const original = { includes: String.prototype.includes, startsWith: String.prototype.startsWith, indexOf: String.prototype.indexOf };
+    let scans = 0;
+    const includes = vi.spyOn(String.prototype, "includes").mockImplementation(function (this: string, needle: string, position?: number) {
+      if (String(this) === "sigma" && (needle === "sma" || needle.slice(1) === "sma")) scans++;
+      return original.includes.call(this, needle, position);
+    });
+    const startsWith = vi.spyOn(String.prototype, "startsWith").mockImplementation(function (this: string, needle: string, position?: number) {
+      if (String(this) === "sigma" && needle === "sma") scans++;
+      return original.startsWith.call(this, needle, position);
+    });
+    const indexOf = vi.spyOn(String.prototype, "indexOf").mockImplementation(function (this: string, needle: string, position?: number) {
+      if (String(this) === "sigma" && needle === "sma") scans++;
+      return original.indexOf.call(this, needle, position);
+    });
+    let result;
+    try { result = choices.search("sma"); } finally { includes.mockRestore(); startsWith.mockRestore(); indexOf.mockRestore(); }
+    expect(result?.items.map((entry) => entry.id)).toEqual(["row"]);
+    expect(scans).toBeLessThanOrEqual(1);
   });
   it("searches aliases and paths, preserving identical titles in separate notebooks", () => {
     const choices = createPaletteIndex([

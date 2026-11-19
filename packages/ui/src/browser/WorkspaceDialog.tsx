@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import "../workspaceDialog.css";
 
@@ -27,7 +27,7 @@ export function WorkspaceDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const invoker = useRef(document.activeElement);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = dialog.current;
     element?.showModal();
     (initialFocus?.current ?? element?.querySelector<HTMLElement>("[autofocus], input, select, textarea"))?.focus();
