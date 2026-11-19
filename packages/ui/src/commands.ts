@@ -1,9 +1,11 @@
 import {
   resolveCommandKeymap,
+  commandsForSurface,
   shortcutLabel,
   type ResolvedKeymap,
   type ShortcutInput,
   type ShortcutOS,
+  type ShortcutProfile,
 } from "@slate/core";
 import type { SnippetTarget } from "./snippets/snippetTypes";
 import type { TidyResult } from "@slate/core/tidy";
@@ -34,20 +36,27 @@ export function keyboardInput(event: KeyboardEvent): ShortcutInput {
 export function readKeymap(
   bytes: Uint8Array | undefined,
   os: ShortcutOS,
+  surface: ShortcutProfile["surface"] = "web",
 ): ResolvedKeymap {
   try {
     const custom: unknown = bytes
       ? JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))
       : undefined;
-    return resolveCommandKeymap({ os, surface: "web" }, custom);
+    return resolveCommandKeymap({ os, surface }, custom, workspaceCommands(surface));
   } catch {
     return {
-      ...resolveCommandKeymap({ os, surface: "web" }),
+      ...resolveCommandKeymap({ os, surface }, undefined, workspaceCommands(surface)),
       issues: [
         { commandId: "", message: "The keymap must contain valid UTF-8 JSON." },
       ],
     };
   }
+}
+
+/** The file workspace implements the web action set on both platforms, using native chords on desktop. */
+export function workspaceCommands(surface: ShortcutProfile["surface"]) {
+  const commands = commandsForSurface("web");
+  return surface === "web" ? commands : commands.map((command) => ({ ...command, surfaces: ["desktop"] as const }));
 }
 
 export function commandShortcut(

@@ -7,6 +7,8 @@ use slate_core::{
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
+mod workspace;
+mod workspace_index;
 
 #[derive(Serialize)]
 struct WriteSheetResponse {
@@ -100,13 +102,25 @@ fn conflict_stamp() -> Result<String, String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .setup(|app| {
+            app.manage(workspace::start_watches(app.handle())?);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             write_sheet,
             write_numbered_asset,
             list_markdown_files,
             read_markdown_file,
             read_tidy_settings,
-            write_tidy_settings
+            write_tidy_settings,
+            workspace::list_workspace_files,
+            workspace::read_workspace_file,
+            workspace::create_workspace_file,
+            workspace::save_workspace_file,
+            workspace::move_workspace_file,
+            workspace::trash_workspace_file,
+            workspace::workspace_watch_status,
+            workspace_index::replace_workspace_index
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Slate desktop shell");

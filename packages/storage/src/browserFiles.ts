@@ -1,3 +1,6 @@
+import { decodeText, encodeText, safeWorkspacePath as safeBrowserPath, type MutableWorkspaceFiles } from "./fileIO";
+export { decodeText, encodeText, safeBrowserPath };
+
 /** File operations shared by user-selected directories and OPFS libraries. */
 export interface BrowserFileHandle {
   readonly kind: "file";
@@ -21,21 +24,7 @@ export interface BrowserDirectoryHandle {
   requestPermission?(options: { mode: "readwrite" }): Promise<PermissionState>;
 }
 
-export interface BrowserFiles {
-  list(includePrivate?: boolean): Promise<string[]>;
-  read(path: string): Promise<Uint8Array | undefined>;
-  write(path: string, bytes: Uint8Array): Promise<void>;
-  remove(path: string): Promise<void>;
-}
-
-export function safeBrowserPath(path: string): string {
-  const normalized = path.replaceAll("\\", "/");
-  const parts = normalized.split("/");
-  if (!normalized || parts.some((part) => !part || part === "." || part === ".." || part.includes(":") || [...part].some((character) => character.charCodeAt(0) < 32))) {
-    throw new Error(`Invalid workspace path: ${path}`);
-  }
-  return normalized;
-}
+export type BrowserFiles = MutableWorkspaceFiles;
 
 export function createDirectoryFiles(root: BrowserDirectoryHandle): BrowserFiles {
   async function locate(path: string, create: boolean) {
@@ -108,9 +97,6 @@ export function createMemoryFiles(initial: Record<string, string> = {}): Browser
     }
   };
 }
-
-export const encodeText = (text: string): Uint8Array => new TextEncoder().encode(text);
-export const decodeText = (bytes: Uint8Array, preserveBOM = false): string => new TextDecoder("utf-8", { fatal: true, ignoreBOM: preserveBOM }).decode(bytes);
 
 function isFileError(error: unknown, name: string): boolean {
   return typeof error === "object" && error !== null && "name" in error && error.name === name;

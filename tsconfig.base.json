@@ -18,6 +18,11 @@
     "exactOptionalPropertyTypes": true,
     "baseUrl": ".",
     "paths": {
+      "@slate/ui/native": ["packages/ui/src/native/NativeApp.tsx"],
+      "@slate/storage/tauri-workspace-index": ["packages/storage/src/tauriWorkspaceIndex.ts"],
+      "@slate/storage/tauri-files": ["packages/storage/src/tauriFiles.ts"],
+      "@slate/storage/file-io": ["packages/storage/src/fileIO.ts"],
+      "@slate/storage/file-space": ["packages/storage/src/fileSpace.ts"],
       "@slate/core": ["packages/core/src/index.ts"],
       "@slate/core/tidy/settings": ["packages/core/src/tidy/settings.ts"],
       "@slate/core/tidy": ["packages/core/src/tidy/index.ts"],

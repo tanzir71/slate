@@ -4,7 +4,7 @@ import type { SnippetLibrary } from "./snippetLibrary";
 
 const subscribeEmpty = () => () => undefined;
 const getEmpty = () => undefined;
-export function useSnippetLibrary(store: WorkspaceStore) {
+export function useSnippetLibrary(store: WorkspaceStore, openGlobal?: Parameters<typeof import("./snippetLibrary").createSnippetLibrary>[1]) {
   const [selected, setSelected] = useState<{
     store: WorkspaceStore;
     library: SnippetLibrary;
@@ -22,7 +22,7 @@ export function useSnippetLibrary(store: WorkspaceStore) {
         if (!active) return;
         current = createSnippetLibrary(
           store.space,
-          undefined,
+          openGlobal,
           () => store.api.getState().owned,
         );
         setSelected({ store, library: current, session });
@@ -52,7 +52,7 @@ export function useSnippetLibrary(store: WorkspaceStore) {
       observer?.close();
       window.removeEventListener("focus", reload);
     };
-  }, [store]);
+  }, [store, openGlobal]);
   const snapshot = useSyncExternalStore(
     library?.subscribe ?? subscribeEmpty,
     library?.getSnapshot ?? getEmpty,

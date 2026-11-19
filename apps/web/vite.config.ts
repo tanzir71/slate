@@ -27,6 +27,13 @@ export default defineConfig({
   worker: { format: "es", plugins: () => [markdownWorker()] },
   resolve: {
     alias: {
+      "@slate/storage/tauri-workspace-index": fromRoot("../../packages/storage/src/tauriWorkspaceIndex.ts"),
+      "@slate/storage/tauri-files": fromRoot("../../packages/storage/src/tauriFiles.ts"),
+      "@slate/storage/file-io": fromRoot("../../packages/storage/src/fileIO.ts"),
+      "@slate/storage/file-space": fromRoot("../../packages/storage/src/fileSpace.ts"),
+      "@slate/storage/tauri-sql": fromRoot("../../packages/storage/src/tauriSql.ts"),
+      "@slate/storage/web-file-source": fromRoot("../../packages/storage/src/webFileSource.ts"),
+      "@slate/storage/tauri-file-source": fromRoot("../../packages/storage/src/tauriFileSource.ts"),
       "@slate/ui/browser": fromRoot("../../packages/ui/src/browser/BrowserApp.tsx"),
       "@slate/storage/browser-tidy": fromRoot("../../packages/storage/src/browserTidy.ts"),
       "@slate/storage/browser-files": fromRoot("../../packages/storage/src/browserFiles.ts"),

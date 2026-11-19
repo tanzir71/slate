@@ -1,26 +1,12 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { nativeFixture } from "./nativeFixture";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    Reflect.set(window, "__TAURI_INTERNALS__", {
-      async invoke(command: string, args: Record<string, unknown>) {
-        if (command === "write_numbered_asset") {
-          let number = 1;
-          const prefix = String(args.path).slice(0, -4);
-          while (localStorage.getItem("native-asset:" + prefix + "-" + number + ".png") !== null) number++;
-          const path = prefix + "-" + number + ".png";
-          localStorage.setItem("native-asset:" + path, JSON.stringify(args.bytes));
-          return path;
-        }
-        if (command !== "write_sheet") throw new Error(`Unexpected native command: ${command}`);
-        localStorage.setItem(`native-test:${String(args.path)}`, String(args.content));
-        return { status: "written", path: args.path };
-      },
-    });
-  });
+  await nativeFixture(page);
   await page.goto("./");
   await expect(page.locator(".cm-content")).toBeVisible();
+  await expect(page.locator(".browserWorkspace")).toHaveAttribute("data-editor-ready", "true");
 });
 
 test("desktop image paste sends exact PNG bytes through IPC with numbered paths and one undo", async ({ page }) => {
@@ -73,12 +59,12 @@ test("desktop fence language and front matter save through IPC with separate typ
 });
 
 test("desktop migration notice is dismissible and is shown only once", async ({ page }) => {
-  const notice = page.locator(".shortcutMigrationNotice");
+  const notice = page.getByRole("status").filter({ hasText: "Default shortcuts changed." });
   await expect(notice).toContainText("Default shortcuts changed.");
   const mac = await page.evaluate(() => /Mac/.test(navigator.platform));
   await expect(notice).toContainText(mac ? "Italic: ⌘ I. Inspector: ⌘ ⇧ I." : "Italic: Ctrl I. Inspector: Ctrl ⇧ I.");
-  expect((await new AxeBuilder({ page }).include(".shortcutMigrationNotice").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
-  await notice.getByRole("button", { name: "Dismiss shortcut notice", exact: true }).click();
+  expect((await new AxeBuilder({ page }).include(".notice").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  await notice.getByRole("button", { name: "Dismiss notice", exact: true }).click();
   await expect(notice).toHaveCount(0);
   await page.reload();
   await expect(page.locator(".cm-content")).toBeVisible();
@@ -104,7 +90,7 @@ test("desktop wiki completion saves a canonical link and opens its target", asyn
   await editor.press("Enter");
   await editor.press("ControlOrMeta+Home");
   await editor.locator(".cm-slate-wiki-link").click({ modifiers: ["ControlOrMeta"] });
-  await expect(page.locator(".editorToolbar h1")).toHaveText("Product Vision");
+  await expect(page.locator(".documentToolbar")).toHaveText("Product Vision");
 });
 
 test("desktop date choice is one undo and saves through IPC", async ({
@@ -159,13 +145,13 @@ test("desktop formatting, registry shortcuts and IPC saves agree", async ({ page
   const dialog = page.getByRole("dialog", { name: "Keyboard shortcuts" });
   await expect(dialog.locator(".shortcutProfile")).toContainText("Desktop");
   await expect(dialog.locator(".shortcutRow").filter({ hasText: "New sheet" }).locator("kbd")).toHaveText(/^(Ctrl|⌘) N$/);
-  await expect(dialog.getByText("Export Space as .zip", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText("Export Space as .zip", { exact: true })).toHaveCount(1);
   const accessibility = await new AxeBuilder({ page }).include(".commandDialog").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
   expect(accessibility.violations).toEqual([]);
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await page.keyboard.press("ControlOrMeta+n");
-  await expect(page.locator(".editorToolbar h1")).toHaveText("Untitled Sheet");
+  await expect(page.locator(".documentToolbar")).toHaveText("Untitled");
   await page.keyboard.press("ControlOrMeta+z");
   await expect(editor).not.toContainText("Words worth keeping.");
 });
@@ -175,12 +161,14 @@ test("desktop palette executes formatting and appearance and preserves invoker f
   await editor.fill("My words.");
   await page.keyboard.press("ControlOrMeta+Home");
   await page.keyboard.press("ControlOrMeta+Shift+End");
-  await page.getByRole("button", { name: "Commands", exact: true }).click();
+  await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
+  await page.getByRole("button", { name: "Command palette", exact: true }).click();
   let palette = page.getByRole("dialog", { name: "Command palette", exact: true });
   await palette.getByRole("textbox", { name: "Search commands" }).fill("Bold");
   await palette.getByRole("button", { name: /Bold/ }).click();
   await expect(editor).toHaveText("**My words.**");
-  await page.getByRole("button", { name: "Commands", exact: true }).click();
+  await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
+  await page.getByRole("button", { name: "Command palette", exact: true }).click();
   palette = page.getByRole("dialog", { name: "Command palette", exact: true });
   await palette.getByRole("textbox", { name: "Search commands" }).fill("Use Dark");
   await palette.getByRole("button", { name: "Use Dark appearance", exact: true }).click();

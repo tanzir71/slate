@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla";
-import { createBrowserSpace, type BrowserSheet } from "@slate/storage/browser-space";
-import { decodeText, type BrowserFiles } from "@slate/storage/browser-files";
+import { createFileSpace, type FileSheet } from "@slate/storage/file-space";
+import { decodeText, type WorkspaceFiles } from "@slate/storage/file-io";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
 import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
 import { notebookTemplate, previousDailyNote, readWorkspacePreferences, starterKitRoot, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
@@ -16,7 +16,7 @@ export interface NoteSaveSnapshot {
 interface Draft { content: string; baseContent: string | undefined; origin?: NoteSaveSnapshot["origin"] }
 export interface WorkspaceState {
   record: BrowserSpaceRecord;
-  sheets: BrowserSheet[];
+  sheets: FileSheet[];
   selectedPath: string;
   owned: boolean;
   saveState: "Saved" | "Saving…" | "Unsaved" | "Read-only";
@@ -26,9 +26,9 @@ export interface WorkspaceState {
   initialCursor?: { path: string; position: number } | undefined;
 }
 
-export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserFiles) {
+export function createWorkspaceStore(record: BrowserSpaceRecord, files: WorkspaceFiles) {
   const api = createStore<WorkspaceState>(() => ({ record, sheets: [], selectedPath: "", owned: record.id === "sample", saveState: "Saved", error: "", notice: "", preferences: readWorkspacePreferences() }));
-  const space = createBrowserSpace(files, () => api.getState().owned);
+  const space = createFileSpace(files, () => api.getState().owned);
   const bases = new Map<string, string>();
   const drafts = new Map<string, Draft>();
   const recovery = record.id === "sample" ? undefined : createRecoveryJournal(record.id);
@@ -60,7 +60,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     return next;
   }
 
-  function rememberCreated(sheet: BrowserSheet, cursor: number) {
+  function rememberCreated(sheet: FileSheet, cursor: number) {
     bases.set(sheet.path, sheet.content);
     api.setState((state) => ({
       sheets: overlayDrafts([...state.sheets.filter((row) => row.path !== sheet.path), sheet]),
@@ -86,7 +86,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
     return recovery?.read() ?? new Map<string, Draft>();
   }
 
-  function overlayDrafts(sheets: BrowserSheet[]) {
+  function overlayDrafts(sheets: FileSheet[]) {
     const overlaid = sheets.map((sheet) => drafts.has(sheet.path) ? { ...sheet, content: drafts.get(sheet.path)!.content } : sheet);
     for (const [path, draft] of drafts) if (!overlaid.some((sheet) => sheet.path === path)) overlaid.push({ path, content: draft.content });
     // Match file-list order before recovered drafts have reached disk, too.
@@ -280,7 +280,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: BrowserF
         await flush();
         const day = `${captured.getFullYear()}-${String(captured.getMonth() + 1).padStart(2, "0")}-${String(captured.getDate()).padStart(2, "0")}`;
         const path = `Daily/${day}.md`;
-        let created: BrowserSheet | undefined;
+        let created: FileSheet | undefined;
         let cursor = 0;
         if (await files.read(path) === undefined) {
           const previous = previousDailyNote(await files.list(), day);

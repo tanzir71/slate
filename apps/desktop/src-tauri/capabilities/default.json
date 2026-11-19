@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Default Slate desktop permissions",
   "windows": ["main"],
-  "permissions": ["core:default", "sql:default"]
+  "permissions": ["core:default", "core:window:allow-destroy", "sql:default", "sql:allow-execute"]
 }

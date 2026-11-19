@@ -8,6 +8,11 @@ mod assets;
 pub use assets::write_numbered_asset_to_space;
 mod tidy_settings;
 pub use tidy_settings::{read_tidy_settings_from_space, write_tidy_settings_to_space};
+mod workspace_files;
+pub use workspace_files::{
+    create_workspace_file, list_workspace_files, move_workspace_file, read_workspace_file,
+    save_workspace_file, trash_workspace_file,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CryptoError {
@@ -38,6 +43,7 @@ pub enum StorageError {
     PathEscapesRoot,
     InvalidSheetPath,
     Io(String),
+    InterruptedWrite { path: String, recovery: String },
 }
 
 impl Display for StorageError {
@@ -46,6 +52,7 @@ impl Display for StorageError {
             Self::PathEscapesRoot => "sheet path escapes the Slate space root",
             Self::InvalidSheetPath => "sheet path must point to a file inside the Slate space root",
             Self::Io(error) => error,
+            Self::InterruptedWrite { path, recovery } => return write!(formatter, "Saving {path} was interrupted. Previous bytes remain in {recovery}; restore that file before editing again."),
         };
         formatter.write_str(message)
     }
