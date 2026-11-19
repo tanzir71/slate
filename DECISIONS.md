@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## 2026-11-19 - Collect every Linux budget result after a worker budget failure
+
+CI's first runtime budget still requires all preceding verification to succeed. Give that worker step an outcome ID, then run menu and typing when it actually executed (success or failure) and the workflow has not been cancelled. An explicit status function overrides GitHub's [default success precondition](https://docs.github.com/en/actions/reference/workflows-and-actions/expressions#status-check-functions), which previously suppressed both measurements after the worker failure. Keep the three commands sequential, mandatory and unfiltered; every failed budget still fails the job. Cancelled/skipped prerequisites remain stopped. Pages publication, all four reference profiles, limits and retry policies are unchanged. Test the real conditions against outcome/host/cancellation combinations, including the default status precondition.
+
 ## 2026-11-19 - Keep native settings publication recoverable and refuse replacement races
 
 Native Tidy settings use two fixed-path commands within the existing default Space. They accept exact proposal/snapshot byte arrays and expose no arbitrary filesystem path. Reading never creates a directory or file. Reject linked private directories, linked/non-file settings and read-only replacements; preserve undecodable bytes for the UI instead of lossy conversion. The TypeScript adapter validates IPC shapes and JSON interpretation while retaining the literal source, BOM and unknown numeric spelling.

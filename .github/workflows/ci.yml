@@ -63,10 +63,11 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: pnpm e2e --project=chromium --project=firefox --project=mobile
       - name: Verify Tidy worker budgets (Linux reference)
+        id: tidy_budget
         if: matrix.os == 'ubuntu-latest'
         run: pnpm perf:tidy
       - name: Verify block menu latency in fresh browsers (Linux reference)
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && (steps.tidy_budget.outcome == 'success' || steps.tidy_budget.outcome == 'failure') }}
         run: pnpm perf:menu
       - name: macOS block menu diagnostic (budget enforced on Linux)
         id: menu-macos
@@ -79,7 +80,7 @@ jobs:
         continue-on-error: true
         run: pnpm perf:menu --project=chromium --project=firefox --project=mobile
       - name: Verify typing budgets in fresh browsers (Linux reference)
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && (steps.tidy_budget.outcome == 'success' || steps.tidy_budget.outcome == 'failure') }}
         run: pnpm perf:typing
       - name: macOS typing diagnostic (budget enforced on Linux)
         id: typing-macos
