@@ -90,21 +90,71 @@ pub async fn write_tidy_settings(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{fs, path::PathBuf};
+    use std::{
+        fs,
+        path::PathBuf,
+        sync::atomic::{AtomicU64, Ordering},
+    };
     struct Space(PathBuf);
     impl Space {
         fn new() -> Self {
-            let path = std::env::temp_dir().join(format!(
-                "slate-legacy-scope-{}-{}",
-                std::process::id(),
+            Self::at(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_nanos()
-            ));
-            fs::create_dir(&path).unwrap();
-            Self(path)
+                    .as_nanos(),
+            )
         }
+        fn at(stamp: u128) -> Self {
+            static NEXT: AtomicU64 = AtomicU64::new(0);
+            Self::reserve(stamp, &NEXT)
+        }
+        fn reserve(stamp: u128, next: &AtomicU64) -> Self {
+            loop {
+                let path = std::env::temp_dir().join(format!(
+                    "slate-legacy-scope-{}-{stamp}-{}",
+                    std::process::id(),
+                    next.fetch_add(1, Ordering::Relaxed)
+                ));
+                match fs::create_dir(&path) {
+                    Ok(()) => return Self(path),
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                    Err(error) => panic!("could not reserve fixture directory: {error}"),
+                }
+            }
+        }
+    }
+    #[test]
+    fn fixed_clock_values_still_reserve_independent_test_roots() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let first = Space::at(stamp);
+        fs::write(first.0.join("keep"), b"First fixture bytes").unwrap();
+        let second = Space::at(stamp);
+        assert_ne!(first.0, second.0);
+        assert_eq!(
+            fs::read(first.0.join("keep")).unwrap(),
+            b"First fixture bytes"
+        );
+    }
+    #[test]
+    fn existing_fixture_candidates_are_preserved_and_skipped() {
+        let next = AtomicU64::new(0);
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let first = Space::reserve(stamp, &next);
+        fs::write(first.0.join("keep"), b"Existing fixture bytes").unwrap();
+        next.store(0, Ordering::Relaxed);
+        let second = Space::reserve(stamp, &next);
+        assert_ne!(first.0, second.0);
+        assert_eq!(
+            fs::read(first.0.join("keep")).unwrap(),
+            b"Existing fixture bytes"
+        );
     }
     impl Drop for Space {
         fn drop(&mut self) {
