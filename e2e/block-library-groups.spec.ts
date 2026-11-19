@@ -607,6 +607,8 @@ test("Space-activated snippets leave Space in a slash query until Enter chooses 
   await openLibrary(page);
   const editor = await createSheet(page, "Start");
   await snippets(page, "Space ${1:Name}$0", "Space fixture", "space");
+  await query(page, "/;greet");
+  await expect(menu(page).getByRole("option", { selected: true })).toContainText("Space fixture");
   await query(page, "Words ;greet");
   await editor.press("Space");
   await expectSavedSheet(page, "Words Space Name");
