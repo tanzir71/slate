@@ -196,6 +196,7 @@ test("keeps unsupported Markdown read-only and downloads its original bytes", as
   await openLibrary(page);
   const original = Buffer.from([0xff, 0xfe, 0x41, 0, 0x42, 0]);
   await page.getByLabel("Import files", { exact: true }).setInputFiles({ name: "Legacy.md", mimeType: "text/markdown", buffer: original });
+  await expect(page.getByRole("heading", { name: "This file needs UTF-8." })).toBeVisible();
   await showSheets(page);
   await page.locator(".browserSheetRow").filter({ hasText: "Legacy" }).click();
   await expect(page.getByRole("heading", { name: "This file needs UTF-8." })).toBeVisible();

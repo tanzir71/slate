@@ -306,6 +306,7 @@ test("an imported CRLF note preserves exact line endings through Tidy, Undo and 
     mimeType: "text/markdown",
     buffer: Buffer.from(source),
   });
+  await expect(page.locator(".cm-content")).toBeVisible();
   await showSheets(page);
   await page.locator('.browserSheetRow[data-path="CRLF.md"]').click();
   await expect(page).toHaveURL(/CRLF\.md$/);
@@ -335,6 +336,7 @@ test("an imported UTF-8 BOM survives Tidy and one-step Undo byte-for-byte", asyn
     mimeType: "text/markdown",
     buffer: Buffer.from(source),
   });
+  await expect(page.locator(".cm-content")).toBeVisible();
   await showSheets(page);
   await page.locator('.browserSheetRow[data-path="BOM.md"]').click();
   await expect(page).toHaveURL(/BOM\.md$/);
