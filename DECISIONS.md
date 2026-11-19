@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-19 - Retain canonical content-proof bytes with fewer temporary arrays
+
+The fix-only CPU profile identifies recursive projection cloning and allocation after plain-list parsing. Keep the same canonical key order, array order, absent-field rules, position/list-spread exclusions, text whitespace normalization, metadata and wiki proof. Replace per-field flatMap entry pairs with one result object and a loop. An initial null-prototype result regressed the diagnostic; retain it and use an ordinary object, defining __proto__ explicitly as an own data property so it cannot change the prototype. Golden proof bytes cover extension fields, prototype-like and numeric keys, arrays, undefined fields and unmodified input. Existing adversarial content, YAML, Unicode and mixed-document property tests remain required.
+
+This is an allocation change, not a weaker content check. Retain all Node diagnostics and require the original real-worker round-trip budgets on every Linux profile; those results are still pending for the revised worker.
+
 ## 2026-11-19 - Parse a proven plain-list subset without general token events
 
 The retained dense-list CPU profile still spends substantial work on general Markdown tokenization after the released upstream batching fix. Recognize only a whole tight list whose unindented markers are identical, whose marker separator is exactly one ASCII space, and whose nonempty words contain Unicode letters, marks or numbers separated by ASCII spaces. Preserve exact UTF-16 offsets and LF/CRLF/CR positions, including the final root newline. Reject every other grammar before building nodes and use the established CommonMark/GFM parser. This follows the [CommonMark list rules](https://spec.commonmark.org/0.31.2/#lists) and [mdast list model](https://github.com/syntax-tree/mdast#list).

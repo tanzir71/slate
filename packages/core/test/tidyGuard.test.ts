@@ -5,8 +5,23 @@ import {
   guardFix,
   preservesContent,
 } from "../src/tidy/index";
+import { projectTidyDocument } from "../src/tidy/projection";
+import type { TidyNode } from "../src/tidy/source";
 
 describe("Tidy normalized content projection", () => {
+  it("retains unknown own keys while normalizing only position, list spread and text whitespace", () => {
+    const root = JSON.parse('{"type":"root","position":{"start":1},"data":{"z":null,"constructor":"literal","__proto__":{"kept":true}},"children":[{"type":"list","ordered":false,"start":null,"spread":true,"children":[{"type":"listItem","checked":false,"spread":true,"children":[{"type":"paragraph","children":[{"type":"text","value":"Two  words\\nkept"}]}]}]}]}') as TidyNode;
+    const original = JSON.stringify(root);
+    expect(projectTidyDocument({ source: "", body: "", bodyFrom: 0, root })).toBe('{"bom":false,"metadata":null,"wiki":[],"markdown":{"children":[{"children":[{"checked":false,"children":[{"children":[{"type":"text","value":"Two words kept"}],"type":"paragraph"}],"type":"listItem"}],"ordered":false,"start":null,"type":"list"}],"data":{"__proto__":{"kept":true},"constructor":"literal","z":null},"type":"root"}}');
+    expect(JSON.stringify(root)).toBe(original);
+    expect(Object.prototype).not.toHaveProperty("kept");
+  });
+
+  it("keeps array order, numeric own keys and absent fields in the canonical projection", () => {
+    const root = { type: "root", children: [], data: { "10": "ten", "2": "two", missing: undefined, flags: [true, null, 7], nested: { z: 1, a: 2 } } };
+    expect(projectTidyDocument({ source: "", body: "", bodyFrom: 0, root })).toBe('{"bom":false,"metadata":null,"wiki":[],"markdown":{"children":[],"data":{"2":"two","10":"ten","flags":[true,null,7],"nested":{"a":2,"z":1}},"type":"root"}}');
+  });
+
   it("keeps significant whitespace in Slate wiki targets and aliases", () => {
     expect(extractWikiLinks("[[Two  spaces]]")[0]?.target).not.toBe(
       extractWikiLinks("[[Two spaces]]")[0]?.target,

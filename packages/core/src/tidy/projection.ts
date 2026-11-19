@@ -22,30 +22,23 @@ function astProjection(value: unknown): Projection {
   if (typeof value !== "object")
     throw new Error("Unsupported Markdown node value.");
   const node = value as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.keys(node)
-      .sort()
-      .flatMap((key) => {
-        if (
-          key === "position" ||
-          ((node.type === "list" || node.type === "listItem") &&
-            key === "spread")
-        )
-          return [];
-        const content = node[key];
-        if (content === undefined) return [];
-        return [
-          [
-            key,
-            node.type === "text" &&
-            key === "value" &&
-            typeof content === "string"
-              ? content.replace(/\s+/gu, " ")
-              : astProjection(content),
-          ],
-        ];
-      }),
-  );
+  // Keep unknown own keys literal, including __proto__, without allocating
+  // entry pairs and flatMap arrays for every field of every Markdown node.
+  const projected: { [key: string]: Projection } = {};
+  for (const key of Object.keys(node).sort()) {
+    if (
+      key === "position" ||
+      ((node.type === "list" || node.type === "listItem") && key === "spread")
+    ) continue;
+    const content = node[key];
+    if (content === undefined) continue;
+    const value = node.type === "text" && key === "value" && typeof content === "string"
+      ? content.replace(/\s+/gu, " ")
+      : astProjection(content);
+    if (key === "__proto__") Object.defineProperty(projected, key, { value, enumerable: true, configurable: true, writable: true });
+    else projected[key] = value;
+  }
+  return projected;
 }
 
 function yamlProjection(value: unknown): Projection {
