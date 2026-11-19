@@ -10,6 +10,7 @@ import type { SheetIndexEntry } from "./index";
 export const slateTauriSqliteIndexPath = "sqlite:slate-index.sqlite";
 
 export interface TauriSqliteDatabase {
+  close?(): Promise<unknown>;
   execute(statement: string, bindValues?: unknown[]): Promise<unknown>;
   select<Row = Record<string, unknown>>(statement: string, bindValues?: unknown[]): Promise<Row[]>;
 }

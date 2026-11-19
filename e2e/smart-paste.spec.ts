@@ -2,6 +2,7 @@ import { expect, test } from "./fixtures";
 import {
   createSheet,
   expectSavedSheet as saved,
+  readCurrentSheet,
   openLibrary,
   workspaceAction,
 } from "./helpers";
@@ -97,35 +98,25 @@ test("saved paste assertions require exact disk bytes after one unavailable snap
   const editor = await createSheet(page, "Start ");
   await editor.press("ControlOrMeta+End");
   await paste(page, "bold", "<b>bold</b>");
-  await page.evaluate(() => {
-    const original = navigator.storage.getDirectory.bind(navigator.storage);
-    const probe = { reads: 0, failures: 0 };
-    Reflect.set(window, "savedPasteSnapshot", probe);
-    Object.defineProperty(navigator.storage, "getDirectory", {
-      configurable: true,
-      value: async () => {
-        probe.reads++;
-        if (probe.failures === 0) {
-          probe.failures++;
-          throw new DOMException(
-            "One unavailable saved snapshot",
-            "NotFoundError",
-          );
-        }
-        return original();
-      },
-    });
+  let reads = 0,
+    failures = 0;
+  await saved(page, "Start **bold**", async (currentPage) => {
+    reads++;
+    if (failures === 0) {
+      failures++;
+      // Inject at the assertion reader: a WebKit StorageManager override can
+      // miss later reads even though the trace proves the assertion retried.
+      await currentPage.evaluate(() => {
+        throw new DOMException(
+          "One unavailable saved snapshot",
+          "NotFoundError",
+        );
+      });
+    }
+    return readCurrentSheet(currentPage);
   });
-  await saved(page, "Start **bold**");
-  const probe = await page.evaluate(
-    () =>
-      Reflect.get(window, "savedPasteSnapshot") as {
-        reads: number;
-        failures: number;
-      },
-  );
-  expect(probe.reads).toBeGreaterThanOrEqual(2);
-  expect(probe.failures).toBe(1);
+  expect(reads).toBeGreaterThanOrEqual(2);
+  expect(failures).toBe(1);
   await page.reload();
   await expect(page.locator(".cm-content")).toBeVisible();
   await saved(page, "Start **bold**");

@@ -39,3 +39,25 @@ export async function openBrowserLibrary(id: string) {
   const directory = await spaces.getDirectoryHandle(id, { create: true });
   return createDirectoryFiles(directory as unknown as BrowserDirectoryHandle);
 }
+
+/** Global settings are files beside Spaces in OPFS; reads never create folders. */
+export async function openGlobalSnippetFileStore() {
+  if (typeof navigator.storage?.getDirectory !== "function")
+    throw new Error(
+      "This browser does not provide private file storage for global snippets.",
+    );
+  const root = await navigator.storage.getDirectory();
+  const [{ createBrowserSpace }, { createSnippetFileStore, globalSnippetPath }] = await Promise.all([
+    import("./browserSpace"), import("./browserSnippets"),
+  ]);
+  const space = createBrowserSpace(
+    createDirectoryFiles(root as unknown as BrowserDirectoryHandle),
+  );
+  return createSnippetFileStore(space, globalSnippetPath, async (action) => {
+    if (typeof navigator.locks?.request !== "function")
+      throw new Error(
+        "Global snippet editing needs Web Locks. Space snippets remain available.",
+      );
+    return navigator.locks.request("slate:global-snippets", action);
+  });
+}

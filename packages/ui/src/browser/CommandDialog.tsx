@@ -95,6 +95,7 @@ export function CommandDialog({
       entries: commands.filter(
         (command) =>
           command.group === "View" || command.group === "Table" ||
+          command.group === "Edit" ||
           /^format\.(ordered|bullet|task|quote|codeblock|toggleTask)$/.test(
             command.id,
           ),
@@ -140,7 +141,16 @@ export function CommandDialog({
       </header>
       {!shortcuts && searchField}
       {shortcuts ? (
-        <div className="shortcutColumns" role="region" aria-label="Keyboard shortcut list" tabIndex={0}>
+        <div className="shortcutColumns" role="region" aria-label="Keyboard shortcut list" tabIndex={0} onKeyDown={(event) => {
+          if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.nativeEvent.isComposing) return;
+          const element = event.currentTarget, maximum = Math.max(0, element.scrollHeight - element.clientHeight);
+          const page = Math.max(1, element.clientHeight - 32);
+          const destination = event.key === "PageDown" ? element.scrollTop + page : event.key === "PageUp" ? element.scrollTop - page
+            : event.key === "Home" ? 0 : event.key === "End" ? maximum : undefined;
+          if (destination === undefined) return;
+          // Keep paging inside the focused shortcut region across browser engines.
+          event.preventDefault(); element.scrollTop = Math.min(maximum, Math.max(0, destination));
+        }}>
           {columns
             .filter((column) => column.entries.length)
             .map((column) => (

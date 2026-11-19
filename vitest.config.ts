@@ -6,9 +6,17 @@ const fromRoot = (path: string): string => fileURLToPath(new URL(path, import.me
 export default defineConfig({
   resolve: {
     alias: {
+      "@slate/storage/tidy-batch": fromRoot("./packages/storage/src/tidyBatch.ts"),
+      "@slate/storage/tauri-workspace-index": fromRoot("./packages/storage/src/tauriWorkspaceIndex.ts"),
+      "@slate/storage/tauri-files": fromRoot("./packages/storage/src/tauriFiles.ts"),
+      "@slate/storage/file-io": fromRoot("./packages/storage/src/fileIO.ts"),
+      "@slate/storage/file-space": fromRoot("./packages/storage/src/fileSpace.ts"),
+      "@slate/storage/browser-tidy": fromRoot("./packages/storage/src/browserTidy.ts"),
       "@slate/storage/browser-files": fromRoot("./packages/storage/src/browserFiles.ts"),
       "@slate/storage/browser-space": fromRoot("./packages/storage/src/browserSpace.ts"),
       "@slate/storage/browser-catalog": fromRoot("./packages/storage/src/browserCatalog.ts"),
+      "@slate/core/tidy/settings": fromRoot("./packages/core/src/tidy/settings.ts"),
+      "@slate/core/tidy": fromRoot("./packages/core/src/tidy/index.ts"),
       "@slate/core": fromRoot("./packages/core/src/index.ts"),
       "@slate/export": fromRoot("./packages/export/src/index.ts"),
       "@slate/publish": fromRoot("./packages/publish/src/index.ts"),

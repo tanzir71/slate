@@ -2,19 +2,50 @@ import { expect, test } from "./fixtures";
 import {
   createSheet,
   openLibrary,
+  expectSavedSheet as saved,
   readCurrentSheet,
   workspaceAction,
 } from "./helpers";
-import type { Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const fence = String.fromCharCode(96).repeat(3);
-async function saved(page: Page, source: string) {
-  await expect.poll(() => readCurrentSheet(page)).toBe(source);
+
+test("fence save assertions keep their deadline after one unavailable snapshot", async ({
+  page,
+}) => {
+  await openLibrary(page);
+  const original = "# Code\n\n" + fence;
+  const editor = await createSheet(page, original);
+  await editor.press("ControlOrMeta+End");
+  await editor.press("Enter");
+  await expect(
+    page.getByRole("dialog", { name: "Code language", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
     "Saved",
   );
-}
+  const probe = { reads: 0, failures: 0 };
+  const closed = original + "\n\n" + fence;
+  await saved(page, closed, async (currentPage) => {
+    probe.reads++;
+    if (probe.failures === 0) {
+      probe.failures++;
+      await currentPage.evaluate(() => {
+        throw new DOMException(
+          "One unavailable fence snapshot",
+          "NotFoundError",
+        );
+      });
+    }
+    return readCurrentSheet(currentPage);
+  });
+  expect(probe.failures).toBe(1);
+  expect(probe.reads).toBeGreaterThanOrEqual(2);
+  await page.reload();
+  await expect(editor).toBeVisible();
+  await saved(page, closed);
+});
 
 test("Enter closes a fence and language choice, cancel and redo preserve one undo", async ({
   page,
@@ -37,9 +68,7 @@ test("Enter closes a fence and language choice, cancel and redo preserve one und
         .analyze()
     ).violations,
   ).toEqual([]);
-  await picker
-    .getByLabel("Code language", { exact: true })
-    .fill("rust");
+  await picker.getByLabel("Code language", { exact: true }).fill("rust");
   await picker
     .getByRole("button", { name: "Set language", exact: true })
     .click();

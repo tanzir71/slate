@@ -3,6 +3,30 @@
   "version": "0.3.0",
   "type": "module",
   "exports": {
+    "./tidy-batch": {
+      "types": "./dist/tidyBatch.d.ts",
+      "import": "./dist/tidyBatch.js"
+    },
+    "./tauri-workspace-index": {
+      "types": "./dist/tauriWorkspaceIndex.d.ts",
+      "import": "./dist/tauriWorkspaceIndex.js"
+    },
+    "./tauri-files": {
+      "types": "./dist/tauriFiles.d.ts",
+      "import": "./dist/tauriFiles.js"
+    },
+    "./file-io": {
+      "types": "./dist/fileIO.d.ts",
+      "import": "./dist/fileIO.js"
+    },
+    "./file-space": {
+      "types": "./dist/fileSpace.d.ts",
+      "import": "./dist/fileSpace.js"
+    },
+    "./browser-tidy": {
+      "types": "./dist/browserTidy.d.ts",
+      "import": "./dist/browserTidy.js"
+    },
     "./browser-import": {
       "types": "./dist/browserImport.d.ts",
       "import": "./dist/browserImport.js"

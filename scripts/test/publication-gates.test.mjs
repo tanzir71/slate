@@ -27,6 +27,8 @@ test("functional and fresh-browser timing configs retain every Linux reference p
   for (const path of [
     "../../playwright.performance.config.ts",
     "../../playwright.block-menu-performance.config.ts",
+    "../../playwright.tidy-performance.config.ts",
+    "../../playwright.palette-performance.config.ts",
   ]) {
     const config = await source(path);
     assert.match(config, /\.\.\.base\s*,/);
@@ -37,7 +39,13 @@ test("functional and fresh-browser timing configs retain every Linux reference p
     );
   }
 });
-for (const command of ["pnpm e2e", "pnpm perf:menu", "pnpm perf:typing"]) {
+for (const command of [
+  "pnpm e2e",
+  "pnpm perf:tidy",
+  "pnpm perf:menu",
+  "pnpm perf:typing",
+  "pnpm perf:palette",
+]) {
   test(`publication runs ${command} with every profile before uploading or deploying`, () => {
     const runs = [...deploy.matchAll(/^ {6}- run: (.+)$/gm)];
     const gate = runs.find((match) => match[1] === command);

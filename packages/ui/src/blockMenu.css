@@ -232,3 +232,48 @@
     min-block-size: 44px;
   }
 }
+
+.blockMenuManage {
+  margin-block-start: auto;
+  padding: 4px 0;
+  align-self: flex-start;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+@media (pointer: coarse) {
+  .blockMenuManage {
+    min-block-size: 44px;
+  }
+}
+
+.blockMenuAsset {
+  display: block;
+  inline-size: 16px;
+  block-size: 16px;
+  background: var(--icon-default);
+  mask-position: center;
+  mask-repeat: no-repeat;
+}
+.blockMenuOption[data-family] .blockMenuIcon {
+  background: var(--bg-subtle);
+  border-color: transparent;
+}
+.blockMenuOption[data-family] .blockMenuText {
+  flex: 1;
+  min-inline-size: 0;
+}
+.blockMenuOption[data-family] .blockMenuText strong,
+.blockMenuOption[data-family] .blockMenuText small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.blockMenuTrigger {
+  max-inline-size: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  font: 11px/16px var(--font-mono);
+}

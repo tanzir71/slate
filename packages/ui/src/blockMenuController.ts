@@ -101,7 +101,12 @@ export function createBlockMenuController(
                 prepared.rect.top !== rect.top ||
                 prepared.rect.bottom !== rect.bottom
               )
-                onChange({ ...query, view: this.view, rect });
+                // React may flush editor reconfiguration effects while mounting
+                // the menu. Finish CodeMirror's write phase before publishing.
+                queueMicrotask(() => {
+                  if (this.alive && this.query === query)
+                    onChange({ ...query, view: this.view, rect });
+                });
             }
           },
         });

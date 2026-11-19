@@ -88,10 +88,14 @@ export function EditorSettingsDialog({
   preferences,
   onChange,
   onClose,
+  onSnippets,
+  onBlocks,
 }: {
   preferences: EditorPreferences;
   onChange(rule: EditorPreferenceRule, enabled: boolean): void;
   onClose(): void;
+  onBlocks?: (() => void) | undefined;
+  onSnippets?: (() => void) | undefined;
 }) {
   return (
     <WorkspaceDialog title="Editor settings" onClose={onClose}>
@@ -131,6 +135,8 @@ export function EditorSettingsDialog({
           when a rule is off.
         </p>
         <div className="editorSettingsActions">
+          {onBlocks && <button type="button" onClick={onBlocks}>Manage custom blocks</button>}
+          {onSnippets && <button type="button" onClick={onSnippets}>Manage snippets</button>}
           <button type="button" onClick={onClose}>
             Done
           </button>

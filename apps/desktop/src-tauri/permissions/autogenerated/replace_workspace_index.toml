@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-replace-workspace-index"
+description = "Enables the replace_workspace_index command without any pre-configured scope."
+commands.allow = ["replace_workspace_index"]
+
+[[permission]]
+identifier = "deny-replace-workspace-index"
+description = "Denies the replace_workspace_index command without any pre-configured scope."
+commands.deny = ["replace_workspace_index"]

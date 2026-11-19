@@ -5,6 +5,11 @@ export interface BlockUsage {
   lastUsed: number;
 }
 export type BlockDefinition = (typeof builtinBlocks)[number];
+export interface BlockSearchItem {
+  readonly id: string;
+  readonly label: string;
+  readonly aliases: readonly string[];
+}
 
 function normalized(value: string) {
   return value.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().trim();
@@ -24,13 +29,14 @@ function matchScore(value: string, query: string) {
 }
 
 /** Prefixes win over fuzzy matches; use history only to break matching ties. */
-export function searchBuiltinBlocks(
+export function searchBlockCatalog<T extends BlockSearchItem>(
+  catalog: readonly T[],
   query: string,
   usage: Readonly<Record<string, BlockUsage>> = {},
   now = 0,
-): BlockDefinition[] {
+): T[] {
   const needle = normalized(query);
-  const score = (block: BlockDefinition) =>
+  const score = (block: T) =>
     needle
       ? Math.min(
           ...[block.label, block.id, ...block.aliases].map((value) =>
@@ -49,7 +55,7 @@ export function searchBuiltinBlocks(
     const age = Math.max(0, now - entry.lastUsed) / 86_400_000;
     return Math.log2(Math.max(0, entry.count) + 1) / (1 + age / 7);
   };
-  return builtinBlocks
+  return catalog
     .map((block, index) => ({
       block,
       index,
@@ -61,8 +67,18 @@ export function searchBuiltinBlocks(
       (left, right) =>
         left.score - right.score ||
         right.frequency - left.frequency ||
-        (needle ? left.block.label.localeCompare(right.block.label, "en") : 0) ||
+        (needle
+          ? left.block.label.localeCompare(right.block.label, "en")
+          : 0) ||
         left.index - right.index,
     )
     .map(({ block }) => block);
+}
+
+export function searchBuiltinBlocks(
+  query: string,
+  usage: Readonly<Record<string, BlockUsage>> = {},
+  now = 0,
+): BlockDefinition[] {
+  return searchBlockCatalog(builtinBlocks, query, usage, now);
 }

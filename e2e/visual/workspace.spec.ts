@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { workspaceAction } from "../helpers";
+import { readCurrentSheet, workspaceAction } from "../helpers";
+import { libraryFile } from "../libraryFiles";
 
 test.skip(
   process.platform !== "linux",
@@ -11,6 +12,8 @@ async function stableFrame(page: Page) {
     await document.fonts.ready;
   });
   await expect(page.getByRole("alert")).toHaveCount(0);
+  const tidy = page.getByRole("button", { name: "Tidy review", exact: true });
+  if (await tidy.count()) await expect(tidy).toHaveText(/^Tidy · \d+$/);
 }
 
 async function writingFixture(page: Page) {
@@ -68,9 +71,189 @@ for (const theme of ["light", "dark"] as const) {
       }, theme);
     });
 
+    test("A4 command palette", async ({ page }) => {
+      await writingFixture(page); await workspaceAction(page, "Command palette");
+      const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+      await expect(palette.getByRole("textbox", { name: "Search commands and sheets", exact: true })).toBeFocused();
+      await palette.locator("input").fill("tidy");
+      const bounds = await palette.boundingBox();
+      expect(bounds?.width).toBe(640); expect(bounds?.x).toBe(400); expect(bounds?.y).toBe(92);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a4-palette-${theme}.png`);
+    });
+
+    test("A4 snippet picker", async ({ page }) => {
+      await writingFixture(page);
+      await workspaceAction(page, "Insert snippet");
+      await expect(
+        page.getByRole("combobox", { name: "Search snippets", exact: true }),
+      ).toBeFocused();
+      await expect(
+        page
+          .getByRole("dialog", { name: "Insert snippet", exact: true })
+          .getByRole("option"),
+      ).toHaveCount(3);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a4-snippets-${theme}.png`);
+    });
+
+    test("A2 grouped template and snippet results", async ({ page }) => {
+      await writingFixture(page);
+      await page.evaluate(async () => {
+        const root = await (
+          await (
+            await navigator.storage.getDirectory()
+          ).getDirectoryHandle("spaces")
+        ).getDirectoryHandle(decodeURIComponent(location.hash.split("/")[2]!));
+        const config = await root.getDirectoryHandle(".slate", {
+            create: true,
+          }),
+          templates = await config.getDirectoryHandle("templates", {
+            create: true,
+          });
+        const fragment = await (
+          await templates.getFileHandle("Group example.md", { create: true })
+        ).createWritable();
+        await fragment.write(
+          "---\ntemplate:\n  name: Group example template\n  description: Reusable review note\n---\n> A detail worth remembering.",
+        );
+        await fragment.close();
+        const snippets = await (
+          await config.getFileHandle("snippets.json", { create: true })
+        ).createWritable();
+        await snippets.write(
+          JSON.stringify({
+            version: 1,
+            snippets: [
+              {
+                trigger: ";example",
+                name: "Group example snippet",
+                description: "A greeting with linked fields",
+                body: "Hello ${1:Name}; ${1}$0",
+              },
+            ],
+          }),
+        );
+        await snippets.close();
+        window.dispatchEvent(new Event("focus"));
+      });
+      await page.keyboard.press("Control+End");
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Enter");
+      await page.keyboard.type("/Group example");
+      const menu = page.getByRole("dialog", {
+        name: "Insert block",
+        exact: true,
+      });
+      await expect(menu.getByRole("option")).toHaveCount(2);
+      await expect(menu.getByRole("option", { selected: true })).toContainText(
+        "Group example template",
+      );
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a2-grouped-template-${theme}.png`);
+      await page.keyboard.press("ArrowDown");
+      await expect(menu.getByRole("option", { selected: true })).toContainText(
+        "Group example snippet",
+      );
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a2-grouped-snippet-${theme}.png`);
+    });
+
+    test("A7 custom block settings", async ({ page }) => {
+      await writingFixture(page);
+      await workspaceAction(page, "Manage custom blocks");
+      const dialog = page.getByRole("dialog", {
+        name: "Custom blocks",
+        exact: true,
+      });
+      for (const [name, source] of [
+        ["Callout", "> A detail worth remembering.\n"],
+        ["Decision", "## Decision\n\n- Context\n- Outcome\n"],
+      ]) {
+        await dialog
+          .getByRole("button", { name: "Add custom block", exact: true })
+          .click();
+        await dialog
+          .getByRole("textbox", { name: "Block name", exact: true })
+          .fill(name!);
+        await dialog
+          .getByRole("textbox", { name: "Block Markdown", exact: true })
+          .fill(source!);
+        await dialog
+          .getByRole("button", { name: "Save block", exact: true })
+          .click();
+        await expect(
+          dialog.getByRole("button", { name: `Edit ${name}.md`, exact: true }),
+        ).toBeVisible();
+      }
+      await expect(dialog.locator("tbody tr")).toHaveCount(2);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a7-custom-blocks-${theme}.png`);
+    });
+
+    test("A7 snippet settings", async ({ page }) => {
+      await writingFixture(page);
+      await workspaceAction(page, "Manage snippets");
+      const dialog = page.getByRole("dialog", {
+        name: "Snippets",
+        exact: true,
+      });
+      await expect(dialog.locator("tbody tr")).toHaveCount(3);
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a7-snippets-${theme}.png`);
+    });
+
     test("A1 workspace and live Markdown", async ({ page }) => {
       await writingFixture(page);
       await expect(page).toHaveScreenshot(`a1-workspace-${theme}.png`);
+    });
+
+    test("A6 Tidy source review", async ({ page }) => {
+      await writingFixture(page);
+      const source = [
+        "---",
+        "title: Launch plan",
+        "tags: [strategy,planning]",
+        "---",
+        "# Launch plan",
+        "Slate 2.0 ships the fastest way from a blank page to a clean doc.  ",
+        "##Goals",
+        "- [x] Ship slash blocks and the template gallery",
+        "* [ ] Auto-format on save, off by default",
+        "+ [ ] Public beta once [[Onboarding flow ideas]] is signed off",
+        "",
+        "|Phase|Scope|Target|",
+        "|---|---|---|",
+        "|Foundation|Blocks, templates, Tidy|Weeks 1–4|",
+        "|Beta|Snippets, automations, CLI|Weeks 5–8|",
+        "",
+        "We measure success by **time-to-clean-doc**.",
+      ].join("\n");
+      // An imported source fixture avoids the normal table-input autoformatter.
+      const path = decodeURIComponent(page.url().split("/sheet/")[1]!);
+      await libraryFile(page, path, source);
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await expect(page.locator(".cm-content")).toContainText("##Goals");
+      await page
+        .getByRole("button", { name: "Tidy review", exact: true })
+        .click();
+      await expect(page.locator(".tidyApplyAll")).toBeEnabled();
+      await expect(page.locator(".cm-lineNumbers")).toBeVisible();
+      expect(await readCurrentSheet(page)).toBe(source);
+      expect(
+        (await page.locator(".cm-content .cm-line").allTextContents()).join(
+          "\n",
+        ),
+      ).toBe(source);
+      // Structural ambiguities stay manual warnings even when a prototype shows Apply.
+      await expect(
+        page
+          .locator(".tidyFix")
+          .filter({ has: page.getByText("heading-space", { exact: true }) })
+          .getByRole("button", { name: "Manual", exact: true }),
+      ).toBeDisabled();
+      await stableFrame(page);
+      await expect(page).toHaveScreenshot(`a6-tidy-${theme}.png`);
     });
 
     test("A1 selection formatting toolbar", async ({ page }) => {

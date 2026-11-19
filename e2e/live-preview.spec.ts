@@ -74,7 +74,7 @@ test("an unresolved wiki link creates its target once and later follows the exis
   const source = "# Source\n\nSee [[New idea|alias]].\n\nActive.";
   await createSheet(page, source);
   await page.locator(".cm-slate-unresolved-link").click();
-  await expect(page.locator(".documentToolbar > span")).toHaveText("New idea");
+  await expect(page.locator(".documentToolbar").getByRole("heading", { level: 1 })).toHaveText("New idea");
   await expect(page).toHaveURL(/New%20idea\.md$/);
   await showSheets(page);
   await page.getByRole("button", { name: /^Source See/ }).click();
@@ -84,7 +84,7 @@ test("an unresolved wiki link creates its target once and later follows the exis
   );
   expect(await readCurrent(page)).toBe(source);
   await page.locator(".cm-slate-wiki-link").click({ modifiers: [modifier] });
-  await expect(page.locator(".documentToolbar > span")).toHaveText("New idea");
+  await expect(page.locator(".documentToolbar").getByRole("heading", { level: 1 })).toHaveText("New idea");
   const paths = await page.evaluate(async () => {
     const id = decodeURIComponent(location.hash.split("/")[2]!);
     const root = await navigator.storage.getDirectory();

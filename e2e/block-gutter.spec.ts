@@ -1,16 +1,51 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary, readCurrentSheet } from "./helpers";
+import {
+  createSheet,
+  openLibrary,
+  expectSavedSheet as saved,
+  readCurrentSheet,
+} from "./helpers";
+const actions = (page: Page) =>
+  page.getByRole("dialog", { name: "Block actions", exact: true });
 
-async function saved(page: Page, text: string) {
-  await expect.poll(() => readCurrentSheet(page)).toBe(text);
+test("block-action save assertions tolerate one unavailable snapshot and still require exact bytes", async ({
+  page,
+}) => {
+  await openLibrary(page);
+  const editor = await createSheet(page, "# First\n\nKeep these words.");
+  await editor.press("ControlOrMeta+Home");
+  await page
+    .getByRole("button", { name: "Block actions", exact: true })
+    .click();
+  await actions(page)
+    .getByRole("button", { name: "Move block down", exact: true })
+    .click();
   await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
     "Saved",
   );
-}
-const actions = (page: Page) =>
-  page.getByRole("dialog", { name: "Block actions", exact: true });
+  let reads = 0,
+    failures = 0;
+  await saved(page, "Keep these words.\n\n# First", async (currentPage) => {
+    reads++;
+    if (failures === 0) {
+      failures++;
+      await currentPage.evaluate(() => {
+        throw new DOMException(
+          "One unavailable block snapshot",
+          "NotFoundError",
+        );
+      });
+    }
+    return readCurrentSheet(currentPage);
+  });
+  expect(reads).toBeGreaterThanOrEqual(2);
+  expect(failures).toBe(1);
+  await page.reload();
+  await expect(editor).toBeVisible();
+  await saved(page, "Keep these words.\n\n# First");
+});
 
 test("touch and keyboard block actions move complete Markdown with one undo and expose Turn into", async ({
   page,

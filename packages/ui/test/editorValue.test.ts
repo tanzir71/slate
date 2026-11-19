@@ -4,6 +4,7 @@ import { EditorView, runScopeHandlers } from "@codemirror/view";
 import { expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../src/MarkdownEditor";
 import type { MarkdownEditorHandle } from "../src/commands";
+import { fix, readTidyConfiguration } from "@slate/core/tidy";
 
 it("opens a newly created CRLF note at its source marker and exposes exact selected text", async () => {
   const host = document.createElement("div");
@@ -128,13 +129,46 @@ it("displays external values without autosave echoes, caret jumps or undoing ext
     undo();
     expect(view.state.doc.toString()).toBe("Alpha\nBeta\nGamma");
     view.dispatch({ changes: { from: 0, insert: "typed " } });
-    expect(changed).toHaveBeenLastCalledWith("typed Alpha\nBeta\nGamma", [{ from: 0, to: 0, text: "typed " }]);
+    expect(changed).toHaveBeenLastCalledWith("typed Alpha\nBeta\nGamma", [{ from: 0, to: 0, text: "typed " }], "input");
     undo();
     expect(view.state.doc.toString()).toBe("Alpha\nBeta\nGamma");
-    expect(changed).toHaveBeenLastCalledWith("Alpha\nBeta\nGamma", [{ from: 0, to: 6, text: "" }]);
+    expect(changed).toHaveBeenLastCalledWith("Alpha\nBeta\nGamma", [{ from: 0, to: 6, text: "" }], "history");
   } finally {
     await act(async () => root.unmount());
     host.remove();
+  }
+});
+
+it("reports Tidy separately from Undo and Redo while retaining the exact raw source", async () => {
+  const rangeRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");
+  const rangeBounds = Object.getOwnPropertyDescriptor(Range.prototype, "getBoundingClientRect");
+  // jsdom has no text layout; real browser stories verify the visible editor.
+  Object.defineProperty(Range.prototype, "getClientRects", { configurable: true, value: () => [] });
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: () => new DOMRect() });
+  const host = document.body.appendChild(document.createElement("div")), root = createRoot(host);
+  const changed = vi.fn();
+  const value = "\uFEFF#   Draft\r\n";
+  let handle: MarkdownEditorHandle | undefined;
+  try {
+    await act(async () => root.render(createElement(MarkdownEditor, { value, onChange: changed, onHandle: (next) => { handle = next; } })));
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)!;
+    const result = fix(value, readTidyConfiguration());
+    await act(async () => { expect(handle!.applyTidy(result)).toBe(true); });
+    expect(changed).toHaveBeenLastCalledWith(result.output, expect.any(Array), "tidy");
+    const key = (shiftKey: boolean) => new KeyboardEvent("keydown", { key: shiftKey ? "Z" : "z", shiftKey, ctrlKey: !/Mac/.test(navigator.platform), metaKey: /Mac/.test(navigator.platform) });
+    await act(async () => { expect(runScopeHandlers(view, key(false), "editor")).toBe(true); });
+    expect(handle!.source()).toBe(value);
+    expect(changed).toHaveBeenLastCalledWith(value, expect.any(Array), "history");
+    const redo = /Mac/.test(navigator.platform) ? key(true) : new KeyboardEvent("keydown", { key: "y", ctrlKey: true });
+    await act(async () => { expect(runScopeHandlers(view, redo, "editor")).toBe(true); });
+    expect(handle!.source()).toBe(result.output);
+    expect(changed).toHaveBeenLastCalledWith(result.output, expect.any(Array), "history");
+  } finally {
+    await act(async () => root.unmount()); host.remove();
+    if (rangeRects) Object.defineProperty(Range.prototype, "getClientRects", rangeRects);
+    else Reflect.deleteProperty(Range.prototype, "getClientRects");
+    if (rangeBounds) Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeBounds);
+    else Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
   }
 });
 

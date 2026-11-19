@@ -1,4 +1,4 @@
-import type { SheetDocument } from "@slate/core";
+import { markdownHeadings, type MarkdownHeading, type SheetDocument } from "@slate/core";
 import { sheetPreview } from "./sheetPreview";
 
 export interface SummaryInput {
@@ -28,11 +28,23 @@ export function summaryMetadata(
       preview = sheetPreview(document.body);
       previews.set(document, preview);
     }
-    const { raw, body, ...metadata } = document;
+    const { raw, body, ...metadata } = sheetWithHeadings(document);
     return { ...metadata, preview, bodyOffset: raw.length - body.length };
   });
 }
 const previews = new WeakMap<SheetDocument, string>();
+const outlines = new WeakMap<SheetDocument, SheetDocument>();
+
+/** Share the same immutable heading metadata in worker and startup-fallback paths. */
+export function sheetWithHeadings(document: SheetDocument): SheetDocument {
+  let enriched = outlines.get(document);
+  if (!enriched) {
+    const headings: readonly MarkdownHeading[] = document.headings ?? markdownHeadings(document.raw);
+    enriched = { ...document, headings };
+    outlines.set(document, enriched);
+  }
+  return enriched;
+}
 
 export function hydrateSummaries(
   sheets: readonly SummaryInput[],
@@ -46,7 +58,7 @@ export function hydrateSummaries(
     if (raw === undefined)
       throw new Error("A sheet summary has no source file.");
     const prior = cached.get(metadata.path);
-    return prior?.raw === raw
+    return prior?.raw === raw && (prior.headings !== undefined || metadata.headings === undefined)
       ? prior
       : { ...metadata, raw, body: raw.slice(bodyOffset) };
   });

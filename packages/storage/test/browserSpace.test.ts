@@ -4,6 +4,33 @@ import { createBrowserSpace } from "../src/browserSpace";
 import { exportBrowserArchive, readBrowserArchive } from "../src/browserArchive";
 
 describe("browser Spaces", () => {
+  it("retains a Markdown BOM in source, saves, moves and trash copies while JSON decoding stays compatible", async () => {
+    const original = "\uFEFF# Words\r\n";
+    const files = createMemoryFiles({ "note.MD": original, ".slate/view.json": '\uFEFF{"version":1}' });
+    const space = createBrowserSpace(files);
+    expect(await space.sheets()).toEqual([{ path: "note.MD", content: original }]);
+    expect(await space.read("note.MD")).toBe(original);
+    expect(await space.read(".slate/view.json")).toBe('{"version":1}');
+    const edited = original.replace("Words", "Kept words");
+    expect((await space.save("note.MD", edited, original)).conflict).toBe(false);
+    expect(await files.read("note.MD")).toEqual(encodeText(edited));
+    await space.move("note.MD", "moved.md", edited);
+    expect(await files.read("moved.md")).toEqual(encodeText(edited));
+    const trashed = await space.trash("moved.md", edited);
+    expect(await files.read(trashed)).toEqual(encodeText(edited));
+  });
+
+  it("detects a BOM-only external Markdown change instead of overwriting it", async () => {
+    const original = "# Words\n";
+    const files = createMemoryFiles({ "note.md": original });
+    const space = createBrowserSpace(files);
+    const snapshot = await space.read("note.md");
+    await files.write("note.md", encodeText("\uFEFF" + original));
+    const result = await space.save("note.md", original + "New text\n", snapshot);
+    expect(result.conflict).toBe(true);
+    expect(await files.read("note.md")).toEqual(encodeText("\uFEFF" + original));
+    expect(await files.read(result.path)).toEqual(encodeText(original + "New text\n"));
+  });
   it("keeps non-UTF8 Markdown read-only and preserves its bytes when saving or exporting", async () => {
     const original = Uint8Array.from([0xff, 0xfe, 0x41, 0, 0x42, 0]);
     const files = createMemoryFiles();

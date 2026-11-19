@@ -1,6 +1,6 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, lineNumbers } from "@codemirror/view";
 import {
   createSlateMarkdownExtensions,
   createFormattingBindings,
@@ -14,15 +14,29 @@ import {
   runTableCommand,
   createSelectionPairs,
   createMarkdownCompletions,
+  createSnippetTriggers,
+  editorSnippetFields,
+  requestEditorSnippet,
+  insertEditorSnippet,
+  tidyEditorHistory,
+  editorSource,
+  editorSourceEffect,
+  editorTidyLines,
+  applyEditorTidy,
+  livePreviewSettings,
   type SmartListOptions,
   type SaveClipboardImage,
   type WikiLinkHit
 } from "@slate/editor";
-import { createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget } from "@slate/core";
-import type { EditorCursor, MarkdownEditorHandle } from "./commands";
+import { prepareBlockSnippet, createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget, type SnippetIndex, type ScopedSnippet } from "@slate/core";
+import type { SnippetTarget } from "./snippets/snippetTypes";
+import type { EditorChangeOrigin, EditorCreationTarget, EditorCursor, MarkdownEditorHandle } from "./commands";
 import { observeEditorSelection, type ToolbarRect } from "./selectionGeometry";
 import { SelectionToolbar } from "./SelectionToolbar";
-import { useBlockMenu } from "./useBlockMenu";
+import type { BlockLibrary } from "./blocks/blockLibrary";
+import type { TemplateLibrary } from "./blocks/templateLibrary";
+import type { SnippetLibrary } from "./snippets/snippetLibrary";
+import { useBlockMenu, type BlockMenuNote, type BlockInsertionContext } from "./useBlockMenu";
 import { useBlockGutter } from "./useBlockGutter";
 import { useDatePicker } from "./useDatePicker";
 import { useSmartPaste } from "./useSmartPaste";
@@ -48,8 +62,10 @@ function documentChange(previous: string, next: string) {
 }
 
 interface MarkdownEditorProps {
+  sourceMode?: boolean;
+  tidyLines?: readonly number[];
   value: string;
-  onChange: (value: string, changes: readonly TextChange[]) => void;
+  onChange: (value: string, changes: readonly TextChange[], origin: EditorChangeOrigin) => void;
   onNavigateWikiLink?: (link: WikiLinkHit) => void;
   readOnly?: boolean;
   documentKey?: string;
@@ -75,11 +91,31 @@ interface MarkdownEditorProps {
   onImportClipboardImage?: SaveClipboardImage;
   fences?: boolean;
   frontmatter?: boolean;
+  snippetIndex?: SnippetIndex | undefined;
+  customBlockLibrary?: BlockLibrary | undefined;
+  templateMenuLibrary?: TemplateLibrary | undefined;
+  snippetMenuLibrary?: SnippetLibrary | undefined;
+  blockNote?: BlockMenuNote | undefined;
+  canInsertBlock?: (() => boolean) | undefined;
+  onManageBlocks?: (() => void) | undefined;
+  onSnippet?: ((definition: ScopedSnippet, target: SnippetTarget, context?: BlockInsertionContext) => boolean) | undefined;
 }
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true }: MarkdownEditorProps) {
-  const blocks = useBlockMenu(onImportImage);
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines }: MarkdownEditorProps) {
+  const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks, {
+    templates: templateMenuLibrary, snippets: snippetMenuLibrary, note: blockNote, canInsert: canInsertBlock,
+    onSnippet(view, request, definition, separate, context, onInserted) {
+      const target = snippetTarget(view, request, separate);
+      if (!target) return false;
+      const tracked: SnippetTarget = { ...target, insert(expansion) { const accepted = target.insert(expansion); if (accepted) onInserted(); return accepted; } };
+      return onSnippetRef.current?.(definition, tracked, context) ?? false;
+    },
+  });
   const gutter = useBlockGutter(({ view, target, rect }) => blocks.openAt(view, target, rect));
+  const currentBlocks = useRef(blocks);
+  const creationAllowed = useRef(canInsertBlock);
+  const currentDocument = useRef(documentKey);
+  useLayoutEffect(() => { currentBlocks.current = blocks; creationAllowed.current = canInsertBlock; currentDocument.current = documentKey; }, [blocks, canInsertBlock, documentKey]);
   const dates = useDatePicker(dateCompletion);
   const fenceInput = useFenceInput(fences, frontmatter);
   const paste = useSmartPaste({ richText: pasteRichText, links: pasteLinks, images: pasteImages, tables: pasteTables, importImage: onImportClipboardImage });
@@ -89,6 +125,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const onNavigateWikiLinkRef = useRef(onNavigateWikiLink);
   const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
+  const tidyView = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
   const smartListKeys = useRef(new Compartment());
   const tableKeys = useRef(new Compartment());
@@ -96,6 +133,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const pasteRules = useRef(new Compartment());
   const fenceRules = useRef(new Compartment());
   const completions = useRef(new Compartment());
+  const snippetRules = useRef(new Compartment());
+  const onSnippetRef = useRef(onSnippet);
   const onHandleRef = useRef(onHandle);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [selectionRect, setSelectionRect] = useState<ToolbarRect>();
@@ -117,6 +156,32 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { onHandleRef.current = onHandle; }, [onHandle]);
   useEffect(() => { onCursorRef.current = onCursorChange; }, [onCursorChange]);
+  useEffect(() => { onSnippetRef.current = onSnippet; }, [onSnippet]);
+
+  function snippetTarget(view: EditorView, request = requestEditorSnippet(view.state), separate?: boolean): SnippetTarget | undefined {
+    if (!request || creationAllowed.current?.() === false) return;
+    const { from, to } = request.selection.main;
+    return { source: request.source.toString(), selection: request.source.sliceString(from, to), element: view.contentDOM,
+      insert: (expansion) => creationAllowed.current?.() !== false && insertEditorSnippet(view, request, separate === undefined ? expansion : prepareBlockSnippet(expansion, { source: request.source.toString(), from: request.from, to: request.to }, separate)) };
+  }
+  function creationTarget(view: EditorView): EditorCreationTarget | undefined {
+    const source = view.state.doc, selection = view.state.selection, key = currentDocument.current;
+    const matches = () => view.dom.isConnected && !view.compositionStarted && !view.state.readOnly &&
+      view.state.facet(EditorView.editable) && creationAllowed.current?.() !== false &&
+      view.state.doc === source && view.state.selection.eq(selection) && currentDocument.current === key && selection.ranges.length === 1;
+    if (!matches()) return;
+    return {
+      matches,
+      block: (id, expectedSource) => matches() && currentBlocks.current.insertAt(view, id, expectedSource),
+      snippet: () => matches() ? snippetTarget(view) : undefined,
+    };
+  }
+  function snippetExtensions(index: SnippetIndex | undefined) {
+    return index ? [editorSnippetFields(), createSnippetTriggers({ index, onExpand(view, request, definition) {
+      const target = snippetTarget(view, request);
+      return !!target && (onSnippetRef.current?.(definition, target) ?? false);
+    } })] : [];
+  }
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -147,12 +212,15 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
           ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
+          tidyEditorHistory(value),
+          tidyView.current.of([]),
           fenceRules.current.of(fenceInput.extension),
           pasteRules.current.of(paste.extension),
           tableKeys.current.of(createSmartTableBindings(smartTables)),
           smartListKeys.current.of(createSmartListBindings(smartLists)),
           pairs.current.of(createSelectionPairs(selectionPairs)),
           completions.current.of(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })),
+          snippetRules.current.of(snippetExtensions(snippetIndex)),
           blocks.extension,
           gutter.extension,
           formattingKeys.current.of(createFormattingBindings(keymap)),
@@ -202,9 +270,11 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
             if (update.docChanged && update.transactions.some((transaction) => transaction.docChanged && !transaction.annotation(externalValue))) {
               const changes: TextChange[] = [];
               update.changes.iterChanges((...change) => { changes.push({ from: change[0], to: change[1], text: change[4].toString() }); });
-              const content = update.state.doc.toString();
+              const content = editorSource(update.state);
               lastEmittedValue.current = content;
-              onChangeRef.current(content, changes);
+              const history = update.transactions.some((transaction) => transaction.isUserEvent("undo") || transaction.isUserEvent("redo"));
+              const tidy = update.transactions.some((transaction) => transaction.isUserEvent("input.tidy"));
+              onChangeRef.current(content, changes, history ? "history" : tidy ? "tidy" : "input");
             }
             if (preferenceKey && (update.selectionSet || update.docChanged)) {
               try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: update.state.selection.main.head, scroll: observedScroll })); } catch { /* View preferences are optional. */ }
@@ -216,6 +286,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
 
     viewRef.current = view;
     onHandleRef.current?.({
+      documentKey: () => currentDocument.current,
+      source: () => editorSource(view.state),
+      applyTidy: (result) => applyEditorTidy(view, result),
       runTable(id) { const applied = runTableCommand(view, id); if (applied) view.focus(); return applied; },
       tableColumns() { return editorTableColumns(view.state); },
       runFormat(id) { const applied = runFormattingCommand(view, id); if (applied) view.focus(); return applied; },
@@ -223,6 +296,13 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       hasFocus() { return view.hasFocus; },
       hasSelection() { return !view.state.selection.main.empty; },
       selectedText() { const { from, to } = view.state.selection.main; return view.state.sliceDoc(from, to); },
+      snippetTarget() { return snippetTarget(view); },
+      creationTarget() { return creationTarget(view); },
+      goToSourceOffset(source, offset) {
+        if (!view.dom.isConnected || editorSource(view.state) !== source || !Number.isSafeInteger(offset) || offset < 0 || offset > source.length) return false;
+        const anchor = source.slice(0, offset).replace(/\r\n?/g, "\n").length;
+        view.dispatch({ selection: { anchor }, scrollIntoView: true }); view.focus(); return true;
+      },
       goToLine(number) { const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Math.trunc(number)))); view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true }); view.focus(); }
     });
     const initialLine = view.state.doc.lineAt(view.state.selection.main.head);
@@ -252,6 +332,13 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   }, []);
 
   useEffect(() => {
+    viewRef.current?.dispatch({ effects: [
+      tidyView.current.reconfigure(sourceMode ? [lineNumbers(), livePreviewSettings.of({ sourceMode: true, hideSyntax: false, highContrastMarkers: false }), EditorView.theme({ "&": { fontFamily: "var(--font-mono)", fontSize: "14px", lineHeight: "26px" }, ".cm-scroller": { fontFamily: "var(--font-mono)" }, ".cm-line span": { fontStyle: "normal", fontWeight: "400" } })] : []),
+      editorTidyLines(sourceMode ? tidyLines ?? [] : []),
+    ], annotations: Transaction.addToHistory.of(false) });
+  }, [sourceMode, tidyLines]);
+
+  useEffect(() => {
     viewRef.current?.dispatch({ effects: editable.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) });
   }, [readOnly]);
 
@@ -274,6 +361,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     viewRef.current?.dispatch({ effects: completions.current.reconfigure(createMarkdownCompletions({ sheets: completionSheets ?? [], tags: completionTags ?? [], wiki: wikiCompletion, tag: tagCompletion, date: dateCompletion, onPickDate: dates.open })) });
   }, [completionSheets, completionTags, wikiCompletion, tagCompletion, dateCompletion, dates.open]);
+  useEffect(() => { viewRef.current?.dispatch({ effects: snippetRules.current.reconfigure(snippetExtensions(snippetIndex)) }); }, [snippetIndex]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: pasteRules.current.reconfigure(paste.extension) });
@@ -298,13 +386,17 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     lastEmittedValue.current = undefined;
     const previous = view.state.doc.toString();
     const normalized = value.replace(/\r\n?/g, "\n");
-    if (previous === normalized) return;
+    if (previous === normalized) {
+      if (editorSource(view.state) !== value) view.dispatch({ effects: editorSourceEffect(value), annotations: Transaction.addToHistory.of(false) });
+      return;
+    }
 
     view.dispatch({
       changes: documentChange(previous, normalized),
+      effects: editorSourceEffect(value),
       annotations: [externalValue.of(true), Transaction.addToHistory.of(false)]
     });
   }, [value]);
 
-  return <>{blocks.menu}{gutter.dialog}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className="editorHost" aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
+  return <>{blocks.menu}{gutter.dialog}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className={sourceMode ? "editorHost tidySourceEditor" : "editorHost"} aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 });

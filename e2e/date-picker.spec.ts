@@ -3,16 +3,11 @@ import { expect, test } from "./fixtures";
 import {
   createSheet,
   openLibrary,
+  expectSavedSheet as saved,
   readCurrentSheet,
   workspaceAction,
 } from "./helpers";
 
-async function saved(page: import("@playwright/test").Page, source: string) {
-  await expect.poll(() => readCurrentSheet(page)).toBe(source);
-  await expect(page.locator(".workspaceStatus [role=status]")).toHaveText(
-    "Saved",
-  );
-}
 
 test("date picker cancels literally, inserts a calendar date atomically and restores focus", async ({
   page,

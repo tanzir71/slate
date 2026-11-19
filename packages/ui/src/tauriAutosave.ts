@@ -1,4 +1,5 @@
 import type { AutosaveWriteResult, SheetAutosaveWriter } from "./autosave";
+import { nativeFileError } from "@slate/storage/tauri-files";
 
 export type TauriInvoke = <Result>(
   command: string,
@@ -21,7 +22,7 @@ export function createTauriAutosaveWriter({
         args.baseContent = options.baseContent;
       }
 
-      const result = await invoke<AutosaveWriteResult>(command, args);
+      const result = await invoke<AutosaveWriteResult>(command, args).catch((cause: unknown) => { throw nativeFileError(cause); });
       if (!isAutosaveWriteResult(result)) {
         throw new Error(`Invalid Tauri autosave response for ${path}`);
       }

@@ -4,14 +4,10 @@ import { EditorState, StateField, Transaction } from "@codemirror/state";
 const isolatedInput = StateField.define<boolean>({
   create: () => false,
   update(previous, transaction) {
-    if (!transaction.docChanged) return previous;
     const boundary = transaction.annotation(isolateHistory);
-    return (
-      boundary === "full" ||
-      boundary === "after" ||
-      transaction.isUserEvent("undo") ||
-      transaction.isUserEvent("redo")
-    );
+    if (boundary === "full" || boundary === "after") return true;
+    if (!transaction.docChanged) return previous;
+    return transaction.isUserEvent("undo") || transaction.isUserEvent("redo");
   },
 });
 

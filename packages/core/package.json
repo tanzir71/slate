@@ -6,6 +6,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./tidy/settings": {
+      "types": "./dist/tidy/settings.d.ts",
+      "import": "./dist/tidy/settings.js"
+    },
+    "./tidy": {
+      "types": "./dist/tidy/index.d.ts",
+      "import": "./dist/tidy/index.js"
     }
   },
   "scripts": {
@@ -20,5 +28,7 @@
     "unified": "^11.0.5",
     "yaml": "^2.8.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "mdast-util-from-markdown-reference": "npm:mdast-util-from-markdown@2.0.3"
+  }
 }

@@ -10,13 +10,15 @@ export function applyTextChanges(
   changes: readonly TextChange[],
 ): string {
   validateTextChanges(source, changes);
-  let result = source;
-  for (let index = changes.length - 1; index >= 0; index--) {
-    const change = changes[index]!;
-    result =
-      result.slice(0, change.from) + change.text + result.slice(change.to);
+  if (!changes.length) return source;
+  const pieces: string[] = [];
+  let previousEnd = 0;
+  for (const change of changes) {
+    pieces.push(source.slice(previousEnd, change.from), change.text);
+    previousEnd = change.to;
   }
-  return result;
+  pieces.push(source.slice(previousEnd));
+  return pieces.join("");
 }
 
 /** Check every output span without allocating another full-document string. */

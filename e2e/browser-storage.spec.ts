@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createSheet, openLibrary, readCurrentSheet, replaceEditorText, showSheets, workspaceAction } from "./helpers";
+import { createSheet, expectSavedSheet, openLibrary, readCurrentSheet, replaceEditorText, showSheets, workspaceAction } from "./helpers";
 import { readFile } from "node:fs/promises";
 
 test("runs under the Pages subpath with CSP and no third-party requests", async ({ page }) => {
@@ -196,6 +196,7 @@ test("keeps unsupported Markdown read-only and downloads its original bytes", as
   await openLibrary(page);
   const original = Buffer.from([0xff, 0xfe, 0x41, 0, 0x42, 0]);
   await page.getByLabel("Import files", { exact: true }).setInputFiles({ name: "Legacy.md", mimeType: "text/markdown", buffer: original });
+  await expect(page.getByRole("heading", { name: "This file needs UTF-8." })).toBeVisible();
   await showSheets(page);
   await page.locator(".browserSheetRow").filter({ hasText: "Legacy" }).click();
   await expect(page.getByRole("heading", { name: "This file needs UTF-8." })).toBeVisible();
@@ -224,12 +225,22 @@ test("writes selected-folder files and reconnects the saved handle", async ({ pa
       const root = await navigator.storage.getDirectory();
       return root.getDirectoryHandle("picked-notes", { create: true });
     } });
-    let notify: () => void = () => undefined;
-    Object.defineProperty(window, "notifyFolderChange", { value: () => notify() });
+    const active = new Set<{ callback(): void; recursive: boolean }>();
+    const pending: (() => void)[] = [];
+    let creations = 0;
+    const update = () => { document.documentElement.dataset.observingFolder = String([...active].some((observer) => observer.recursive)); };
+    Object.defineProperty(window, "notifyFolderChange", { value: () => { for (const observer of active) observer.callback(); } });
+    Object.defineProperty(window, "settleFolderObservers", { value: () => { for (const resolve of pending.splice(0)) resolve(); } });
     Object.defineProperty(window, "FileSystemObserver", { configurable: true, value: class {
-      constructor(callback: () => void) { notify = callback; }
-      async observe(_handle: unknown, options: { recursive: boolean }) { document.documentElement.dataset.observingFolder = String(options.recursive); }
-      disconnect() { document.documentElement.dataset.observingFolder = "false"; }
+      recursive = false;
+      constructor(readonly callback: () => void) { document.documentElement.dataset.folderObserverCreations = String(++creations); }
+      async observe(_handle: unknown, options: { recursive: boolean }) {
+        await new Promise<void>((resolve) => pending.push(resolve));
+        this.recursive = options.recursive;
+        active.add(this);
+        update();
+      }
+      disconnect() { active.delete(this); update(); }
     } });
   });
   await page.goto("./");
@@ -243,7 +254,28 @@ test("writes selected-folder files and reconnects the saved handle", async ({ pa
     return (await (await inbox.getFileHandle("Untitled.md")).getFile()).text();
   });
   expect(diskText).toBe("# Folder writing\n\nSaved in my folder.");
+  await page.locator(".cm-content").focus();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText("/");
+  await expect(page.locator(".cm-content .cm-line")).toHaveText(["/"]);
+  const blocks = page.getByRole("dialog", { name: "Insert block", exact: true });
+  await expect(blocks.getByText("Templates", { exact: true })).toBeVisible();
+  await expect(blocks.getByText("Snippets", { exact: true })).toBeVisible();
+  await expect(blocks.getByRole("button", { name: "Manage custom blocks", exact: true, includeHidden: true })).toBeAttached();
+  await page.evaluate(async () => {
+    (window as Window & { settleFolderObservers(): void }).settleFolderObservers();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
   await expect(page.locator("html")).toHaveAttribute("data-observing-folder", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-folder-observer-creations", "1");
+  await page.keyboard.press("Escape");
+  await replaceEditorText(page, "# Folder writing\n\nSaved in my folder.");
+  await expectSavedSheet(page, "# Folder writing\n\nSaved in my folder.", (target) => target.evaluate(async () => {
+    const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("picked-notes");
+    const inbox = await folder.getDirectoryHandle("Inbox");
+    return (await (await inbox.getFileHandle("Untitled.md")).getFile()).text();
+  }));
   await page.evaluate(async () => {
     const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("picked-notes");
     const inbox = await folder.getDirectoryHandle("Inbox");

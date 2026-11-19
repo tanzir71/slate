@@ -18,11 +18,14 @@ import { createSmartPaste, type SmartPasteOptions } from "./smartPaste.js";
 import { createFenceInput, type FenceInputOptions } from "./fenceInput.js";
 import { historyIsolation } from "./historyIsolation.js";
 export { createFenceInput, enterEditorFence, chooseEditorFenceLanguage, type EditorFenceRequest, type FenceInputOptions } from "./fenceInput.js";
+export { requestEditorSnippet, insertEditorSnippet, moveEditorSnippetField, clearEditorSnippet, editorSnippetFields, type EditorSnippetRequest } from "./snippetInsertion.js";
+export { createSnippetTriggers, type SnippetTriggerOptions } from "./snippetTriggers.js";
 export { createSmartPaste, type SmartPasteOptions, type PasteNotice } from "./smartPaste.js";
 export type { ClipboardImageReference, SaveClipboardImage } from "./clipboardImages.js";
 export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEditorTable, editorTableColumns, runTableCommand } from "./smartTables.js";
 import { createSelectionPairs } from "./selectionPairs.js";
 export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
+export { tidyEditorHistory, editorTidyLines, editorSource, editorSourceEffect, applyEditorTidy } from "./tidy.js";
 export { markdownCompletionQuery, type MarkdownCompletionQuery } from "./completionQuery.js";
 export { createMarkdownCompletions, type MarkdownCompletionOptions } from "./markdownCompletions.js";
 export { requestEditorDate, insertEditorDate, type EditorDateRequest } from "./dateInsertion.js";
@@ -45,6 +48,7 @@ export {
 } from "./livePreview.js";
 export { findWikiLinkAtPosition, type WikiLinkHit } from "./wikiLinks.js";
 export { editorBlockQuery, insertEditorBlock, type BlockQuery } from "./blockInsertion.js";
+export { requestEditorCustomBlock, insertEditorCustomBlock, type EditorCustomBlockRequest } from "./customBlockInsertion.js";
 export { editorBlockTarget, currentEditorBlock, moveEditorBlock, insertEditorBlockAt, type EditorBlockTarget } from "./editorBlocks.js";
 
 export { convertClipboardHtml } from "./clipboardHtml.js";

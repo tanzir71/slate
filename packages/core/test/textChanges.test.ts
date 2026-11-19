@@ -5,6 +5,36 @@ import {
   type TextChange,
 } from "../src/textChanges";
 
+it("assembles thousands of disjoint Unicode edits against one original source", () => {
+  const source = Array.from({ length: 5000 }, (_, i) => `line${i} 🙂\r\n`).join(
+    "",
+  );
+  const changes = Array.from(source.matchAll(/^line/gm), (match) => ({
+    from: match.index,
+    to: match.index + 4,
+    text: "row",
+  }));
+  const output = applyTextChanges(source, changes);
+  expect(output).toBe(source.replace(/^line/gm, "row"));
+  expect(matchesTextChanges(source, changes, output)).toBe(true);
+  expect(() =>
+    applyTextChanges(source, [
+      ...changes,
+      { from: source.length, to: source.length + 1, text: "" },
+    ]),
+  ).toThrow("Invalid recovery");
+});
+
+it("keeps ordered same-position inserts before a replacement at that position", () => {
+  expect(
+    applyTextChanges("🙂tail", [
+      { from: 0, to: 0, text: "A" },
+      { from: 0, to: 0, text: "B" },
+      { from: 0, to: 2, text: "😀" },
+    ]),
+  ).toBe("AB😀tail");
+});
+
 it("applies a batch against original UTF-16 positions without changing other words or CRLF bytes", () => {
   expect(
     applyTextChanges("A😀\r\nB words", [

@@ -1,0 +1,28 @@
+.starterKitDialog form {
+  display: grid;
+  gap: 16px;
+}
+.starterKitDialog p,
+.starterKitDialog h3 {
+  margin: 0;
+}
+.starterKitDialog h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.starterKitDialog ul {
+  margin-block: 8px 0;
+  padding-inline-start: 20px;
+}
+.starterKitHint {
+  color: var(--text-secondary);
+}
+@media (pointer: coarse) {
+  .starterKitDialog input,
+  .starterKitDialog > header > button {
+    min-block-size: 44px;
+  }
+  .starterKitDialog > header > button {
+    min-inline-size: 44px;
+  }
+}

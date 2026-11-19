@@ -56,8 +56,10 @@ jobs:
       - run: pnpm build:site
       - run: pnpm visual
       - run: pnpm e2e
+      - run: pnpm perf:tidy
       - run: pnpm perf:menu
       - run: pnpm perf:typing
+      - run: pnpm perf:palette
       - run: pnpm perf:site
       - name: Upload failed browser and performance evidence
         if: failure()

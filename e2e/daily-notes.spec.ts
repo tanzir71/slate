@@ -1,6 +1,7 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
+import { libraryFile as file } from "./libraryFiles";
 import {
   chooseAppearance,
   createSheet,
@@ -9,47 +10,6 @@ import {
   readCurrentSheet,
 } from "./helpers";
 
-async function file(page: Page, path: string, content?: string | number[]) {
-  return page.evaluate(
-    async ({ path, content }) => {
-      try {
-        let directory = await (
-          await (
-            await navigator.storage.getDirectory()
-          ).getDirectoryHandle("spaces")
-        ).getDirectoryHandle(decodeURIComponent(location.hash.split("/")[2]!));
-        const parts = path.split("/"),
-          name = parts.pop()!;
-        for (const part of parts)
-          directory = await directory.getDirectoryHandle(part, {
-            create: content !== undefined,
-          });
-        const handle = await directory.getFileHandle(name, {
-          create: content !== undefined,
-        });
-        if (content !== undefined) {
-          const stream = await handle.createWritable();
-          await stream.write(
-            typeof content === "string" ? content : new Uint8Array(content),
-          );
-          await stream.close();
-        }
-        return Array.from(
-          new Uint8Array(await (await handle.getFile()).arrayBuffer()),
-        );
-      } catch (error) {
-        if (
-          content === undefined &&
-          error instanceof DOMException &&
-          error.name === "NotFoundError"
-        )
-          return undefined;
-        throw error;
-      }
-    },
-    { path, content },
-  );
-}
 async function today(page: Page) {
   await expect(page.locator(".workspaceHeader")).toBeVisible();
   await page.keyboard.press("ControlOrMeta+Shift+d");

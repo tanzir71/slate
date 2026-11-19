@@ -5,9 +5,19 @@ import {
   keyboardInput,
   readKeymap,
   shortcutOS,
+  workspaceCommands,
 } from "../src/commands";
 
 describe("workspace keyboard adapter", () => {
+  it("uses native chords for the implemented disk workspace actions only", () => {
+    const native = readKeymap(undefined, "mac", "desktop");
+    expect(commandShortcut("sheet.new", native, "mac")).toBe("⌘ N");
+    expect(commandShortcut("sheet.fromTemplate", native, "mac")).toBe("⌘ ⇧ N");
+    expect(commandShortcut("app.quickOpen", native, "mac")).toBe("⌘ P");
+    expect(native.issues).toEqual([]);
+    expect(workspaceCommands("desktop").map((command) => command.id)).toEqual(workspaceCommands("web").map((command) => command.id));
+    expect(workspaceCommands("desktop").some((command) => command.id.startsWith("space.activate"))).toBe(false);
+  });
   it("detects platform labels without mixing browser and desktop shortcuts", () => {
     expect(shortcutOS("MacIntel")).toBe("mac");
     expect(shortcutOS("Linux x86_64")).toBe("linux");

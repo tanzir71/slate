@@ -1,6 +1,6 @@
-import { safeBrowserPath, type BrowserFiles } from "./browserFiles";
+import { safeWorkspacePath as safeBrowserPath, type WorkspaceFileReader } from "./fileIO";
 
-export async function exportBrowserArchive(files: BrowserFiles): Promise<Uint8Array> {
+export async function exportBrowserArchive(files: WorkspaceFileReader): Promise<Uint8Array> {
   const { zip } = await import("fflate");
   const entries: Record<string, Uint8Array> = Object.create(null) as Record<string, Uint8Array>;
   for (const path of await files.list(true)) {

@@ -23,12 +23,17 @@ export function editorBlockQuery(state: EditorState): BlockQuery | undefined {
   const match = /(?:^|\s)\/([^\n/]{0,64})$/.exec(
     state.sliceDoc(start, selection.head),
   );
-  if (!match) return;
+  // A slash followed by whitespace is prose, including separators in snippets.
+  if (!match || /^\s/.test(match[1]!)) return;
   const from = selection.head - match[1]!.length - 1;
   // The lookback's start is not necessarily the start of a Markdown line.
   if (from > 0 && !/\s/.test(state.sliceDoc(from - 1, from))) return;
   if (!markdownInputAllowed(state, from)) return;
-  for (let node = ensureSyntaxTree(state, from, 20)?.resolveInner(from, 1); node; node = node.parent ?? undefined)
+  for (
+    let node = ensureSyntaxTree(state, from, 20)?.resolveInner(from, 1);
+    node;
+    node = node.parent ?? undefined
+  )
     if (node.name === "Table") return;
   return { from, to: selection.head, query: match[1]! };
 }
