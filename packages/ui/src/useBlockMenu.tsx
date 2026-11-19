@@ -156,8 +156,8 @@ export function useBlockMenu(
     () =>
       createBlockMenuController(
         (next) => {
-          // CodeMirror calls this in its frame's write phase. Commit before that
-          // frame paints instead of scheduling another React frame for the menu.
+          // The controller publishes after CodeMirror's write phase. Commit in
+          // that microtask so reconfiguration is safe and no extra frame is needed.
           if (next) flushSync(() => setAnchor(next));
           else {
             setAnchor(undefined);

@@ -1,8 +1,67 @@
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { createSlateMarkdownExtensions } from "@slate/editor";
 import { expect, it, vi } from "vitest";
-import { createBlockMenuController } from "../src/blockMenuController";
+import {
+  createBlockMenuController,
+  type BlockMenuAnchor,
+} from "../src/blockMenuController";
+
+it.each(["current", "closed", "changed", "destroyed"] as const)(
+  "publishes measured anchors outside the write phase (%s lifecycle)",
+  async (state) => {
+    const compartment = new Compartment();
+    let measuring = false;
+    const changes = vi.fn((anchor: BlockMenuAnchor | undefined) => {
+      if (!anchor) return;
+      expect(measuring).toBe(false);
+      // React flushSync may flush a pending editor reconfiguration effect.
+      anchor.view.dispatch({ effects: compartment.reconfigure([]) });
+    });
+    const controller = createBlockMenuController(changes, () => false);
+    const parent = document.body.appendChild(document.createElement("div"));
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc: "/table",
+        selection: { anchor: 6 },
+        extensions: [
+          createSlateMarkdownExtensions(),
+          compartment.of([]),
+          controller.extension,
+        ],
+      }),
+    });
+    let write: (() => void) | undefined;
+    const rect = { left: 10, right: 11, top: 20, bottom: 40 };
+    vi.spyOn(view, "requestMeasure").mockImplementation((request) => {
+      if (request?.write) write = () => request.write!(rect, view);
+    });
+    try {
+      view.focus();
+      expect(write).toBeTypeOf("function");
+      changes.mockClear();
+      measuring = true;
+      write!();
+      expect(changes).not.toHaveBeenCalled();
+      measuring = false;
+      if (state === "closed") controller.close(view);
+      if (state === "changed")
+        view.dispatch({ changes: { from: 0, to: 6, insert: "plain" } });
+      if (state === "destroyed") view.destroy();
+      changes.mockClear();
+      await Promise.resolve();
+      if (state === "current")
+        expect(changes).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ query: "table", rect, view }),
+        );
+      else expect(changes).not.toHaveBeenCalled();
+    } finally {
+      if (state !== "destroyed") view.destroy();
+      parent.remove();
+    }
+  },
+);
 
 it("does not measure ordinary typing and uses a pre-input anchor to publish a slash without waiting another frame", async () => {
   const changes = vi.fn();

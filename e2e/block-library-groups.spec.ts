@@ -106,6 +106,8 @@ test("template groups preview source, fill prompts and insert into the current s
   page,
   context,
 }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
   await openLibrary(page);
   const editor = await createSheet(page, "# Draft");
   const files = await libraryPaths(page);
@@ -191,6 +193,7 @@ test("template groups preview source, fill prompts and insert into the current s
   expect(
     new TextDecoder().decode(new Uint8Array((await libraryFile(page, path))!)),
   ).toBe(template);
+  expect(errors).toEqual([]);
 });
 
 test("snippet groups keep linked fields and gutter separation in a single expansion transaction", async ({
