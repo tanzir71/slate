@@ -3,5 +3,24 @@
   "identifier": "default",
   "description": "Default Slate desktop permissions",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-destroy", "sql:default", "sql:allow-execute"]
+  "local": true,
+  "permissions": [
+    "core:default",
+    "core:window:allow-destroy",
+    "allow-write-sheet",
+    "allow-write-numbered-asset",
+    "allow-list-markdown-files",
+    "allow-read-markdown-file",
+    "allow-read-tidy-settings",
+    "allow-write-tidy-settings",
+    "allow-list-workspace-files",
+    "allow-read-workspace-file",
+    "allow-create-workspace-file",
+    "allow-save-workspace-file",
+    "allow-move-workspace-file",
+    "allow-trash-workspace-file",
+    "allow-workspace-watch-status",
+    "allow-replace-workspace-index",
+    "allow-search-workspace-index"
+  ]
 }

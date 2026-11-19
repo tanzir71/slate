@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-write-numbered-asset"
+description = "Enables the write_numbered_asset command without any pre-configured scope."
+commands.allow = ["write_numbered_asset"]
+
+[[permission]]
+identifier = "deny-write-numbered-asset"
+description = "Denies the write_numbered_asset command without any pre-configured scope."
+commands.deny = ["write_numbered_asset"]

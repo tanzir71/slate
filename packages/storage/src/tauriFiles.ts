@@ -12,7 +12,7 @@ export class NativeFileError extends Error {
     this.name = "NativeFileError";
   }
 }
-function rejection(cause: unknown): Error {
+export function nativeFileError(cause: unknown): Error {
   if (cause instanceof Error) return cause;
   if (typeof cause === "object" && cause !== null && "kind" in cause && typeof cause.kind === "string" && "message" in cause && typeof cause.message === "string") return new NativeFileError(cause.kind, cause.message, cause);
   return new NativeFileError("native", typeof cause === "string" ? cause : "Native file operation failed.", cause);
@@ -33,7 +33,7 @@ async function nativeInvoke<Result>(command: string, args?: Record<string, unkno
 export function createTauriWorkspaceFiles({ scope = "space", invoke = nativeInvoke }: TauriWorkspaceFilesOptions = {}): CheckedWorkspaceFiles {
   async function call(command: string, args: Record<string, unknown>) {
     try { return await invoke<unknown>(command, { scope, ...args }); }
-    catch (cause) { throw rejection(cause); }
+    catch (cause) { throw nativeFileError(cause); }
   }
   return {
     async list(includePrivate = false) {

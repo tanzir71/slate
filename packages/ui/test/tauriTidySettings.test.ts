@@ -16,6 +16,13 @@ function transport(reply: unknown) {
 const bytes = (source: string) => Array.from(new TextEncoder().encode(source));
 const source = '\uFEFF{\r\n "version":1,"future":9007199254740993\r\n}\r\n';
 
+it("keeps typed native read and save failures readable without altering the draft", async () => {
+  const store = createTauriTidySettingsStore({ invoke: async () => { throw { kind: "io", message: "The settings file is read-only" }; } });
+  expect(await store.read()).toEqual({ path: ".slate/tidy.json", status: "unavailable", error: "The settings file is read-only" });
+  await expect(store.save({ path: ".slate/tidy.json", status: "missing" }, source)).rejects.toBeInstanceOf(Error);
+  await expect(store.save({ path: ".slate/tidy.json", status: "missing" }, source)).rejects.toMatchObject({ kind: "io", message: "The settings file is read-only" });
+});
+
 it("reads a missing fixed settings file without creating or saving it", async () => {
   const { store, calls } = transport(null);
   expect(await store.read()).toEqual({

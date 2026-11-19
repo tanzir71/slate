@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-read-tidy-settings"
+description = "Enables the read_tidy_settings command without any pre-configured scope."
+commands.allow = ["read_tidy_settings"]
+
+[[permission]]
+identifier = "deny-read-tidy-settings"
+description = "Denies the read_tidy_settings command without any pre-configured scope."
+commands.deny = ["read_tidy_settings"]

@@ -2,10 +2,11 @@ import { readTidyConfiguration } from "@slate/core/tidy/settings";
 import { decodeText, encodeText } from "@slate/storage/browser-files";
 import type { TidyFile } from "@slate/storage/browser-tidy";
 import { invokeTauri, type TauriInvoke } from "./tauriAutosave";
+import { nativeFileError } from "@slate/storage/tauri-files";
 
 const path: TidyFile["path"] = ".slate/tidy.json";
 const message = (cause: unknown) =>
-  cause instanceof Error ? cause.message : String(cause);
+  nativeFileError(cause).message;
 const parse = (source: string) =>
   readTidyConfiguration(source.replace(/^\uFEFF/, ""));
 function byteArray(value: unknown): value is number[] {
@@ -98,7 +99,7 @@ export function createTauriTidySettingsStore({
       const result = await invoke<unknown>("write_tidy_settings", {
         bytes: Array.from(encodeText(source)),
         baseBytes: snapshot.bytes ? Array.from(snapshot.bytes) : null,
-      });
+      }).catch((cause: unknown) => { throw nativeFileError(cause); });
       if (!saveResult(result))
         throw new Error("Invalid native Tidy save response");
       return {

@@ -1,4 +1,5 @@
 import type { RuntimeMarkdownFileSource } from "./runtimeSqliteAdapter";
+import { nativeFileError } from "./tauriFiles";
 
 export type TauriInvoke = <T = unknown>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
@@ -15,11 +16,11 @@ export function createTauriMarkdownFileSource({
 }: TauriMarkdownFileSourceOptions = {}): RuntimeMarkdownFileSource {
   return {
     listMarkdownFiles() {
-      return invoke<string[]>(listCommand);
+      return invoke<string[]>(listCommand).catch((cause: unknown) => { throw nativeFileError(cause); });
     },
 
     readMarkdownFile(path) {
-      return invoke<string>(readCommand, { path });
+      return invoke<string>(readCommand, { path }).catch((cause: unknown) => { throw nativeFileError(cause); });
     }
   };
 }

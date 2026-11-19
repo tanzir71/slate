@@ -31,6 +31,7 @@ import { importClipboardImage } from "./importClipboardImage";
 import { EditorSettingsDialog } from "../EditorSettingsDialog";
 import { useEditorPreferences } from "../editorPreferences";
 import { useTidyReview } from "../tidy/useTidyReview";
+import { createFreshIndex } from "./freshIndex";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
@@ -108,13 +109,16 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [usage, setUsage] = useState("");
   const [matches, setMatches] = useState<string[] | undefined>();
   const [indexWarning, setIndexWarning] = useState("");
+  const [indexVersion, setIndexVersion] = useState(0);
+  const currentQuery = useRef(query);
+  useLayoutEffect(() => { currentQuery.current = query; }, [query]);
   const [editorReady, setEditorReady] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const editorSettingsInvoker = useRef<HTMLElement | undefined>(undefined);
   const aboutButton = useRef<HTMLButtonElement>(null);
-  const index = useRef<ReturnType<NonNullable<BrowserAppProps["createIndex"]>> | undefined>(undefined);
+  const index = useRef<ReturnType<typeof createFreshIndex> | undefined>(undefined);
   const queryGeneration = useRef(0);
   const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
@@ -312,15 +316,29 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const record = state.record;
     let active = true;
     if (record.id !== "sample" && createIndex && editorReady) {
-      const cache = createIndex(record.id);
+      const cache = createFreshIndex(createIndex(record.id));
       index.current = cache;
       let indexed = store.api.getState().sheets;
-      const rebuild = () => cache.rebuild(store.api.getState().sheets).then(() => { if (active) setIndexWarning(""); }).catch(() => {
-        if (active) setIndexWarning("Search cache unavailable. Searching files directly.");
-      });
+      let buildGeneration = 0;
+      const invalidate = () => { cache.invalidate(); queryGeneration.current++; setMatches(undefined); };
+      const rebuild = () => {
+        const generation = ++buildGeneration;
+        invalidate();
+        return cache.rebuild(store.api.getState().sheets).then(() => {
+          if (active && generation === buildGeneration) {
+            setIndexWarning("");
+            if (currentQuery.current) setIndexVersion((version) => version + 1);
+          }
+        }).catch(() => {
+          if (active && generation === buildGeneration) setIndexWarning("Search cache unavailable. Searching files directly.");
+        });
+      };
       void rebuild();
       const unsubscribe = store.api.subscribe((next) => {
-        if (next.saveState === "Saved" && next.sheets !== indexed) { indexed = next.sheets; void rebuild(); }
+        if (next.sheets !== indexed) {
+          if (next.saveState === "Saved" || next.saveState === "Read-only") { indexed = next.sheets; void rebuild(); }
+          else invalidate();
+        }
       });
       return () => { active = false; unsubscribe(); cache.close(); index.current = undefined; };
     }
@@ -333,7 +351,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (query && index.current) {
       void index.current.search(query).then((paths) => { if (generation === queryGeneration.current) setMatches(paths); }).catch(() => undefined);
     }
-  }, [query, state.saveState]);
+  }, [query, state.saveState, indexVersion]);
 
   useEffect(() => {
     let active = true;

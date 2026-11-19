@@ -20,7 +20,7 @@ pub struct FileError {
     recovery_path: Option<String>,
 }
 impl FileError {
-    fn io(error: impl ToString) -> Self {
+    pub(crate) fn io(error: impl ToString) -> Self {
         Self {
             kind: "io",
             message: error.to_string(),
@@ -63,7 +63,7 @@ fn check_scope(scope: Scope, path: &str) -> Result<(), FileError> {
     }
     Ok(())
 }
-async fn blocking<T: Send + 'static>(
+pub(crate) async fn blocking<T: Send + 'static>(
     app: tauri::AppHandle,
     scope: Scope,
     work: impl FnOnce(PathBuf) -> Result<T, FileError> + Send + 'static,

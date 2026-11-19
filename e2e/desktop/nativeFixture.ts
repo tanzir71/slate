@@ -1,10 +1,22 @@
 import type { Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const config = JSON.parse(readFileSync(resolve("apps/desktop/src-tauri/tauri.conf.json"), "utf8")) as { app: { security: { csp: Record<string, string> } } };
+const csp = Object.entries(config.app.security.csp).map(([directive, sources]) => `${directive} ${sources}`).join("; ");
 
 /** Explicit IPC disk fixture; production never imports these notes. Raw bytes survive reload. */
 export async function nativeFixture(page: Page, initial: Record<string, string> = {
   "product/strategy/principles.md": "# Principles\n\nWords on disk.",
   "product/strategy/product-vision.md": "# Product Vision\n\nA place for ideas.",
 }) {
+  // Apply the production policy to the compiled HTTP fixture. Tauri also adds
+  // its generated bootstrap hashes/nonces when serving the native application.
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() !== "document") { await route.continue(); return; }
+    const response = await route.fetch();
+    await route.fulfill({ response, headers: { ...response.headers(), "content-security-policy": csp } });
+  });
   await page.addInitScript((notes) => {
     const prefix = (scope: unknown) => `native-file:${String(scope)}:`;
     if (!localStorage.getItem("native-fixture-ready")) {
@@ -22,6 +34,7 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
     let sequence = 0;
     let rows: { entry: { id: string; path: string; title: string; tags: string[]; links: string[]; words: number; updatedAt?: string }; body: string; contentHash: string }[] = [];
     Reflect.set(window, "__NATIVE_FIXTURE__", {
+      indexBodies: () => rows.map((row) => row.body),
       emit(event: string, payload: unknown) { for (const [id, listener] of listeners) if (listener.event === event) callbacks.get(listener.callback)?.({ event, id, payload }); },
     });
     Reflect.set(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", { unregisterListener: (_event: string, id: number) => listeners.delete(id) });
@@ -60,13 +73,13 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           write(scope, to, source); localStorage.removeItem(prefix(scope) + from);
           return command === "move_workspace_file" ? null : to;
         }
-        if (command === "plugin:sql|load") return args.db;
-        if (command === "plugin:sql|execute") return [0, 0];
-        if (command === "plugin:sql|close") return true;
-        if (command === "replace_workspace_index") { rows = args.rows as typeof rows; return null; }
-        if (command === "plugin:sql|select") {
-          const query = String((args.values as string[] | undefined)?.[0] ?? "").replaceAll('"', "").toLowerCase();
-          return rows.filter((row) => !query || `${row.entry.title} ${row.body} ${row.entry.tags.join(" ")}`.toLowerCase().includes(query)).map((row) => ({ ...row.entry, body: row.body, tags_json: JSON.stringify(row.entry.tags), links_json: JSON.stringify(row.entry.links), updated_at: row.entry.updatedAt ?? null, content_hash: row.contentHash }));
+        if (command === "replace_workspace_index") {
+          if (localStorage.getItem("native-fail-index")) throw { kind: "io", message: "Cache unavailable" };
+          rows = args.rows as typeof rows; return null;
+        }
+        if (command === "search_workspace_index") {
+          const query = String(args.query).toLowerCase();
+          return rows.filter((row) => !query || `${row.entry.title} ${row.body} ${row.entry.tags.join(" ")}`.toLowerCase().includes(query)).map((row) => row.entry.path);
         }
         throw new Error(`Unexpected native command: ${command}`);
       },

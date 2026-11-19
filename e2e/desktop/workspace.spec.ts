@@ -135,3 +135,25 @@ test("the native Tidy worker reviews without writing, applies through disk IPC, 
   await page.locator(".cm-content").press("ControlOrMeta+z");
   await expect.poll(() => bytes(page, "note.md")).toEqual(Array.from(new TextEncoder().encode(dirty)));
 });
+
+test("a failed index rebuild searches current files and recovers after cache access returns", async ({ page }) => {
+  await nativeFixture(page, { "note.md": "Original words" });
+  await page.goto("./");
+  await opened(page);
+  const cached = () => page.evaluate(() => (Reflect.get(window, "__NATIVE_FIXTURE__") as { indexBodies(): string[] }).indexBodies());
+  await expect.poll(cached).toEqual(["Original words"]);
+  await page.evaluate(() => localStorage.setItem("native-fail-index", "true"));
+  await page.locator(".cm-content").fill("Unique current words");
+  await expect.poll(() => bytes(page, "note.md")).toEqual(Array.from(new TextEncoder().encode("Unique current words")));
+  await expect(page.locator(".storageFooter")).toContainText("Search cache unavailable");
+  expect(await cached()).toEqual(["Original words"]);
+  const search = page.getByRole("textbox", { name: "Search sheets", exact: true });
+  await search.fill("Unique current words");
+  await expect(page.locator(".browserSheetRow")).toHaveCount(1);
+  await page.evaluate(() => localStorage.removeItem("native-fail-index"));
+  await external(page, "note.md", "Recovered cache words");
+  await expect(page.locator(".storageFooter")).not.toContainText("Search cache unavailable");
+  await search.fill("Recovered cache words");
+  await expect(page.locator(".browserSheetRow")).toHaveCount(1);
+  expect(await cached()).toEqual(["Recovered cache words"]);
+});
