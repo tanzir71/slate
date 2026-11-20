@@ -1,8 +1,9 @@
 import { isolateHistory } from "@codemirror/commands";
 import { syntaxTree } from "@codemirror/language";
-import { Facet, type Extension, type Range } from "@codemirror/state";
+import { Facet, RangeSet, type EditorState, type Extension, type Range } from "@codemirror/state";
 import {
   Decoration,
+  BlockWrapper,
   EditorView,
   ViewPlugin,
   WidgetType,
@@ -11,10 +12,13 @@ import {
 } from "@codemirror/view";
 import { livePreviewTheme } from "./livePreviewTheme.js";
 import { CalloutLabel, editorCallout, type EditorCallout } from "./calloutPreview.js";
+import { previewTable, tablePreviewKeyboard, previewTableRow, previewTableWrappers, type PreviewTable } from "./tablePreview.js";
 import { findWikiLinkAtPosition } from "./wikiLinks.js";
 import {
   createWikiPathIndex,
   resolveWikiPath,
+  parseMarkdownPreview,
+  markdownNodeText,
   type WikiPathIndex,
 } from "@slate/core";
 
@@ -43,6 +47,14 @@ export const knownWikiPaths = Facet.define<
 >({ combine: (values) => values.at(-1) ?? emptyPaths });
 type MarkdownNode = ReturnType<typeof syntaxTree>["topNode"];
 
+function wikiLinkForNode(state: EditorState, node: MarkdownNode, position: number) {
+  let tableCell = false;
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.name === "Table") { tableCell = true; break; }
+  }
+  return findWikiLinkAtPosition(state.sliceDoc(node.from, node.to), position, tableCell);
+}
+
 export function findEditorWikiLink(view: EditorView, position: number) {
   const tree = syntaxTree(view.state);
   for (const side of [1, -1] as const) {
@@ -52,10 +64,7 @@ export function findEditorWikiLink(view: EditorView, position: number) {
       node = node.parent
     ) {
       if (node.name !== "SlateWikiLink") continue;
-      const hit = findWikiLinkAtPosition(
-        view.state.sliceDoc(node.from, node.to),
-        position - node.from,
-      );
+      const hit = wikiLinkForNode(view.state, node, position - node.from);
       return hit
         ? { ...hit, from: hit.from + node.from, to: hit.to + node.from }
         : undefined;
@@ -80,6 +89,24 @@ class StaticGlyph extends WidgetType {
     } else element.setAttribute("role", "separator");
     return element;
   }
+}
+
+const decodedEntities = new Map<string, string>();
+class EntityGlyph extends WidgetType {
+  constructor(private source: string) { super(); }
+  eq(other: EntityGlyph) { return this.source === other.source; }
+  toDOM() {
+    let value = decodedEntities.get(this.source);
+    if (value === undefined) {
+      value = markdownNodeText(parseMarkdownPreview(this.source));
+      if (decodedEntities.size >= 256) decodedEntities.clear();
+      decodedEntities.set(this.source, value);
+    }
+    const element = document.createElement("span");
+    element.textContent = value;
+    return element;
+  }
+  ignoreEvent() { return false; }
 }
 
 class TaskCheckbox extends WidgetType {
@@ -150,7 +177,7 @@ function frontmatterEnd(view: EditorView) {
 }
 
 /** Only visible syntax nodes are decorated. Rendering never edits the document. */
-export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
+export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<BlockWrapper>[] = []): DecorationSet {
   const { state } = view;
   const settings = state.facet(livePreviewSettings);
   if (settings.sourceMode) return Decoration.none;
@@ -161,6 +188,14 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   const metadataEnd = frontmatterEnd(view);
   const callouts: EditorCallout[] = [];
   const sourceCallouts: EditorCallout[] = [];
+  const tables: PreviewTable[] = [];
+  const sourceTables: PreviewTable[] = [];
+  const tableCache = new Map<string, PreviewTable | undefined>();
+  const tableInfo = (node: MarkdownNode) => {
+    const key = `${node.from}:${node.to}`;
+    if (!tableCache.has(key)) tableCache.set(key, previewTable(state, node));
+    return tableCache.get(key);
+  };
   const activeLines = state.selection.ranges.map((range) => ({
     from: state.doc.lineAt(range.from).from,
     to: state.doc.lineAt(range.to).to,
@@ -168,6 +203,7 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   const active = (from: number, to: number) =>
     activeLines.some((line) => from <= line.to && to >= line.from) ||
     sourceCallouts.some((callout) => from < callout.to && to > callout.from);
+  const editing = (from: number, to: number) => active(from, to) || sourceTables.some(table => from < table.to && to > table.from);
   const mark = (
     from: number,
     to: number,
@@ -184,7 +220,7 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   };
   const hide = (from: number, to: number) => {
     if (from >= to) return;
-    if (settings.hideSyntax && !active(from, to))
+    if (settings.hideSyntax && !editing(from, to))
       ranges.push(Decoration.replace({}).range(from, to));
     else
       mark(
@@ -250,12 +286,33 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
         const key = `${node.name}:${node.from}:${node.to}`;
         if (visited.has(key)) return undefined;
         visited.add(key);
+        if (settings.hideSyntax && /^(?:QuoteMark|ListMark)$/.test(node.name)) {
+          let owner: MarkdownNode | null = tree.resolveInner(state.doc.lineAt(node.from).to, -1);
+          while (owner && owner.name !== "Table") owner = owner.parent;
+          const table = owner && tableInfo(owner);
+          if (table && !active(table.from, table.to)) return false;
+        }
+        if (node.name === "Table") {
+          const table = tableInfo(node);
+          if (!table) return false;
+          if (!settings.hideSyntax || active(table.from, table.to)) sourceTables.push(table);
+          else {
+            tables.push(table);
+            wrappers.push(...previewTableWrappers(state, table, callouts.filter(card => table.from > card.from && table.to <= card.to).length));
+          }
+        }
+        if (node.parent?.name === "Table" && /^(?:TableHeader|TableRow|TableDelimiter)$/.test(node.name)) {
+          const table = tables.find(table => node.from >= table.from && node.to <= table.to);
+          if (table) ranges.push(...previewTableRow(state, node, table));
+          else if (sourceTables.some(table => node.from >= table.from && node.to <= table.to)) lineClass(node.from, "cm-slate-table-source");
+        }
         if (node.name === "Blockquote") {
           const callout = editorCallout(state, node);
           if (callout) {
             if (!settings.hideSyntax || active(node.from, node.to)) sourceCallouts.push(callout);
             else {
               callouts.push(callout);
+              wrappers.push(BlockWrapper.create({ tagName: "div", rank: 10, attributes: { class: "cm-slate-callout-container", role: "note" } }).range(state.doc.lineAt(node.from).from, node.to));
               const first = state.doc.lineAt(node.from), last = state.doc.lineAt(node.to);
               for (const range of view.visibleRanges) {
                 const from = Math.max(first.number, state.doc.lineAt(range.from).number);
@@ -343,10 +400,7 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
           }
           return undefined;
         } else if (node.name === "SlateWikiLink") {
-          const link = findWikiLinkAtPosition(
-            state.sliceDoc(node.from, node.to),
-            0,
-          );
+          const link = wikiLinkForNode(state, node, 0);
           const target = node.getChild("SlateWikiTarget"),
             label = node.getChild("SlateWikiLabel");
           if (link && target && !active(node.from, node.to)) {
@@ -415,6 +469,10 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
               ),
             );
           else mark(node.from, node.to, "cm-slate-ordered-marker");
+        } else if (node.name === "Escape") {
+          hide(node.from, node.from + 1);
+        } else if (node.name === "Entity" && settings.hideSyntax && !editing(node.from, node.to)) {
+          ranges.push(Decoration.replace({ widget: new EntityGlyph(state.sliceDoc(node.from, node.to)) }).range(node.from, node.to));
         } else if (node.name === "QuoteMark") {
           if (!active(node.from, node.to)) {
             if (!callout) lineClass(node.from, "cm-slate-quote-line");
@@ -445,11 +503,18 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
 
 export function createLivePreviewExtension(): Extension {
   return [
+    tablePreviewKeyboard,
     ViewPlugin.fromClass(
       class {
-        decorations: DecorationSet;
+        decorations: DecorationSet = Decoration.none;
+        wrappers: RangeSet<BlockWrapper> = RangeSet.empty;
         constructor(view: EditorView) {
-          this.decorations = buildLivePreviewDecorations(view);
+          this.build(view);
+        }
+        build(view: EditorView) {
+          const wrappers: Range<BlockWrapper>[] = [];
+          this.decorations = buildLivePreviewDecorations(view, wrappers);
+          this.wrappers = BlockWrapper.set(wrappers, true);
         }
         update(update: ViewUpdate) {
           if (
@@ -459,10 +524,12 @@ export function createLivePreviewExtension(): Extension {
             syntaxTree(update.startState) !== syntaxTree(update.state) ||
             update.transactions.some((transaction) => transaction.reconfigured)
           )
-            this.decorations = buildLivePreviewDecorations(update.view);
+            this.build(update.view);
         }
       },
-      { decorations: (plugin) => plugin.decorations },
+      { decorations: (plugin) => plugin.decorations,
+        provide: plugin => EditorView.blockWrappers.of(view => view.plugin(plugin)?.wrappers ?? RangeSet.empty),
+      },
     ),
     livePreviewTheme,
   ];

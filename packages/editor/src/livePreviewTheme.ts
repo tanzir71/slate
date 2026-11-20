@@ -1,6 +1,28 @@
 import { EditorView } from "@codemirror/view";
 
 export const livePreviewTheme = EditorView.baseTheme({
+  ".cm-slate-table-container": { position: "relative", marginBlock: "0" },
+  ".cm-slate-table-container[data-list-marker]::after": { content: "attr(data-list-marker)", position: "absolute", insetInlineStart: "var(--slate-table-list-offset)", top: "9px", font: "13px/20px var(--font-ui, Geist, sans-serif)" },
+  ".cm-slate-table-quoted::before": { content: '""', position: "absolute", insetInlineStart: "0", top: "0", bottom: "0", borderLeft: "2px solid var(--border-strong)", boxShadow: "var(--slate-table-quote-shadows)" },
+  ".cm-slate-table-grid": { border: "1px solid var(--border-default)", borderRadius: "8px", overflowX: "auto", maxWidth: "100%", contain: "inline-size", boxSizing: "border-box" },
+  ".cm-content .cm-slate-table-row": { display: "flex", padding: "0", borderBottom: "1px solid var(--border-default)", borderLeft: "0", background: "transparent", fontSize: "0", lineHeight: "0" },
+  ".cm-content .cm-slate-table-header": { background: "var(--bg-subtle)" },
+  ".cm-content .cm-slate-table-row-last": { borderBottom: "0" },
+  ".cm-slate-table-row > .cm-widgetBuffer": { display: "none" },
+  ".cm-content .cm-slate-table-delimiter": { display: "none" },
+  ".cm-slate-table-cell": { display: "block", flex: "1 1 0", minWidth: "0", minHeight: "38px", padding: "9px 14px", borderRight: "1px solid var(--border-subtle)", boxSizing: "border-box", whiteSpace: "pre-wrap", overflowWrap: "anywhere", font: "13px/20px var(--font-ui, Geist, sans-serif)", color: "var(--text-primary)" },
+  ".cm-slate-table-cell-last": { borderRight: "0" },
+  ".cm-slate-table-header > .cm-slate-table-cell": { fontSize: "12px", lineHeight: "16px", fontWeight: "500", paddingBlock: "11px", color: "var(--text-secondary)" },
+  ".cm-slate-table-header .cm-slate-table-cell > span:not(.cm-slate-strong)": { fontWeight: "inherit" },
+  ".cm-slate-table-cols-3 > .cm-slate-table-row > .cm-slate-table-column-0": { flex: "0 0 160px" },
+  ".cm-slate-table-cols-3 > .cm-slate-table-row > .cm-slate-table-column-1": { flex: "0 0 340px" },
+  ".cm-slate-table-align-center": { textAlign: "center" },
+  ".cm-slate-table-align-right": { textAlign: "right" },
+  ".cm-content .cm-slate-table-source": { fontFamily: "var(--font-mono, Geist Mono, monospace)" },
+  ".cm-slate-callout-container > .cm-slate-table-grid, .cm-slate-callout-container > .cm-slate-table-container": { marginInline: "44px 16px" },
+  ".cm-slate-callout-container:has(> .cm-slate-table-grid, > .cm-slate-table-container)": { borderLeft: "3px solid var(--accent-default)", borderRadius: "8px", background: "var(--accent-soft)" },
+  ".cm-slate-callout-container:has(> .cm-slate-table-grid, > .cm-slate-table-container) > .cm-slate-callout": { borderLeft: "0" },
+  ".cm-slate-callout-container > .cm-slate-table-grid:last-child, .cm-slate-callout-container > .cm-slate-table-container:last-child": { marginBottom: "14px" },
   ".cm-content .cm-slate-callout": {
     position: "relative",
     background: "var(--accent-soft)",

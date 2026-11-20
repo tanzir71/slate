@@ -1,5 +1,12 @@
 # Slate Decisions
 
+## 2026-11-20 - Source-preserving table grids
+
+- Wrap parsed Markdown tables with native CodeMirror block wrappers and mark individual cells over the existing editor text. Keep source positions, inline formatting, ordinary link handlers, selection and row virtualization; do not render copied HTML or replace table line breaks.
+- Parse only the two header lines for table metadata and individual visible rows for cell ranges. Preserve list/quote prefixes and nested callout frames. Render empty or missing cells as inline widgets that allow native selection.
+- Entering any table cell exposes the entire original table source. Source mode and visible-syntax settings also expose it. Preview transitions never serialize source or add history entries. Match the original light/dark table geometry with shared tokens; tables require no raster or SVG assets.
+- Contain intrinsic table width so overflow stays in the grid. Give that scroll region a keyboard focus target; intercept its navigation keys before CodeMirror, retain native Tab exit, and expose source with Enter without editing history. Decode GFM alias-separator escapes only for parsed table links, preserving original source offsets and stable IDs.
+
 ## 2026-11-20 - Callout rendering
 
 - Build callout cards with line decorations and a single-line title/icon widget over parsed Markdown blockquotes. Keep body text inside CodeMirror so inline Markdown, selection and existing interactions retain their source positions.

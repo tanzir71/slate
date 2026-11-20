@@ -10,6 +10,7 @@ export interface WikiLinkHit {
 export function findWikiLinkAtPosition(
   markdown: string,
   position: number,
+  tableCell = false,
 ): WikiLinkHit | undefined {
   for (const match of markdown.matchAll(
     /\[\[([^\]|\n]+)(?:\|([^\]\n]+))?\]\]/g,
@@ -17,7 +18,10 @@ export function findWikiLinkAtPosition(
     const from = match.index;
     const raw = match[0];
     if (position < from || position >= from + raw.length) continue;
-    const target = match[1]!.trim();
+    const rawTarget = match[1]!;
+    // GFM requires the alias separator to be escaped inside table cells.
+    const target = (tableCell && match[2] !== undefined && rawTarget.endsWith("\\")
+      ? rawTarget.slice(0, -1) : rawTarget).trim();
     const targetId = /^(?:id:)?01[0-9A-HJKMNP-TV-Z]{24}$/i.test(target)
       ? target.replace(/^id:/i, "").toUpperCase()
       : undefined;
