@@ -9,6 +9,7 @@ import type { StarterKitInstallation } from "../templates/starterKits";
 import type { EditorChangeOrigin } from "../commands";
 import type { BatchTidySession } from "@slate/storage/tidy-batch";
 import type { ReplaceBatchSession } from "@slate/storage/replace-batch";
+import { isEditorSheetPath } from "./editorSheetPath";
 
 export interface NoteSaveSnapshot {
   readonly path: string;
@@ -39,6 +40,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   let timer: ReturnType<typeof setTimeout> | undefined;
   let saving: Promise<void> | undefined;
   let editGeneration = 0;
+  let explicitlyEmptySelection = false;
   let onSaved: () => void = () => undefined;
   const noteSaved = new Set<(snapshot: NoteSaveSnapshot) => void>();
   let linking: Promise<unknown> = Promise.resolve();
@@ -132,7 +134,9 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       const before = previous.get(sheet.path);
       return before && before.content === sheet.content && before.unsupportedEncoding === sheet.unsupportedEncoding ? before : sheet;
     });
-    const selectedPath = sheets.some((sheet) => sheet.path === current.selectedPath) ? current.selectedPath : sheets[0]?.path ?? "";
+    if (current.selectedPath) explicitlyEmptySelection = false;
+    const selectedPath = !current.selectedPath && explicitlyEmptySelection ? ""
+      : sheets.some((sheet) => sheet.path === current.selectedPath) ? current.selectedPath : sheets[0]?.path ?? "";
     if (selectedPath === current.selectedPath && sheets.length === current.sheets.length && sheets.every((sheet, index) => sheet === current.sheets[index])) return;
     api.setState({ sheets, selectedPath });
   }
@@ -196,6 +200,16 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   return {
     api, space, refresh, flush,
     editSheet,
+    hasDraft(path: string) { return drafts.has(path); },
+    /** Focus an already loaded pane without waiting for IO or changing any draft base. */
+    activateSheet(path: string, invalidatePendingOpen = false): boolean {
+      const current = api.getState();
+      if (path && (!isEditorSheetPath(path) || !current.sheets.some((sheet) => sheet.path === path))) return false;
+      if (current.selectedPath === path) { if (invalidatePendingOpen) editGeneration++; return true; }
+      editGeneration++; explicitlyEmptySelection = !path;
+      api.setState({ selectedPath: path, initialCursor: undefined });
+      return true;
+    },
     applyReplaceBatch(batch: ReplaceBatchSession, paths: readonly string[]): Promise<void> {
       const selected = new Set(paths);
       const next = linking.then(async () => {
@@ -292,7 +306,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
     edit(content: string, changes?: readonly TextChange[], origin: EditorChangeOrigin = "input") {
       editSheet(api.getState().selectedPath, content, changes, origin);
     },
-    async select(path: string) { await flush(); api.setState({ selectedPath: path, initialCursor: undefined }); },
+    async select(path: string) { await flush(); explicitlyEmptySelection = !path; api.setState({ selectedPath: path, initialCursor: undefined }); },
     /** Read only the selected destination; a cached heading is never an authority for disk text. */
     async openSheet(path: string, target?: { source: string; position: number }, isCurrent?: () => boolean): Promise<FileSheet> {
       const safe = safeWorkspacePath(path);

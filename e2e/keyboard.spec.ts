@@ -20,7 +20,10 @@ test("keyboard-only walkthrough completes core workspace flows", async ({ page, 
   await expect(palette).toBeHidden();
 
   const editor = page.locator(".cm-content");
-  for (let step = 0; step < 40; step++) {
+  // A full keyboard traversal grows with the actual workspace controls, including
+  // open/close/split tabs. Allow the browser's chrome stop when focus wraps.
+  const stops = await page.locator('button, a[href], input, select, textarea, [tabindex], [contenteditable="true"]').count();
+  for (let step = 0; step < stops + 2; step++) {
     if (await editor.evaluate((element) => document.activeElement === element)) break;
     await page.keyboard.press("Tab");
   }

@@ -15,7 +15,7 @@ import type { BrowserAppProps } from "./BrowserApp";
 import { LaunchActions } from "./LaunchActions";
 import { AppearanceControl, type useAppearance } from "../appearance";
 import { BrandMark } from "../BrandMark";
-import { commandShortcut, createCursorStore, keyboardInput, readKeymap, shortcutOS, workspaceCommands, type EditorCreationTarget, type MarkdownEditorHandle } from "../commands";
+import { commandShortcut, createCursorStore, keyboardInput, readKeymap, shortcutOS, workspaceCommands, type EditorCreationTarget, type MarkdownEditorHandle, type EditorCursor } from "../commands";
 import type { WorkspaceRuntime } from "./workspaceRuntime";
 import { CommandDialog } from "./CommandDialog";
 import { PaletteDialog } from "./PaletteDialog";
@@ -29,15 +29,16 @@ import { matchesWorkspaceFilter } from "./workspaceFilter";
 import { useSheetSummaries } from "./useSheetSummaries";
 import { inspectorContents } from "./inspectorContents";
 import { sheetStructureReady } from "./sheetStructureReady";
-import { importBlockImage } from "./importBlockImage";
-import { importClipboardImage } from "./importClipboardImage";
 import { EditorSettingsDialog } from "../EditorSettingsDialog";
 import { useEditorPreferences } from "../editorPreferences";
 import { useTidyReview } from "../tidy/useTidyReview";
 import { createFreshIndex } from "./freshIndex";
 import { createWorkspaceNavigation } from "./workspaceNavigation";
+import { createEditorDocumentPool } from "./editorDocumentPool";
+import { createWorkspaceEditorLayout, type EditorPaneId } from "./workspaceEditorLayout";
+import { EditorTabs } from "./EditorTabs";
 
-const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
+const Editor = lazy(() => import("./WorkspaceDocumentEditor"));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
 const NotebookTemplateDialog = lazy(() => import("../templates/NotebookTemplateDialog"));
 const StarterKitDialog = lazy(() => import("../templates/StarterKitDialog"));
@@ -83,6 +84,16 @@ interface WorkspaceProps {
 
 export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance, runtime }: WorkspaceProps) {
   const state = useStore(store.api);
+  const editors = useMemo(() => ({ pool: createEditorDocumentPool(store), layout: createWorkspaceEditorLayout(store), lease: 0 }), [store]);
+  const editorLayout = useSyncExternalStore(editors.layout.subscribe, editors.layout.getSnapshot);
+  useLayoutEffect(() => {
+    const lease = ++editors.lease, stopLayout = editors.layout.connect(), stopPool = editors.pool.connect();
+    return () => {
+      stopLayout(); stopPool();
+      // StrictMode reconnects this resource before the microtask; a real Space exit disposes it.
+      queueMicrotask(() => { if (editors.lease === lease) { editors.layout.dispose(); editors.pool.dispose(); } });
+    };
+  }, [editors]);
   const navigation = useMemo(() => createWorkspaceNavigation(store), [store]);
   const navigationState = useSyncExternalStore(navigation.subscribe, navigation.getSnapshot);
   useEffect(() => navigation.connect(), [navigation]);
@@ -100,8 +111,6 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [snippetPicker, setSnippetPicker] = useState<SnippetInvocation>();
   const [snippetPrompt, setSnippetPrompt] = useState<PreparedSnippet>();
   const [snippetSettings, setSnippetSettings] = useState<{ returnFocus: HTMLElement | undefined }>();
-  const copyBlockImage = useCallback((file: File) => importBlockImage(store.space, file, state.selectedPath), [store, state.selectedPath]);
-  const copyClipboardImage = useCallback((file: File) => importClipboardImage(store.space, file, state.selectedPath), [store, state.selectedPath]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
   const inspectorKey = `slate.inspector.${state.record.id}`;
@@ -145,6 +154,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const index = useRef<ReturnType<typeof createFreshIndex> | undefined>(undefined);
   const queryGeneration = useRef(0);
   const editorHandle = useRef<MarkdownEditorHandle | undefined>(undefined);
+  const paneHandles = useRef<Partial<Record<EditorPaneId, MarkdownEditorHandle>>>({});
+  const paneCursors = useRef<Partial<Record<EditorPaneId, EditorCursor>>>({});
   const pendingNavigation = useRef<{ path: string; source: string; position?: number } | undefined>(undefined);
   const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
   const tidy = useTidyReview({
@@ -185,7 +196,6 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }), [registry, paletteFiles, documents, paletteBlocks?.blocks, paletteTemplates?.items, snippets.snapshot?.snippets]);
   const summariesPending = !sheetStructureReady(state.sheets, documents);
   const document = documents.find((sheet) => sheet.path === state.selectedPath);
-  const blockNote = useMemo(() => ({ space: state.record.name, path: state.selectedPath, title: document?.title ?? "Untitled" }), [state.record.name, state.selectedPath, document?.title]);
   const canInsertBlock = useCallback(() => store.api.getState().owned, [store]);
   const completionIdentities = useMemo(() => JSON.stringify(documents.map(({ id, path, title }) => ({ id, path, title }))), [documents]);
   const completionSheets = useMemo(() => JSON.parse(completionIdentities) as WikiCompletionTarget[], [completionIdentities]);
@@ -222,7 +232,23 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const run = useCallback((work: () => Promise<unknown>) => {
     void work().catch((error: unknown) => store.api.setState({ error: error instanceof Error ? error.message : "The operation failed. Your files were kept." }));
   }, [store]);
-  const receiveEditor = useCallback((handle: MarkdownEditorHandle | undefined) => { editorHandle.current = handle; }, []);
+  const receivePaneEditor = useCallback((pane: EditorPaneId, handle: MarkdownEditorHandle | undefined) => {
+    if (handle) paneHandles.current[pane] = handle; else delete paneHandles.current[pane];
+    if (editors.layout.getSnapshot().active === pane) editorHandle.current = handle;
+  }, [editors]);
+  const receivePrimary = useCallback((handle: MarkdownEditorHandle | undefined) => receivePaneEditor("primary", handle), [receivePaneEditor]);
+  const receiveSecondary = useCallback((handle: MarkdownEditorHandle | undefined) => receivePaneEditor("secondary", handle), [receivePaneEditor]);
+  const receivePaneCursor = useCallback((pane: EditorPaneId, next: EditorCursor) => {
+    paneCursors.current[pane] = next;
+    if (editors.layout.getSnapshot().active === pane) cursor.update(next);
+  }, [editors, cursor]);
+  const cursorPrimary = useCallback((next: EditorCursor) => receivePaneCursor("primary", next), [receivePaneCursor]);
+  const cursorSecondary = useCallback((next: EditorCursor) => receivePaneCursor("secondary", next), [receivePaneCursor]);
+  const documentError = useCallback((error: unknown) => store.api.setState({ error: error instanceof Error ? error.message : "These words are retained. Keep the editor open to recover them." }), [store]);
+  useLayoutEffect(() => {
+    editorHandle.current = paneHandles.current[editorLayout.active];
+    const next = paneCursors.current[editorLayout.active]; if (next) cursor.update(next);
+  }, [editorLayout, cursor]);
   const focusCreatedSheet = useCallback(() => {
     if (templateRequest || starterKitRequest || palette || workspaceSearch) return;
     const current = store.api.getState(), handle = editorHandle.current;
@@ -237,6 +263,28 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     }
   }, [store, templateRequest, starterKitRequest, palette, workspaceSearch]);
   const editorBecameReady = useCallback(() => { setEditorReady(true); focusCreatedSheet(); }, [focusCreatedSheet]);
+  function activatePane(id: EditorPaneId) {
+    if (editors.layout.getSnapshot().active !== id) pendingNavigation.current = undefined;
+    if (!editors.layout.focus(id)) return;
+    editorHandle.current = paneHandles.current[id]; const next = paneCursors.current[id]; if (next) cursor.update(next);
+  }
+  function focusSelected(position?: number) {
+    const current = store.api.getState(), sheet = current.sheets.find((item) => item.path === current.selectedPath);
+    pendingNavigation.current = sheet && !sheet.unsupportedEncoding ? { path: sheet.path, source: sheet.content, ...(position === undefined ? {} : { position }) } : undefined;
+    setPane("editor"); requestAnimationFrame(focusCreatedSheet);
+  }
+  function toggleSplit() {
+    const current = editors.layout.getSnapshot();
+    if (current.secondary === undefined) { if (editors.layout.split()) focusSelected(); return; }
+    const path = current[current.active] ?? "", source = store.api.getState().sheets.find((sheet) => sheet.path === path)?.content;
+    const position = paneCursors.current[current.active]; let offset: number | undefined;
+    if (source !== undefined && position) {
+      let line = 1, from = 0; const endings = /\r\n|\r|\n/g; let match: RegExpExecArray | null;
+      while (line < position.line && (match = endings.exec(source))) { from = match.index + match[0].length; line++; }
+      offset = Math.min(source.length, from + position.column - 1);
+    }
+    if (editors.layout.collapse()) focusSelected(offset);
+  }
   useEffect(() => {
     if (!templateRequest && !starterKitRequest && !palette && !workspaceSearch && (state.initialCursor || pendingNavigation.current)) {
       // Native dialog cleanup restores its invoker; focus the new editor after it closes.
@@ -333,10 +381,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   function afterPalette(work: () => void) {
     requestAnimationFrame(() => run(async () => { work(); }));
   }
-  async function choosePalette(entry: PaletteEntry) {
+  async function choosePalette(entry: PaletteEntry, split = false) {
     const request = palette, action = request?.catalog.actions.get(paletteIdentity(entry));
     if (!request || !action || !paletteAvailable(entry)) throw new Error("This action is unavailable. Close the palette and choose it again.");
     if (action.kind === "sheets" || action.kind === "headings") {
+      if (split && editors.layout.getSnapshot().secondary === undefined) editors.layout.split();
       const sheet = await store.openSheet(action.path, action.kind === "headings" ? { source: action.source, position: action.position } : undefined);
       pendingNavigation.current = sheet.unsupportedEncoding ? undefined : { path: sheet.path, source: sheet.content, ...(action.kind === "headings" ? { position: action.position } : {}) };
       setPane("editor");
@@ -377,6 +426,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }
 
   function dispatchCommand(id: string) {
+    const state = store.api.getState();
     if (id.startsWith("table.")) { if (state.owned) editorHandle.current?.runTable(id); return; }
     if (id.startsWith("format.")) { if (state.owned) editorHandle.current?.runFormat(id); return; }
     const actions: Record<string, () => void> = {
@@ -403,6 +453,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "navigation.back": () => navigateHistory(-1),
       "navigation.forward": () => navigateHistory(1),
       "view.inspector": () => setInspector((open) => !open),
+      "view.split": toggleSplit,
+      "view.closeTab": () => { if (editors.layout.close(store.api.getState().selectedPath)) focusSelected(); },
       "app.shortcuts": () => setShortcuts(true),
       "app.editorSettings": openEditorSettings,
       "snippet.picker": openSnippetPicker,
@@ -602,11 +654,10 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     download(`${state.record.name}.zip`, new Blob([new Uint8Array(bytes)], { type: "application/zip" }));
   }
 
-  async function downloadOriginal() {
-    if (!selected) return;
-    const bytes = await store.space.files.read(selected.path);
+  async function downloadOriginal(path: string) {
+    const bytes = await store.space.files.read(path);
     if (bytes === undefined) throw new Error("File no longer exists. Refresh your Space.");
-    download(selected.path.split("/").pop()!, new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" }));
+    download(path.split("/").pop()!, new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" }));
   }
 
   async function performAction() {
@@ -702,8 +753,32 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         <div className="listFoot">{visible.length} sheets</div>
       </aside>
       <section className="browserEditor" aria-label="Editor">
-        <div className="documentToolbar"><h1>{document?.title || "Your next idea starts here"}</h1></div>
-        {selected?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(downloadOriginal)}>Download original</button></div> : selected ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor sourceMode={tidy.open} tidyLines={tidyLines} key={`${state.record.id}/${selected.path}`} documentKey={`${state.record.id}/${selected.path}`} initialCursor={state.initialCursor?.path === selected.path ? state.initialCursor.position : undefined} value={selected.content} smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter} smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned} onCursorChange={cursor.update} keymap={keymap} completionSheets={completionSheets} completionTags={tags} wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion} templateMenuLibrary={templates.library} snippetMenuLibrary={snippets.library} blockNote={blockNote} canInsertBlock={canInsertBlock} customBlockLibrary={blocks.library} onManageBlocks={openBlockSettings} snippetIndex={snippets.snapshot?.index} onSnippet={expandSnippet} onHandle={receiveEditor} onReady={editorBecameReady} onChange={store.edit} onImportImage={copyBlockImage} onImportClipboardImage={copyClipboardImage} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks} pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense> : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}>New Sheet</button></div>}
+        <EditorTabs layout={editorLayout} dirty={store.hasDraft} label={(path) => documents.find((sheet) => sheet.path === path)?.title ?? path.split("/").at(-1)?.replace(/\.md$/i, "") ?? path} onNew={() => openPalette("sheets")} onSplit={toggleSplit}
+          onOpen={(path, focusEditor) => { if (editors.layout.open(path)) { if (focusEditor) focusSelected(); else { pendingNavigation.current = undefined; setPane("editor"); } } }} onClose={(path) => { if (editors.layout.close(path)) focusSelected(); }} />
+        <div className="workspaceEditorGrid" id="workspace-editor-panel" role="tabpanel" aria-label="Open sheet editor" data-split={editorLayout.secondary !== undefined}>
+          {(["primary", "secondary"] as const).map((id) => {
+            const path = editorLayout[id]; if (path === undefined) return null;
+            const sheet = state.sheets.find((item) => item.path === path), summary = documents.find((item) => item.path === path), active = editorLayout.active === id;
+            const documentKey = `${state.record.id}/${path}`;
+            return <section key={id} className="workspaceEditorPane" aria-label={id === "primary" ? "Primary editor" : "Secondary editor"} data-active={active}
+              onPointerDownCapture={() => activatePane(id)} onFocusCapture={() => activatePane(id)}>
+              <div className="documentToolbar"><h1>{summary?.title || "Your next idea starts here"}</h1></div>
+              {sheet?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(() => downloadOriginal(path))}>Download original</button></div>
+                : sheet ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={documentKey} pool={editors.pool} store={store} path={path} title={summary?.title ?? "Untitled"}
+                  documentKey={documentKey} viewKey={id === "primary" ? documentKey : documentKey + "/split"} onDocumentError={documentError}
+                  sourceMode={active && tidy.open} tidyLines={active ? tidyLines : []} initialCursor={active && state.initialCursor?.path === path ? state.initialCursor.position : undefined}
+                  smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter}
+                  smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned}
+                  onCursorChange={id === "primary" ? cursorPrimary : cursorSecondary} keymap={keymap} completionSheets={completionSheets} completionTags={tags}
+                  wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion}
+                  templateMenuLibrary={templates.library} snippetMenuLibrary={snippets.library} canInsertBlock={canInsertBlock} customBlockLibrary={blocks.library}
+                  onManageBlocks={openBlockSettings} snippetIndex={snippets.snapshot?.index} onSnippet={expandSnippet} onHandle={id === "primary" ? receivePrimary : receiveSecondary}
+                  onReady={editorBecameReady} pasteRichText={editorPreferences.preferences.pasteRichText} pasteLinks={editorPreferences.preferences.pasteLinks}
+                  pasteImages={editorPreferences.preferences.pasteImages} pasteTables={editorPreferences.preferences.pasteTables} onNavigateWikiLink={navigateWiki} /></Suspense>
+                : <div className="browserEmpty editorEmpty"><h1>A fresh page awaits.</h1><p>Your words, in plain Markdown. Always yours.</p><button className="primaryButton" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}>New Sheet</button></div>}
+            </section>;
+          })}
+        </div>
       </section>
       {tidy.open && <Suspense fallback={<aside className="tidyPanel" aria-label="Tidy review"><p role="status">Opening Tidy…</p></aside>}><TidyPanel review={tidy} readOnly={!state.owned} onClose={closeTidy} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} /></Suspense>}
       {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
@@ -719,7 +794,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     {blockSettings && blocks.library && <Suspense fallback={<WorkspaceDialog title="Custom blocks" returnFocus={blockSettings.returnFocus} onClose={() => setBlockSettings(undefined)}><p role="status">Opening custom blocks…</p></WorkspaceDialog>}><BlockSettings library={blocks.library} store={store} returnFocus={blockSettings.returnFocus} onTakeover={onTakeover} onClose={() => setBlockSettings(undefined)} /></Suspense>}
     {snippetSettings && snippets.library && <Suspense fallback={<WorkspaceDialog title="Snippets" returnFocus={snippetSettings.returnFocus} onClose={() => setSnippetSettings(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetSettings library={snippets.library} store={store} returnFocus={snippetSettings.returnFocus} onTakeover={onTakeover} onClose={() => setSnippetSettings(undefined)} /></Suspense>}
     {shortcuts && <CommandDialog surface={surface} registry={registry} kind="shortcuts" keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => setShortcuts(false)} onCommand={dispatchCommand} />}
-    {palette && <PaletteDialog entries={palette.catalog.entries} index={palette.catalog.index} initialMode={palette.mode} returnFocus={palette.returnFocus} os={os}
+    {palette && <PaletteDialog entries={palette.catalog.entries} index={palette.catalog.index} initialMode={palette.mode} returnFocus={palette.returnFocus} os={os} allowSplit={!!selected && !selected.unsupportedEncoding}
       shortcut={(entry) => entry.kind === "commands" ? shortcut(entry.id) : ""} available={paletteAvailable} visible={(entry) => entry.kind !== "commands" || paletteAvailable(entry)} preview={palettePreview} onChoose={choosePalette} onClose={() => setPalette(undefined)} />}
     {templateRequest && <Suspense fallback={<WorkspaceDialog title="New from template" returnFocus={templateRequest.returnFocus} onClose={() => { setTemplateRequest(undefined); if (templates.library) run(templates.library.refresh); }}><p role="status">Opening templates…</p></WorkspaceDialog>}><TemplateGallery store={store} notebook={templateRequest.notebook} selection={templateRequest.selection} returnFocus={templateRequest.returnFocus} initialTemplateId={templateRequest.initialTemplateId} initialDestination={templateRequest.initialDestination} onClose={() => { setTemplateRequest(undefined); if (templates.library) run(templates.library.refresh); }} onStarterKits={() => { setStarterKitRequest({ returnFocus: templateRequest.returnFocus }); setTemplateRequest(undefined); }} /></Suspense>}
     {starterKitRequest && <Suspense fallback={<WorkspaceDialog title="Starter kits" returnFocus={starterKitRequest.returnFocus} onClose={() => setStarterKitRequest(undefined)}><p role="status">Opening starter kits…</p></WorkspaceDialog>}><StarterKitDialog store={store} returnFocus={starterKitRequest.returnFocus} onTakeover={onTakeover} onClose={(root) => { setStarterKitRequest(undefined); if (root) { setFilter(root); setPane("editor"); } }} /></Suspense>}

@@ -9,6 +9,53 @@ const normalized = (value: string) => value.replace(/\r\n?/g, "\n");
 const view = (source: string, anchor = 0) => EditorState.create({ doc: normalized(source), selection: { anchor }, extensions: [tidyEditorHistory(source)] });
 const input = [Transaction.userEvent.of("input.type"), isolateHistory.of("full")];
 
+function completedFence(source = "```", canEdit = () => true) {
+  const session = createDocumentSession(source, canEdit), before = session.snapshot(), from = before.state.doc.length - 3;
+  expect(session.apply(before.state.update({ changes: { from: before.state.doc.length, insert: "\n\n```" },
+    selection: { anchor: before.state.doc.length + 1 }, annotations: [Transaction.userEvent.of("input.fence"), isolateHistory.of("full")] }), before.revision)).toBe(true);
+  const replacement = { changes: { from, to: from + 3, insert: "```json\n\n```" }, selection: { anchor: from + 8 }, userEvent: "input.fence" };
+  return { session, before: before.state.doc, replacement };
+}
+
+it("atomically amends the last smart edit with one net update and one Undo", () => {
+  const { session, before, replacement } = completedFence(), changed = vi.fn(), actor = {}; session.subscribe(changed);
+  const snapshot = session.snapshot(); expect(session.amendLastEdit(snapshot.state, snapshot.revision, before, replacement, actor)).toBe(true);
+  expect(session.snapshot().source).toBe("```json\n\n```"); expect(undoDepth(session.snapshot().state)).toBe(1); expect(changed).toHaveBeenCalledTimes(1);
+  const update = changed.mock.calls[0]![0] as DocumentSessionUpdate;
+  expect(update).toMatchObject({ kind: "amend", actor, userEvent: "input.fence", before: "```\n\n```", source: "```json\n\n```" });
+  expect(update.changes.apply(snapshot.state.doc).toString()).toBe(session.snapshot().state.doc.toString());
+  expect(session.undo()).toBe(true); expect(session.snapshot().source).toBe("```");
+  expect(session.redo()).toBe(true); expect(session.snapshot().source).toBe("```json\n\n```");
+});
+
+it("keeps BOM and CRLF bytes when amending and undoing the canonical smart edit", () => {
+  const prefix = "\uFEFF# Header\r\n\r\n", { session, before, replacement } = completedFence(prefix + "```");
+  const snapshot = session.snapshot(); expect(session.amendLastEdit(snapshot.state, snapshot.revision, before, replacement)).toBe(true);
+  expect(session.snapshot().source).toBe(prefix + "```json\r\n\r\n```"); expect(session.undo()).toBe(true);
+  expect(session.snapshot().source).toBe(prefix + "```"); expect(session.redo()).toBe(true); expect(session.snapshot().source).toBe(prefix + "```json\r\n\r\n```");
+});
+
+it("refuses stale, read-only, unowned, raw-mismatched and unrelated smart amendments without mutation", () => {
+  let owned = true; const { session, before, replacement } = completedFence("```", () => owned), snapshot = session.snapshot(), changed = vi.fn(); session.subscribe(changed);
+  owned = false; expect(session.amendLastEdit(snapshot.state, snapshot.revision, before, replacement)).toBe(false); owned = true;
+  const readOnly = snapshot.state.update({ effects: StateEffect.appendConfig.of(EditorState.readOnly.of(true)) }).state;
+  expect(session.amendLastEdit(readOnly, snapshot.revision, before, replacement)).toBe(false);
+  expect(session.amendLastEdit(snapshot.state, snapshot.revision - 1, before, replacement)).toBe(false);
+  expect(session.amendLastEdit(snapshot.state, snapshot.revision, EditorState.create({ doc: "Another document" }).doc, replacement)).toBe(false);
+  expect(session.amendLastEdit(view("```\r\n\r\n```"), snapshot.revision, before, replacement)).toBe(false);
+  expect(session.snapshot()).toBe(snapshot); expect(changed).not.toHaveBeenCalled();
+  const noHistory = createDocumentSession(snapshot.source), empty = noHistory.snapshot();
+  expect(noHistory.amendLastEdit(empty.state, empty.revision, before, replacement)).toBe(false); expect(noHistory.snapshot()).toBe(empty);
+});
+
+it("does not replace a newer peer action or an externally replaced document", () => {
+  const { session, before, replacement } = completedFence(); let snapshot = session.snapshot();
+  expect(session.apply(snapshot.state.update({ changes: { from: snapshot.state.doc.length, insert: "Peer words" }, annotations: input }), snapshot.revision)).toBe(true);
+  snapshot = session.snapshot(); expect(session.amendLastEdit(snapshot.state, snapshot.revision, before, replacement)).toBe(false); expect(session.snapshot()).toBe(snapshot);
+  expect(session.replaceSource("External words")).toBe(true); snapshot = session.snapshot();
+  expect(session.amendLastEdit(snapshot.state, snapshot.revision, before, replacement)).toBe(false); expect(session.snapshot()).toBe(snapshot);
+});
+
 it("keeps a stable exact-source snapshot until a real source change", () => {
   const session = createDocumentSession(original), snapshot = session.snapshot(), changed = vi.fn(); session.subscribe(changed);
   expect(snapshot.source).toBe(original); expect(snapshot.revision).toBe(0);

@@ -74,6 +74,8 @@ export const slateCommands: readonly CommandDefinition[] = [
   { id: "search.undoReplace", label: "Undo replacements", group: "Edit", surfaces: ["web"] },
   { id: "navigation.back", label: "Go back", group: "Workspace", shortcut: "Alt+ArrowLeft", surfaces: ["web"] },
   { id: "navigation.forward", label: "Go forward", group: "Workspace", shortcut: "Alt+ArrowRight", surfaces: ["web"] },
+  { id: "view.split", label: "Toggle split editor", group: "View", surfaces: ["web"] },
+  { id: "view.closeTab", label: "Close current tab", group: "View", surfaces: ["web"] },
   {
     id: "view.inspector",
     label: "Toggle inspector",

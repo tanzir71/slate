@@ -1,4 +1,5 @@
 import { history, redo, undo, undoDepth } from "@codemirror/commands";
+import { forceParsing } from "@codemirror/language";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { expect, it } from "vitest";
@@ -49,6 +50,7 @@ it("shows literal source markers during review and restores Live rendering witho
     }),
   });
   try {
+    expect(forceParsing(view, view.state.doc.length, 1000)).toBe(true);
     expect(view.contentDOM.textContent).not.toContain("**Bold**");
     view.dispatch({
       effects: mode.reconfigure(

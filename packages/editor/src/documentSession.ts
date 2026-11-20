@@ -1,7 +1,8 @@
 import { history, isolateHistory, redo, undo } from "@codemirror/commands";
-import { EditorState, Transaction, type Annotation, type AnnotationType, type ChangeSet, type EditorSelection, type StateCommand, type StateEffect } from "@codemirror/state";
+import { EditorState, Transaction, type Annotation, type AnnotationType, type ChangeSet, type EditorSelection, type StateCommand, type StateEffect, type Text } from "@codemirror/state";
 import { historyIsolation } from "./historyIsolation.js";
-import { editorSource, editorSourceEffect, editorSourceEffects, tidyEditorHistory } from "./tidy.js";
+import { editorSource, editorSourceEffect, editorSourceEffects, editorSourceStateEffect, tidyEditorHistory } from "./tidy.js";
+import type { EditorHistoryReplacement } from "./documentHistory.js";
 
 export interface DocumentSessionSnapshot {
   readonly state: EditorState;
@@ -9,7 +10,7 @@ export interface DocumentSessionSnapshot {
   readonly revision: number;
 }
 export interface DocumentSessionUpdate {
-  readonly kind: "edit" | "undo" | "redo" | "external";
+  readonly kind: "edit" | "amend" | "undo" | "redo" | "external";
   readonly userEvent: string | undefined;
   readonly actor: object | undefined;
   readonly changes: ChangeSet;
@@ -25,6 +26,8 @@ export interface DocumentSession {
   subscribe(listener: (update: DocumentSessionUpdate) => void): () => void;
   /** A rejected proposal stays with its caller for explicit reconciliation or recovery. */
   apply(transaction: Transaction, revision: number, actor?: object): boolean;
+  /** Replace only the guarded last action; publish its net source change once. */
+  amendLastEdit(producer: EditorState, revision: number, before: Text, replacement: EditorHistoryReplacement, actor?: object): boolean;
   undo(actor?: object): boolean;
   redo(actor?: object): boolean;
   /** Guard captured requests with a revision; new disk/batch source resets obsolete Undo. */
@@ -76,12 +79,15 @@ export function createDocumentSession(source: string, canEdit: () => boolean = (
       publish(transaction.state, transaction, editorSource(transaction.state), actor, kind);
     } });
   }
+  function accepts(producer: EditorState, revision: number) {
+    return canEdit() && !producer.readOnly && revision === current.revision && producer.doc.eq(current.state.doc) && editorSource(producer) === current.source;
+  }
   return {
     snapshot: () => current,
     canEdit,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     apply(transaction, revision, actor) {
-      if (!canEdit() || transaction.startState.readOnly || revision !== current.revision || !transaction.startState.doc.eq(current.state.doc) || editorSource(transaction.startState) !== current.source) return false;
+      if (!accepts(transaction.startState, revision)) return false;
       const source = editorSource(transaction.state);
       if (source === current.source) return false;
       assertIdle();
@@ -91,6 +97,23 @@ export function createDocumentSession(source: string, canEdit: () => boolean = (
       const next = aligned.update({ changes: transaction.changes, selection: transaction.state.selection,
         effects: editorSourceEffects(transaction), annotations: historyAnnotations(transaction) });
       publish(next.state, next, source, actor, "edit");
+      return true;
+    },
+    amendLastEdit(producer, revision, before, replacement, actor) {
+      if (!accepts(producer, revision)) return false;
+      assertIdle();
+      let restored: Transaction | undefined;
+      undo({ state: current.state, dispatch(transaction) { restored = transaction; } });
+      if (!restored || !restored.state.doc.eq(before)) return false;
+      const chosen = restored.state.update({ changes: replacement.changes, selection: replacement.selection,
+        userEvent: replacement.userEvent, annotations: isolateHistory.of("full") });
+      const source = editorSource(chosen.state);
+      if (source === current.source) return false;
+      // The authority installs the rewritten history, while views/writers receive
+      // only the net change from the currently visible source to the final source.
+      const net = current.state.update({ changes: restored.changes.compose(chosen.changes), selection: chosen.state.selection,
+        effects: editorSourceStateEffect(chosen.state), userEvent: replacement.userEvent });
+      publish(chosen.state, net, source, actor, "amend");
       return true;
     },
     undo: (actor) => travel(undo, actor, "undo"),

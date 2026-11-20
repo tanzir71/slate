@@ -1,6 +1,7 @@
 import type { TextChange } from "@slate/core";
 import type { DocumentSession, DocumentSessionUpdate } from "@slate/editor";
 import type { WorkspaceStore } from "./workspaceStore";
+import { isEditorSheetPath } from "./editorSheetPath";
 
 type SessionFactory = (source: string, canEdit: () => boolean) => DocumentSession;
 
@@ -10,7 +11,7 @@ export function createEditorDocumentPool(store: WorkspaceStore) {
   let disposed = false;
   let connection: (() => void) | undefined;
   function sheetAt(path: string) {
-    if (!/\.md$/i.test(path) || path.split(/[\\/]/).some((part) => !part || [".", "..", ".git", ".slate"].includes(part.toLowerCase()))) return undefined;
+    if (!isEditorSheetPath(path)) return undefined;
     const sheet = store.api.getState().sheets.find((candidate) => candidate.path === path);
     return sheet?.unsupportedEncoding ? undefined : sheet;
   }

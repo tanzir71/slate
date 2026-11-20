@@ -2,7 +2,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, runScopeHandlers } from "@codemirror/view";
-import { createDocumentSession, editorSource, type DocumentSession } from "@slate/editor";
+import { createDocumentSession, editorSource, enterEditorFence, chooseEditorFenceLanguage, type DocumentSession, type EditorFenceRequest } from "@slate/editor";
 import { fix, readTidyConfiguration } from "@slate/core/tidy";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../src/MarkdownEditor";
@@ -96,6 +96,30 @@ it("propagates actual view edits once and maps the other pane's independent curs
   await historyKey(right, true); await historyKey(left, true);
   expect(editorSource(left.state)).toBe(first + "Beta"); expect(editorSource(right.state)).toBe(first + "Beta");
   expect(changed).toHaveBeenCalledTimes(6);
+});
+
+it.each(["z", "Z"])("restores shared Undo with a shifted %s redo key", async (key) => {
+  const session = createDocumentSession(original), { view } = await mount(session);
+  await type(view("left"), view("left").state.doc.length, "Redo these words"); await historyKey(view("right"));
+  const mac = /Mac|iPhone|iPad/.test(navigator.platform), event = new KeyboardEvent("keydown", { key, ctrlKey: !mac, metaKey: mac, shiftKey: true });
+  await act(async () => { expect(runScopeHandlers(view("left"), event, "editor")).toBe(true); });
+  expect(session.snapshot().source).toBe(original + "Redo these words"); expect(editorSource(view("right").state)).toBe(original + "Redo these words");
+});
+
+it.each(["", "\uFEFF# Header\r\n\r\n"])("amends a fence language as one shared history/save update with prefix %j", async (prefix) => {
+  const fence = String.fromCharCode(96).repeat(3), source = prefix + fence, session = createDocumentSession(source), { view, changed } = await mount(session);
+  const left = view("left"), right = view("right"); let request: EditorFenceRequest | undefined;
+  await act(async () => {
+    left.dispatch({ selection: { anchor: left.state.doc.length } });
+    expect(enterEditorFence(left, { onPickLanguage(_view, input) { request = input; } })).toBe(true);
+  });
+  expect(request).toBeDefined();
+  await act(async () => { expect(chooseEditorFenceLanguage(left, request!, "json")).toBe(true); });
+  const ending = prefix ? "\r\n" : "\n", chosen = prefix + fence + "json" + ending.repeat(2) + fence;
+  expect(session.snapshot().source).toBe(chosen); expect(editorSource(right.state)).toBe(chosen); expect(changed).toHaveBeenCalledTimes(2);
+  expect(changed).toHaveBeenLastCalledWith(chosen, "amend", "input.fence");
+  await historyKey(right); expect(editorSource(left.state)).toBe(source);
+  await historyKey(left, true); expect(editorSource(right.state)).toBe(chosen); expect(changed).toHaveBeenCalledTimes(4);
 });
 
 it("preserves Tidy's raw bytes and action origin when Undo comes from the other pane", async () => {

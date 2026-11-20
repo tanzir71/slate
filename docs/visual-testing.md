@@ -1,5 +1,7 @@
 # Visual regression
 
+The unreleased F-74 tab/split integration adds the actual 36px desktop tab strip to workspace scenes. The add-tab and split actions follow the last tab, with 44px touch targets on narrow/coarse-pointer layouts. Existing scene backgrounds therefore move by the strip height, and A5 includes the implemented Split editor and Close current tab commands. Review these differences in both themes before refreshing references. A11 onboarding has no editor and stays unchanged. The full A9 Inspector remains a later task; these references do not claim that screen is complete.
+
 After `pnpm build:site`, run `pnpm visual`. Docker must be running. The command uses the same Linux x64 Chromium reference on Windows, macOS and Linux; host `node_modules` is not mounted into Linux. CI requires this gate on its Linux runner, and Pages requires it before publishing.
 
 The reference is Playwright 1.65.1 Noble, pinned by digest in `scripts/visual-test.mjs`. Tests use bundled fonts, a 1440 × 900 viewport at 1×, en-US/UTC, fixed time, reduced motion and a fixed storage-usage readout. A1/A2/A3/A5 retain the real seven-sheet Sample Space into an OPFS browser library, pin Launch Plan and select its notebook. Service workers are blocked in these visual contexts; offline, updates, installability and each browser engine remain covered by the functional suite.

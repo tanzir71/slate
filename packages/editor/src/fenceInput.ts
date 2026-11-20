@@ -9,6 +9,7 @@ import {
 } from "@codemirror/state";
 import { keymap, ViewPlugin, type EditorView } from "@codemirror/view";
 import { insideEditorFrontmatter } from "./markdownInputContext.js";
+import { editorHistoryDelegate } from "./documentHistory.js";
 
 interface FencePlan {
   readonly from: number;
@@ -130,6 +131,14 @@ export function chooseEditorFenceLanguage(
   )
     return false;
   if (!language) return true;
+  const insert = plan.insert.slice(0, plan.languageAt) + language + plan.insert.slice(plan.languageAt);
+  const delegated = view.state.facet(editorHistoryDelegate);
+  if (delegated) {
+    const accepted = delegated.replaceLast(view.state, request.before, { changes: { from: plan.from, to: plan.to, insert },
+      selection: { anchor: plan.from + plan.cursor + language.length }, userEvent: "input.fence" });
+    if (accepted) view.dispatch({ scrollIntoView: true });
+    return accepted;
+  }
   let restored: Transaction | undefined;
   undo({
     state: view.state,
@@ -138,10 +147,6 @@ export function chooseEditorFenceLanguage(
     },
   });
   if (!restored || !restored.state.doc.eq(request.before)) return false;
-  const insert =
-    plan.insert.slice(0, plan.languageAt) +
-    language +
-    plan.insert.slice(plan.languageAt);
   const chosen = restored.state.update({
     changes: { from: plan.from, to: plan.to, insert },
     selection: { anchor: plan.from + plan.cursor + language.length },

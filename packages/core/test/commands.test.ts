@@ -25,6 +25,13 @@ const profile = { os: "windows", surface: "web" } as const;
 const editor = { editor: true, selection: false };
 
 describe("shared command registry", () => {
+  it("offers actual tab and split workspace actions without taking browser-reserved shortcuts", () => {
+    const web = commandsForSurface("web");
+    expect(web.find((command) => command.id === "view.split")).toMatchObject({ label: "Toggle split editor", group: "View" });
+    expect(web.find((command) => command.id === "view.closeTab")).toMatchObject({ label: "Close current tab", group: "View" });
+    expect(web.find((command) => command.id === "view.closeTab")?.shortcut).toBeUndefined();
+    expect(commandsForSurface("desktop").some((command) => command.id === "view.split")).toBe(false);
+  });
   it("registers Quick open on Mod P without changing selection-aware Mod K or IME input", () => {
     for (const os of ["windows", "linux", "mac"] as const) {
       const keymap = resolveCommandKeymap({ os, surface: "web" });
