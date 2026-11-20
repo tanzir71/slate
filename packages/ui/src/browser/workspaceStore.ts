@@ -175,8 +175,22 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
     if (drafts.size) await flush();
   }
 
+  function editSheet(path: string, content: string, changes?: readonly TextChange[], origin: EditorChangeOrigin = "input"): boolean {
+    const state = api.getState(), sheet = state.sheets.find((candidate) => candidate.path === path);
+    if (!state.owned || !sheet || sheet.unsupportedEncoding) return false;
+    editGeneration++;
+    const previous = drafts.get(path), before = previous?.content ?? sheet.content;
+    drafts.set(path, { content, baseContent: previous ? previous.baseContent : bases.get(path), origin });
+    api.setState((current) => ({ sheets: current.sheets.map((row) => row.path === path ? { ...row, content } : row), saveState: "Unsaved" }));
+    journal(changes ? { path, before: before.replace(/\r\n?/g, "\n"), changes } : undefined);
+    clearTimeout(timer);
+    timer = setTimeout(() => { void flush().catch(() => undefined); }, 250);
+    return true;
+  }
+
   return {
     api, space, refresh, flush,
+    editSheet,
     applyReplaceBatch(batch: ReplaceBatchSession, paths: readonly string[]): Promise<void> {
       const selected = new Set(paths);
       const next = linking.then(async () => {
@@ -271,16 +285,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       if (preferredPath && api.getState().sheets.some((sheet) => sheet.path === preferredPath)) api.setState({ selectedPath: preferredPath });
     },
     edit(content: string, changes?: readonly TextChange[], origin: EditorChangeOrigin = "input") {
-      const { selectedPath, owned } = api.getState();
-      if (!owned || !selectedPath) return;
-      editGeneration++;
-      const previous = drafts.get(selectedPath);
-      const before = previous?.content ?? api.getState().sheets.find((sheet) => sheet.path === selectedPath)?.content ?? "";
-      drafts.set(selectedPath, { content, baseContent: previous ? previous.baseContent : bases.get(selectedPath), origin });
-      api.setState((state) => ({ sheets: state.sheets.map((sheet) => sheet.path === selectedPath ? { ...sheet, content } : sheet), saveState: "Unsaved" }));
-      journal(changes ? { path: selectedPath, before: before.replace(/\r\n?/g, "\n"), changes } : undefined);
-      clearTimeout(timer);
-      timer = setTimeout(() => { void flush().catch(() => undefined); }, 250);
+      editSheet(api.getState().selectedPath, content, changes, origin);
     },
     async select(path: string) { await flush(); api.setState({ selectedPath: path, initialCursor: undefined }); },
     /** Read only the selected destination; a cached heading is never an authority for disk text. */

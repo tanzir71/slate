@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Bind pane drafts to their captured file path
+
+F-74 needs an explicit editSheet(path, ...) store entry point before multiple editor views can write. Keep each pane callback bound to its own file instead of resolving the globally selected sheet when an event arrives. Existing selected-sheet edit delegates to this same implementation. Only known UTF-8 sheets in an owned Space accept edits. Return whether the draft was accepted so future pane integration can handle an invalidated target explicitly.
+
+Reuse the existing per-path draft bases, compact recovery journal, autosave queue, save observers and checked conflict-copy writes. A nonselected edit neither selects its file nor changes another pane's draft. This API does not create a split UI or settle synchronization between two views of the same file; shared document history and view synchronization are separate prerequisites for that integration.
+
 ## 2026-11-20 - Separate worker search results from reviewed disk replacements
 
 F-73 loads a shared Search everywhere dialog and dedicated module worker only when used. Search literal Markdown source and filenames, return physical source offsets, count every match and bound the displayed file/excerpt list. Cache unchanged source snapshots, allow one active worker request plus the latest queued query, and discard superseded generations. Render excerpts as text. A result jump must still match its captured source before the existing editor navigation path positions and focuses the cursor. Search and preview remain available in a read-only Space.
