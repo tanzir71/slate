@@ -12,7 +12,8 @@ async function open(page: Page, path: string) {
   await dialog.locator("input").fill(path);
   await dialog.getByRole("button").filter({ hasText: path }).click();
   await expect(page).toHaveURL(new RegExp(`/sheet/${path.replace(".", "\\.")}$`));
-  return page.locator(".cm-content");
+  await expect(dialog).toBeHidden();
+  const editor = page.locator(".cm-content"); await expect(editor).toBeFocused(); return editor;
 }
 
 test("back and forward save drafts, read current disk bytes and discard the forward branch after a new visit", async ({ page }) => {

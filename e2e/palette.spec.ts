@@ -57,7 +57,9 @@ test("Quick open distinguishes duplicate titles, moves to exact same-file headin
 test("palette blocks retain selected words and CRLF bytes, and Undo restores the exact original", async ({ page }) => {
   await seed(page); const quick = await open(page, true); await quick.locator("input").fill("alpha.md");
   await quick.getByRole("button", { name: "Same", exact: true }).click();
+  await expect(quick).toBeHidden();
   const editor = page.locator(".cm-content");
+  await expect(editor).toBeFocused();
   const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
   await editor.press(`${modifier}+a`);
   await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toContain("Alpha words.");
