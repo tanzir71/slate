@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SheetDocument, WorkspacePreferences } from "@slate/core";
 import { SheetRow } from "./SheetRow";
 import { sheetWindow } from "./sheetWindow";
@@ -28,7 +28,7 @@ export function SheetList({
   const container = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ top: 0, height: 600 });
   const [selecting, setSelecting] = useState(false);
-  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
+  const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set());
   const [focusPath, setFocusPath] = useState<string>();
   const rowHeight = preferences.density === "compact" ? 61 : 88;
   const window = sheetWindow(
@@ -37,13 +37,14 @@ export function SheetList({
     viewport.top,
     rowHeight,
   );
-  const editable = sheets.filter((sheet) => !readOnlyPaths.has(sheet.path));
-  const selected = editable
+  const editable = useMemo(() => sheets.filter((sheet) => !readOnlyPaths.has(sheet.path)), [sheets, readOnlyPaths]);
+  const selected = useMemo(() => editable
     .filter((sheet) => checked.has(sheet.path))
-    .map((sheet) => sheet.path);
-  const selectedIndex = sheets.findIndex(
+    .map((sheet) => sheet.path), [editable, checked]);
+  const selectedIndex = useMemo(() => sheets.findIndex(
     (sheet) => sheet.path === selectedPath,
-  );
+  ), [sheets, selectedPath]);
+  const pinned = useMemo(() => new Set(preferences.pinned), [preferences.pinned]);
 
   useLayoutEffect(() => {
     const element = container.current!;
@@ -124,17 +125,17 @@ export function SheetList({
             </label>
             <button
               disabled={!owned || pending || !selected.length}
-              onClick={() => onBulk("move", selected)}
+              onClick={() => onBulk("move", [...selected])}
             >
               Move
             </button>
             <button
               disabled={!owned || pending || !selected.length}
-              onClick={() => onBulk("trash", selected)}
+              onClick={() => onBulk("trash", [...selected])}
             >
               Delete
             </button>
-            {onTidy && <button disabled={pending || !selected.length} onClick={() => onTidy(selected)}>Tidy selected</button>}
+            {onTidy && <button disabled={pending || !selected.length} onClick={() => onTidy([...selected])}>Tidy selected</button>}
           </>
         )}
       </div>
@@ -217,7 +218,7 @@ export function SheetList({
             <SheetRow
               sheet={sheet}
               active={sheet.path === selectedPath}
-              pinned={preferences.pinned.includes(sheet.path)}
+              pinned={pinned.has(sheet.path)}
               draggable={owned && !pending && !selecting}
               disabled={pending}
               onOpen={() => onOpen(sheet.path)}

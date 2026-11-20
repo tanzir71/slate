@@ -1,5 +1,16 @@
 # Slate Decisions
 
+## 2026-11-20 - Preload the actual workspace editor boundary
+
+- When a Space starts opening, request WorkspaceDocumentEditor alongside Workspace and the file/catalog reads. This loads MarkdownEditor plus the document session wrapper used by the actual lazy view, retaining the existing lazy boundary, rejection handling and file/ownership checks. Loading the lower-level editor alone leaves another module dependency until after the workspace render.
+- A real BrowserApp regression holds library opening unresolved and checks that the document-editor module is already requested. Preserve the first 1006 ms Firefox offline failure and its complete frozen candidate before this change; the module-order check is structural evidence, and every original timing threshold still requires its own complete first check.
+
+## 2026-11-20 - Cache immutable workspace projections
+
+- Derive notebook topology/counts, tag counts, visible sheets, structural readiness, pin membership and bulk eligibility from their actual immutable file/summary/preference inputs. Reuse the existing palette document map for selected metadata and tab labels. Unrelated modal/ownership renders must not scan every cached record. Keep these projections local to React; files remain authoritative and action guards still read the live store.
+- Build notebook/tag ancestor counts once per changed input, retain exact case and descendant boundaries, and count a note once per tag ancestor. Indexed search uses exact path-set membership while preserving document order and pending-versus-empty results. Empty filtering can reuse the readonly document array; bulk callbacks receive selection copies.
+- Recent filtering alone depends on time and rechecks on the next root render using one current timestamp. Keep original sorting, assets, layout, live refresh, eligibility and source bytes. Real component/store regressions cover invalidation and 10k-record read bounds; those structural checks do not establish a timing pass. Preserve complete first performance attempts and every strict release gate.
+
 ## 2026-11-20 - Contiguous palette character cache
 
 - Store all field counts in one contiguous Uint32Array owned by the index. Sorted entries retain offsets into that buffer, and their secondary fields remain ordinary normalized strings. Build masks while grouping entries by kind; queries use one fixed-size scratch buffer. Avoid a separate typed array or view for each field.

@@ -53,7 +53,7 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
     setError("");
     // Load the writing UI alongside disk/catalog reads, rather than after them.
     void loadWorkspace().catch(() => undefined);
-    void import("../MarkdownEditor").catch(() => undefined);
+    void import("./WorkspaceDocumentEditor").catch(() => undefined);
     try {
       mark("previous-flush.start");
       await workspaceRef.current?.flush();

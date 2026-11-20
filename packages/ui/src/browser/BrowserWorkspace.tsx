@@ -25,7 +25,7 @@ import { WorkspaceStatusBar } from "./WorkspaceStatusBar";
 import { WorkspaceDialog } from "./WorkspaceDialog";
 import { NotebookTree } from "./NotebookTree";
 import { SheetList } from "./SheetList";
-import { matchesWorkspaceFilter } from "./workspaceFilter";
+import { filterWorkspaceDocuments, workspaceTagSummary } from "./workspaceCollections";
 import { useSheetSummaries } from "./useSheetSummaries";
 import { sheetStructureReady } from "./sheetStructureReady";
 import { EditorSettingsDialog } from "../EditorSettingsDialog";
@@ -158,7 +158,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const paneHandles = useRef<Partial<Record<EditorPaneId, MarkdownEditorHandle>>>({});
   const paneCursors = useRef<Partial<Record<EditorPaneId, EditorCursor>>>({});
   const pendingNavigation = useRef<{ path: string; source: string; position?: number } | undefined>(undefined);
-  const selected = state.sheets.find((sheet) => sheet.path === state.selectedPath);
+  const selected = useMemo(() => state.sheets.find((sheet) => sheet.path === state.selectedPath), [state.sheets, state.selectedPath]);
+  const paneSheets = useMemo(() => ({
+    primary: state.sheets.find(sheet => sheet.path === editorLayout.primary),
+    secondary: editorLayout.secondary === undefined ? undefined : state.sheets.find(sheet => sheet.path === editorLayout.secondary),
+  }), [state.sheets, editorLayout.primary, editorLayout.secondary]);
   const tidy = useTidyReview({
     subscribeNoteSaved: store.subscribeNoteSaved,
     space: store.space,
@@ -195,20 +199,25 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const paletteCatalog = useMemo(() => workspacePalette({ commands: registry, files: paletteFiles, documents,
     blocks: paletteBlocks?.blocks ?? emptyBlocks, templates: paletteTemplates?.items ?? emptyTemplates, snippets: snippets.snapshot?.snippets ?? emptySnippets,
   }), [registry, paletteFiles, documents, paletteBlocks?.blocks, paletteTemplates?.items, snippets.snapshot?.snippets]);
-  const summariesPending = !sheetStructureReady(state.sheets, documents);
-  const document = documents.find((sheet) => sheet.path === state.selectedPath);
+  const summariesPending = useMemo(() => !sheetStructureReady(paletteFiles, documents), [paletteFiles, documents]);
+  const document = paletteCatalog.documents.get(state.selectedPath);
   const canInsertBlock = useCallback(() => store.api.getState().owned, [store]);
   const completionIdentities = useMemo(() => JSON.stringify(documents.map(({ id, path, title }) => ({ id, path, title }))), [documents]);
   const completionSheets = useMemo(() => JSON.parse(completionIdentities) as WikiCompletionTarget[], [completionIdentities]);
-  const notebooks = [...new Set([...state.sheets.map((sheet) => notebookFor(sheet.path)).filter(Boolean), ...extraNotebooks])].sort();
-  const tagIdentities = useMemo(() => JSON.stringify([...new Set(documents.flatMap((sheet) => sheet.tags.map((tag) => tag.path)))].sort()), [documents]);
+  const sheetPaths = useMemo(() => paletteFiles.map(sheet => sheet.path), [paletteFiles]);
+  const notebooks = useMemo(() => [...new Set([...sheetPaths.map(notebookFor).filter(Boolean), ...extraNotebooks])].sort(), [sheetPaths, extraNotebooks]);
+  const tagSummary = useMemo(() => workspaceTagSummary(documents), [documents]);
+  const tagIdentities = useMemo(() => JSON.stringify(tagSummary.tags), [tagSummary.tags]);
   const tags = useMemo(() => JSON.parse(tagIdentities) as string[], [tagIdentities]);
-  const visible = documents.filter((sheet) => {
-    const inNotebook = matchesWorkspaceFilter(sheet, filter, state.preferences.pinned);
-    const textMatch = !query || (matches ? matches.includes(sheet.path) : `${sheet.title} ${sheet.raw}`.toLowerCase().includes(query.toLowerCase()));
-    return inNotebook && textMatch;
-  });
-  const pinnedCount = documents.filter((sheet) => state.preferences.pinned.includes(sheet.path)).length;
+  const recentTime = filter === "@recent" ? Date.now() : undefined;
+  const visible = useMemo(() => filterWorkspaceDocuments(documents, filter, state.preferences.pinned, query, matches,
+    recentTime === undefined ? undefined : new Date(recentTime)), [documents, filter, state.preferences.pinned, query, matches, recentTime]);
+  const pinnedCount = useMemo(() => {
+    const pinned = new Set(state.preferences.pinned);
+    return pinned.size ? documents.filter(sheet => pinned.has(sheet.path)).length : 0;
+  }, [documents, state.preferences.pinned]);
+  const inboxCount = useMemo(() => documents.filter(sheet => sheet.path.startsWith("Inbox/")).length, [documents]);
+  const readOnlyPaths = useMemo(() => new Set(paletteFiles.filter(sheet => sheet.unsupportedEncoding).map(sheet => sheet.path)), [paletteFiles]);
   const listTitle = ({ "@pinned": "Pinned", "@drafts": "Drafts in progress", "@goals": "Goal in progress", "@recent": "Edited recently" } as Record<string, string>)[filter] ?? (filter.startsWith("#") ? filter : filter.split("/").at(-1) || "All sheets");
 
   function selectFilter(value: string) { setFilter(value); setPane("sheets"); setSheetsVisible(true); }
@@ -746,33 +755,33 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       <aside className="browserSidebar" aria-label="Workspace navigation">
         <div className="spaceHeading"><button className="spaceSwitcher" title="Switch Space" onClick={() => run(onSwitchSpace)}><span className="spaceAvatar"><BrandMark size={17} /></span><strong>{state.record.name}</strong><ChevronDown size={13} /></button><button title={`Search everywhere (${shortcut("sheet.search")})`} aria-label="Search workspace" onClick={openWorkspaceSearch}><Search size={16} /></button></div>
         <button className={!filter ? "navItem selected" : "navItem"} onClick={() => selectFilter("")}><BookOpen size={16} />All sheets<span>{state.sheets.length}</span></button>
-        <button className={filter === "Inbox" ? "navItem selected" : "navItem"} onClick={() => selectFilter("Inbox")}><Inbox size={16} />Inbox<span>{documents.filter((sheet) => sheet.path.startsWith("Inbox/")).length}</span></button>
+        <button className={filter === "Inbox" ? "navItem selected" : "navItem"} onClick={() => selectFilter("Inbox")}><Inbox size={16} />Inbox<span>{inboxCount}</span></button>
         <button className={filter === "Daily" ? "navItem selected" : "navItem"} title={`Today (${shortcut("sheet.today")})`} onClick={() => dispatchCommand("sheet.today")} disabled={!state.owned}><CalendarDays size={16} />Today</button>
         <button className={filter === "@pinned" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@pinned")}><Pin size={16} />Pinned<span>{pinnedCount}</span></button>
         <div className="sectionTitle">Notebooks<button title="New notebook" aria-label="New notebook" disabled={!state.owned} onClick={(event) => { event.currentTarget.focus(); setAction("notebook"); setActionValue(""); }}><Plus size={14} /></button></div>
-        <NotebookTree onTemplate={state.owned ? openNotebookTemplate : undefined} paths={notebooks} sheetPaths={state.sheets.map((sheet) => sheet.path)} selected={filter} collapsed={collapsed} onSelect={selectFilter} onToggle={(path) => { if (state.owned) run(async () => { await store.toggleNotebook(path); setCollapsed(new Set(store.api.getState().preferences.collapsedNotebooks)); }); else setCollapsed((current) => { const next = new Set(current); if (next.has(path)) next.delete(path); else next.add(path); return next; }); }} onMove={(path, notebook) => run(() => store.move(path, `${notebook}/${path.split("/").pop()!}`))} />
+        <NotebookTree onTemplate={state.owned ? openNotebookTemplate : undefined} paths={notebooks} sheetPaths={sheetPaths} selected={filter} collapsed={collapsed} onSelect={selectFilter} onToggle={(path) => { if (state.owned) run(async () => { await store.toggleNotebook(path); setCollapsed(new Set(store.api.getState().preferences.collapsedNotebooks)); }); else setCollapsed((current) => { const next = new Set(current); if (next.has(path)) next.delete(path); else next.add(path); return next; }); }} onMove={(path, notebook) => run(() => store.move(path, `${notebook}/${path.split("/").pop()!}`))} />
         <div className="sectionTitle">Smart filters</div>
         <button className={filter === "@drafts" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@drafts")}><FileText size={16} />Drafts in progress</button>
         <button className={filter === "@goals" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@goals")}><Gauge size={16} />Goal in progress</button>
         <button className={filter === "@recent" ? "navItem selected" : "navItem"} onClick={() => selectFilter("@recent")}><Filter size={16} />Edited recently</button>
         <div className="sectionTitle">Tags</div>
-        {tags.length ? tags.map((tag) => <button key={tag} className={filter === `#${tag}` ? "navItem selected" : "navItem"} onClick={() => selectFilter(`#${tag}`)}><Hash size={15} /><span className="navLabel">{tag}</span><small>{documents.filter((sheet) => sheet.tags.some((entry) => entry.path === tag || entry.path.startsWith(`${tag}/`))).length}</small></button>) : <p className="quiet">Add #tags in your writing.</p>}
+        {tags.length ? tags.map((tag) => <button key={tag} className={filter === `#${tag}` ? "navItem selected" : "navItem"} onClick={() => selectFilter(`#${tag}`)}><Hash size={15} /><span className="navLabel">{tag}</span><small>{tagSummary.counts.get(tag) ?? 0}</small></button>) : <p className="quiet">Add #tags in your writing.</p>}
         <div className="storageFooter"><HardDrive size={14} /><span>{runtime ? "On this device" : state.record.id === "sample" ? "Sample" : state.record.tier === "folder" ? `Folder: ${state.record.name}` : `Browser library · ${usage}`}<small>{indexWarning}</small></span></div>
       </aside>
       <aside className="browserSheetList" aria-label="Sheets">
         <div className="listHeading"><strong>{listTitle}</strong><small>{visible.length}</small><label className="densityControl"><span className="visuallyHidden">Sheet density</span><select aria-label="Sheet density" value={state.preferences.density} disabled={!state.owned} onChange={(event) => run(() => store.setDensity(event.target.value as "comfortable" | "compact"))}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label><button title={`New sheet (${shortcut("sheet.new")})`} aria-label="New Sheet" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}><Plus size={17} /></button></div>
         <label className="browserSearch"><Search size={15} /><input aria-label="Search sheets" placeholder={filter ? `Filter ${listTitle}…` : "Search sheets…"} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} pending={summariesPending} readOnlyPaths={new Set(state.sheets.filter((sheet) => sheet.unsupportedEncoding).map((sheet) => sheet.path))} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} onTidy={openBatchTidy} />
+        <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} pending={summariesPending} readOnlyPaths={readOnlyPaths} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} onTidy={openBatchTidy} />
         {!visible.length && <div className="browserEmpty"><strong>{query ? "No sheets match" : "A little room to think"}</strong><p>{query ? "Try another search." : "Create your first sheet or import your notes."}</p></div>}
         <div className="listFoot">{visible.length} sheets</div>
       </aside>
       <section className="browserEditor" aria-label="Editor">
-        <EditorTabs layout={editorLayout} dirty={store.hasDraft} label={(path) => documents.find((sheet) => sheet.path === path)?.title ?? path.split("/").at(-1)?.replace(/\.md$/i, "") ?? path} onNew={() => openPalette("sheets")} onSplit={toggleSplit}
+        <EditorTabs layout={editorLayout} dirty={store.hasDraft} label={(path) => paletteCatalog.documents.get(path)?.title ?? path.split("/").at(-1)?.replace(/\.md$/i, "") ?? path} onNew={() => openPalette("sheets")} onSplit={toggleSplit}
           onOpen={(path, focusEditor) => { if (editors.layout.open(path)) { if (focusEditor) focusSelected(); else { pendingNavigation.current = undefined; setPane("editor"); } } }} onClose={(path) => { if (editors.layout.close(path)) focusSelected(); }} />
         <div className="workspaceEditorGrid" id="workspace-editor-panel" role="tabpanel" aria-label="Open sheet editor" data-split={editorLayout.secondary !== undefined}>
           {(["primary", "secondary"] as const).map((id) => {
             const path = editorLayout[id]; if (path === undefined) return null;
-            const sheet = state.sheets.find((item) => item.path === path), summary = documents.find((item) => item.path === path), active = editorLayout.active === id;
+            const sheet = paneSheets[id], summary = paletteCatalog.documents.get(path), active = editorLayout.active === id;
             const documentKey = `${state.record.id}/${path}`;
             return <section key={id} className="workspaceEditorPane" aria-label={id === "primary" ? "Primary editor" : "Secondary editor"} data-active={active}
               onPointerDownCapture={() => activatePane(id)} onFocusCapture={() => activatePane(id)}>

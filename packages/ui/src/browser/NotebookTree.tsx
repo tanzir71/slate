@@ -1,4 +1,6 @@
 import { ChevronDown, ChevronRight, Folder } from "lucide-react";
+import { useMemo } from "react";
+import { notebookCounts } from "./workspaceCollections";
 
 interface NotebookNode {
   path: string;
@@ -33,10 +35,12 @@ interface NotebookTreeProps {
   onTemplate?: ((path: string) => void) | undefined;
 }
 export function NotebookTree(props: NotebookTreeProps) {
+  const roots = useMemo(() => notebookTree(props.paths), [props.paths]);
+  const counts = useMemo(() => notebookCounts(props.sheetPaths), [props.sheetPaths]);
   return (
     <ul className="notebookTree">
-      {notebookTree(props.paths).map((node) => (
-        <NotebookBranch key={node.path} node={node} depth={0} {...props} />
+      {roots.map((node) => (
+        <NotebookBranch key={node.path} node={node} depth={0} counts={counts} {...props} />
       ))}
     </ul>
   );
@@ -44,12 +48,11 @@ export function NotebookTree(props: NotebookTreeProps) {
 function NotebookBranch({
   node,
   depth,
+  counts,
   ...props
-}: NotebookTreeProps & { node: NotebookNode; depth: number }) {
+}: NotebookTreeProps & { node: NotebookNode; depth: number; counts: ReadonlyMap<string, number> }) {
   const open = !props.collapsed.has(node.path);
-  const count = props.sheetPaths.filter((path) =>
-    path.startsWith(`${node.path}/`),
-  ).length;
+  const count = counts.get(node.path) ?? 0;
   return (
     <li>
       <div
@@ -106,6 +109,7 @@ function NotebookBranch({
               key={child.path}
               node={child}
               depth={depth + 1}
+              counts={counts}
               {...props}
             />
           ))}
