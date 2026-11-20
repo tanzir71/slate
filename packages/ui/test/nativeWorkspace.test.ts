@@ -39,6 +39,12 @@ function setup(initial: Record<string, string> = {}) {
 beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
+it("exposes native file actions only when the lifecycle supplies the real capability", () => {
+  const { lifecycle, session } = setup(); expect(session.runtime.fileActions).toBeUndefined();
+  const fileActions = { info: vi.fn(), reveal: vi.fn() }; lifecycle.fileActions = fileActions;
+  expect(createNativeWorkspace(lifecycle).runtime.fileActions).toBe(fileActions);
+});
+
 it("opens only real disk notes, preserves raw BOM/CRLF, and reopens a saved edit", async () => {
   const { session, disk, lifecycle, invoke } = setup({ "Inbox/real.md": "\uFEFF# Real\r\n" });
   await session.open();

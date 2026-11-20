@@ -4,12 +4,14 @@ import { unified } from "unified";
 import { parse as parseYaml } from "yaml";
 import { markdownFrontmatter } from "./markdownBody.js";
 import type { MarkdownHeading } from "./markdownHeadings.js";
+import { markdownTextRanges } from "./markdownText.js";
 
 export * from "./commands.js";
 export * from "./palette.js";
 export * from "./workspaceSearch.js";
 export * from "./markdownHeadings.js";
 export * from "./markdownSections.js";
+export * from "./markdownMentions.js";
 export * from "./workspacePreferences.js";
 export * from "./textChanges.js";
 export * from "./blocks.js";
@@ -55,6 +57,9 @@ export interface WikiLink {
   target: string;
   display: string;
   targetId: SheetId | undefined;
+  /** Raw UTF-16 positions in the Markdown body, when supplied by the semantic scanner. */
+  readonly from?: number;
+  readonly to?: number;
 }
 
 export interface SheetStats {
@@ -211,13 +216,32 @@ export function computeStats(markdown: string): SheetStats {
 }
 
 export function extractWikiLinks(markdown: string): WikiLink[] {
-  return Array.from(markdown.matchAll(wikiLinkPattern), (match) => {
+  const matches = [...markdown.matchAll(wikiLinkPattern)];
+  if (!matches.length) return [];
+  const ranges = markdownTextRanges(markdown, 0);
+  function prose(position: number) {
+    let low = 0, high = ranges.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1, range = ranges[middle]!;
+      if (position < range.from) high = middle;
+      else if (position >= range.to) low = middle + 1;
+      else return true;
+    }
+    return false;
+  }
+  return matches.filter(match => {
+    const from = match.index; let escaped = from;
+    while (escaped > 0 && markdown[escaped - 1] === "\\") escaped--;
+    return (from - escaped) % 2 === 0 && !/[\r\n]/.test(match[0]) && prose(from) && prose(from + match[0].length - 1);
+  }).map((match) => {
     const rawTarget = (match[1] ?? "").trim();
     const display = (match[2] ?? rawTarget).trim();
     const normalizedId = normalizeTargetId(rawTarget);
 
     return {
       raw: match[0],
+      from: match.index,
+      to: match.index + match[0].length,
       target: normalizedId ?? rawTarget,
       display,
       targetId: normalizedId

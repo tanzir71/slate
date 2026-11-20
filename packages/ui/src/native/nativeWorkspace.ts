@@ -2,11 +2,13 @@ import { createFileSpace } from "@slate/storage/file-space";
 import { createTauriWorkspaceFiles } from "@slate/storage/tauri-files";
 import { createSnippetFileStore, globalSnippetPath } from "@slate/storage/browser-space";
 import { createWorkspaceStore } from "../browser/workspaceStore";
-import type { WorkspaceRuntime } from "../browser/workspaceRuntime";
+import type { WorkspaceRuntime, WorkspaceFileActions } from "../browser/workspaceRuntime";
+import { createNativeFileActions } from "./nativeFileActions";
 
 export interface NativeChange { scope: "space" | "global"; error: string | null }
 interface CloseRequest { preventDefault(): void }
 export interface NativeLifecycle {
+  fileActions?: WorkspaceFileActions;
   listen(change: (event: NativeChange) => void): Promise<() => void>;
   watchStatus(): Promise<string[]>;
   onClose(request: (event: CloseRequest) => void): Promise<() => void>;
@@ -19,6 +21,7 @@ export async function nativeLifecycle(): Promise<NativeLifecycle> {
   ]);
   const window = getCurrentWindow();
   return {
+    fileActions: createNativeFileActions(invoke),
     listen: (change) => listen<NativeChange>("slate://workspace-changed", (event) => change(event.payload)),
     watchStatus: () => invoke<string[]>("workspace_watch_status"),
     onClose: (request) => window.onCloseRequested(request),
@@ -31,6 +34,7 @@ export function createNativeWorkspace(lifecycle: NativeLifecycle, files = create
   const globalSpace = createFileSpace(globalFiles);
   const runtime: WorkspaceRuntime = {
     surface: "desktop",
+    ...(lifecycle.fileActions ? { fileActions: lifecycle.fileActions } : {}),
     async openGlobalSnippets() {
       // Native saves compare exact disk bytes under the process-wide filesystem
       // lock; conflicts from another process are retained by the backend, too.

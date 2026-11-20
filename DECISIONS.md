@@ -1,5 +1,26 @@
 # Slate Decisions
 
+## Inspector view commands and section focus
+
+The resolved physical Inspector shortcut runs in the existing workspace capture handler before editor keymaps, retaining the modal, composition and AltGr exclusions. Keyboard section moves track their expected semantic heading order and logical destination. After current metadata arrives, restore the moved row only while its original row still owns focus; a later user focus choice takes precedence. This also handles repeated heading labels without treating their previous ordinal as their identity.
+
+Reserve the A9 drop marker's 2 px height and 1 px gap in outline padding. An active row marker consumes that reserved space so following sections stay in place. Keep the supplied marker width and original 16 px icon geometry; coarse pointer controls have separate 44 px targets.
+
+Pin Rust Tauri 2.11.5 and opener 2.5.5 to the existing JavaScript API minor. SDK updates must align the native and JavaScript versions and pass the CLI version check before building a release.
+
+## Native Inspector capabilities and semantic references
+
+The desktop Inspector receives an optional read-only file-actions capability. Two Slate commands accept only an ordinary Space-relative Markdown path, reuse the existing serialized canonical path and symlink guards, and return physical metadata or reveal that exact file. The browser has no simulated file-manager action. Reveal does not depend on write ownership. The pinned Rust opener API is called directly; its generic plugin IPC is not initialized or granted. Saved metadata refreshes after a successful note save; stale reads and reveal replies cannot update a different file. These commands do not decode, rewrite or normalize user bytes.
+
+Wiki-reference metadata uses shared semantic Markdown prose ranges to exclude code, HTML, escaped syntax and ordinary links/images. References retain their physical UTF-16 body positions for accurate backlink excerpts after identical code examples. The Inspector groups cards by source sheet and counts actual reference occurrences. Mentions share the same eligibility traversal and retain independent source-guarded batch plans and Undo. SQLite remains a replaceable cache; no content or disk schema migration is introduced.
+
+## 2026-11-20 - Inspector data and guarded mention linking
+
+- Load the Inspector only on request. Reuse summary-worker semantic root headings and derive a primitive current-heading index from the cursor store, so ordinary cursor movement within a section causes no panel render. Resolve incoming links by existing ID, canonical path and title rules; show excerpts from actual source.
+- Discover unlinked mentions from semantic text ranges in a separate Inspector-lifetime worker. Protect metadata, code, Markdown links/images/references, HTML and existing, unfinished or escaped wiki syntax. Match literal whole Unicode words and retain each original display case. Cache parsed ranges by file/source, transfer only source/result deltas, and coalesce requests behind one in-flight scan. Superseded initial replies seed internal caches without publishing stale results. Worker failure disables mention actions instead of parsing on the typing thread.
+- Link all compares the complete reviewed file universe and selected target against freshly reconciled authoritative files and live ownership. Its exact-source/revision proposals use the existing Space-scoped document sessions, raw-ending metadata, isolated history and captured-path writer. No Inspector callback writes files directly. Concurrent disk changes retain conflict copies and prevent a complete-success claim.
+- Keep batch Undo with the Space document pool across Inspector close/navigation. Undo checks every participating source, revision and permission before acting; later edits are never overwritten. Canonical histories also retain their individual file actions. Report saved-source conflicts truthfully.
+
 ## 2026-11-20 - Guarded editor section moves
 
 - Capture the semantic section plan only on an explicit outline interaction, inside the lazy editor boundary. A request belongs to one editor, document key, exact raw source and revision; live ownership, editability, connection and composition checks apply again at execution. An intervening edit and Undo still invalidate the captured request.

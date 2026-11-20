@@ -1,0 +1,55 @@
+.browserInspector { display: flex; flex-direction: column; min-block-size: 0; padding: 0; overflow: hidden; border-inline-start: 1px solid var(--border-subtle); background: var(--bg-panel); }
+.inspectorSections { display: flex; flex-shrink: 0; align-items: center; gap: 4px; block-size: 36px; padding-inline: 12px 8px; border-block-end: 1px solid var(--border-subtle); }
+.inspectorSections > button { align-self: stretch; flex-shrink: 0; padding: 0 8px; border: 0; border-radius: 0; color: var(--text-tertiary); font-size: 12px; font-weight: 500; line-height: 16px; }
+.inspectorSections > button[aria-pressed="true"] { border-block-end: 2px solid var(--accent-default); color: var(--text-primary); }
+.inspectorSections > .inspectorClose { display: grid; align-self: center; place-items: center; inline-size: 28px; block-size: 28px; margin-inline-start: auto; padding: 0; border-radius: 6px; color: var(--icon-default); }
+.inspectorScroll { flex: 1; min-block-size: 0; overflow: auto; }
+/* Reserve the 2 px marker and 1 px gap so following sections stay in place during a drag. */
+.inspectorOutline { position: relative; display: flex; flex-direction: column; gap: 1px; padding: 10px 8px 13px; }
+.inspectorOutline[data-row-drop="true"] { padding-block-end: 10px; }
+.inspectorHeading { position: relative; display: flex; align-items: center; gap: 6px; flex-shrink: 0; inline-size: 100%; block-size: 28px; padding: 0 8px; border: 0; border-radius: 6px; color: var(--text-primary); font-size: 13px; font-weight: 400; line-height: 20px; text-align: start; }
+.inspectorHeading[data-depth="1"] { font-weight: 500; }
+.inspectorHeading[aria-current="location"] { color: var(--text-accent); background: var(--bg-selected); }
+.inspectorHeading[data-dragging="true"] { background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--border-default); }
+.inspectorHeadingLabel { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspectorDepth { flex-shrink: 0; color: var(--text-tertiary); font: 400 11px/16px "Geist Mono", monospace; }
+:root[data-theme="light"] .inspectorHeading:hover .inspectorDepth, :root[data-theme="light"] .inspectorHeading[data-dragging="true"] .inspectorDepth { color: var(--text-secondary); }
+.inspectorGlyph { display: inline-block; flex-shrink: 0; inline-size: 16px; block-size: 16px; background: currentcolor; mask-position: center; mask-repeat: no-repeat; mask-size: contain; }
+.inspectorGlyph--close { mask-image: url("../assets/inspector/close.svg"); }
+.inspectorGrip { display: none; flex-shrink: 0; align-items: center; justify-content: center; inline-size: 16px; block-size: 16px; touch-action: none; }
+.inspectorGlyph--grip { color: var(--icon-default); mask-image: url("../assets/inspector/grip.svg"); }
+.inspectorHeading[draggable="true"]:hover .inspectorGrip, .inspectorHeading[draggable="true"]:focus-visible .inspectorGrip, .inspectorHeading[data-dragging="true"] .inspectorGrip { display: inline-flex; }
+.inspectorGlyph--link { color: var(--icon-default); mask-image: url("../assets/inspector/link.svg"); }
+.inspectorGlyph--folder { mask-image: url("../assets/inspector/folder-open.svg"); }
+.inspectorHeading[data-drop-before="true"] { margin-block-start: 3px; }
+.inspectorHeading[data-drop-before="true"]::before, .inspectorOutlineEnd[data-drop-before="true"]::before { position: absolute; inset-block-start: -3px; inset-inline-start: 0; inline-size: min(270px, 100%); block-size: 2px; border-radius: 1px; background: var(--accent-default); content: ""; }
+.inspectorOutlineEnd[data-drop-before="true"]::before { inset-block-start: -2px; }
+.inspectorOutlineEnd { position: absolute; inset-block-end: 0; inset-inline: 8px; block-size: 10px; }
+.inspectorLabel { display: flex; align-items: center; gap: 6px; margin: 0; padding: 14px 16px 6px; border-block-start: 1px solid var(--border-subtle); color: var(--text-tertiary); font-size: 11px; font-weight: 500; line-height: 16px; letter-spacing: .4px; text-transform: uppercase; }
+.inspectorBacklinks { display: flex; flex-direction: column; gap: 6px; padding: 4px 12px 12px; }
+.inspectorBacklink { display: flex; flex-direction: column; align-items: stretch; gap: 4px; inline-size: 100%; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-raised); text-align: start; }
+.inspectorBacklinkTitle { display: flex; align-items: center; gap: 6px; min-inline-size: 0; font-size: 13px; font-weight: 500; line-height: 20px; overflow-wrap: anywhere; }
+.inspectorSnippet { color: var(--text-secondary); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+.inspectorSnippet > span { color: var(--text-accent); }
+.inspectorFile { padding: 4px 16px 16px; color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+.inspectorFilePath { margin: 0; font: 400 11px/16px "Geist Mono", monospace; overflow-wrap: anywhere; }
+.inspectorReveal { display: flex; align-items: center; gap: 6px; margin-block-start: 6px; padding: 0; border: 0; border-radius: 0; color: var(--text-accent); font-size: 12px; font-weight: 500; line-height: 16px; }
+.inspectorFileError { color: var(--text-secondary); overflow-wrap: anywhere; }
+.inspectorDetails { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.inspectorDetails dd { margin: 0; color: var(--text-primary); }
+.inspectorFile h3 { color: var(--text-tertiary); font-size: 11px; font-weight: 500; }
+.inspectorFile progress { inline-size: 100%; accent-color: var(--accent-default); }
+.inspectorEmpty { margin: 5px 8px; color: var(--text-tertiary); font-size: 12px; line-height: 20px; }
+.inspectorMentionLabel { padding-block-end: 6px; }
+.inspectorMentionLabel h2 { flex: 1; min-inline-size: 0; margin: 0; font: inherit; letter-spacing: inherit; }
+.inspectorMentionToggle { padding: 0; border: 0; border-radius: 0; font: inherit; letter-spacing: inherit; text-transform: uppercase; text-align: start; }
+.inspectorLinkAll { flex-shrink: 0; padding: 0; border: 0; border-radius: 0; color: var(--text-accent); font-size: 12px; line-height: 16px; letter-spacing: 0; text-transform: none; }
+.inspectorMentionCount { margin-inline-start: auto; color: var(--text-tertiary); font: 400 11px/16px "Geist Mono", monospace; }
+.inspectorUndo { margin: 4px 12px 12px; color: var(--text-accent); font-size: 12px; }
+@media (pointer: coarse), (max-width: 699px) {
+  .browserInspector button { min-inline-size: 44px; min-block-size: 44px; }
+  .inspectorSections { block-size: 44px; }
+  .inspectorSections > .inspectorClose { inline-size: 44px; block-size: 44px; }
+  .inspectorHeading { min-block-size: 44px; }
+  .inspectorHeading[draggable="true"] .inspectorGrip { display: inline-flex; inline-size: 44px; block-size: 44px; }
+}

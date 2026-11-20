@@ -161,6 +161,41 @@ pub fn read_workspace_file(
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct WorkspaceFileInfo {
+    pub path: PathBuf,
+    pub bytes: u64,
+    pub modified: Option<std::time::SystemTime>,
+}
+
+/// Inspect a real regular file under the same path/symlink rules as reads and saves.
+/// This does not decode its content, create a root or change any bytes.
+pub fn workspace_file_info(
+    root: impl AsRef<Path>,
+    path: &str,
+) -> Result<Option<WorkspaceFileInfo>, StorageError> {
+    let _guard = FILE_IO
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let Some((root, target)) = target_path(root.as_ref(), path, false)? else {
+        return Ok(None);
+    };
+    let Some(metadata) = regular(&target)? else {
+        // Preserve the existing interrupted-save recovery error if a staged original exists.
+        let _ = read_checked(&root, &target)?;
+        return Ok(None);
+    };
+    let canonical = fs::canonicalize(&target)?;
+    if !canonical.starts_with(&root) {
+        return Err(StorageError::PathEscapesRoot);
+    }
+    Ok(Some(WorkspaceFileInfo {
+        path: canonical,
+        bytes: metadata.len(),
+        modified: metadata.modified().ok(),
+    }))
+}
+
 fn collect(
     root: &Path,
     directory: &Path,
@@ -547,6 +582,60 @@ mod tests {
             assert_eq!(self.0.parent(), Some(std::env::temp_dir().as_path()));
             fs::remove_dir_all(&self.0).unwrap();
         }
+    }
+
+    #[test]
+    fn workspace_file_info_reports_real_raw_bytes_without_creating_or_rewriting_files() {
+        let space = Space::new();
+        let missing = space.0.join("missing");
+        assert!(workspace_file_info(&missing, "note.md").unwrap().is_none());
+        assert!(!missing.exists());
+        let path = space.0.join("বাংলা note.md");
+        let bytes = [0xef, 0xbb, 0xbf, b'#', 0xff, b'\r', b'\n'];
+        fs::write(&path, bytes).unwrap();
+        let info = workspace_file_info(&space.0, "বাংলা note.md")
+            .unwrap()
+            .unwrap();
+        assert_eq!(info.path, fs::canonicalize(&path).unwrap());
+        assert_eq!(info.bytes, bytes.len() as u64);
+        assert!(info.modified.is_some());
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        assert_eq!(fs::read_dir(&space.0).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn workspace_file_info_refuses_unsafe_paths_and_non_files() {
+        let space = Space::new();
+        for path in [
+            "../outside.md",
+            "C:/note.md",
+            "a\\note.md",
+            "./note.md",
+            "a//note.md",
+            "note.md:stream",
+            "CON.md",
+            "a/../note.md",
+        ] {
+            assert!(workspace_file_info(&space.0, path).is_err(), "{path}");
+        }
+        fs::create_dir(space.0.join("folder.md")).unwrap();
+        assert!(workspace_file_info(&space.0, "folder.md").is_err());
+        assert!(workspace_file_info(&space.0, "absent.md")
+            .unwrap()
+            .is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_file_info_rejects_leaf_and_parent_symlinks() {
+        use std::os::unix::fs::symlink;
+        let space = Space::new();
+        let outside = Space::new();
+        fs::write(outside.0.join("note.md"), b"Private outside words").unwrap();
+        symlink(outside.0.join("note.md"), space.0.join("leaf.md")).unwrap();
+        symlink(&outside.0, space.0.join("parent")).unwrap();
+        assert!(workspace_file_info(&space.0, "leaf.md").is_err());
+        assert!(workspace_file_info(&space.0, "parent/note.md").is_err());
     }
 
     #[test]

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { useStore } from "zustand";
-import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, X, Settings } from "lucide-react";
+import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, Settings } from "lucide-react";
 import { commandAvailable, matchCommand, resolveCommandKeymap, type PaletteEntry, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
 import { useTemplateLibrary } from "../blocks/useTemplateLibrary";
 import { useBlockLibrary } from "../blocks/useBlockLibrary";
@@ -27,7 +27,6 @@ import { NotebookTree } from "./NotebookTree";
 import { SheetList } from "./SheetList";
 import { matchesWorkspaceFilter } from "./workspaceFilter";
 import { useSheetSummaries } from "./useSheetSummaries";
-import { inspectorContents } from "./inspectorContents";
 import { sheetStructureReady } from "./sheetStructureReady";
 import { EditorSettingsDialog } from "../EditorSettingsDialog";
 import { useEditorPreferences } from "../editorPreferences";
@@ -39,6 +38,7 @@ import { createWorkspaceEditorLayout, type EditorPaneId } from "./workspaceEdito
 import { EditorTabs } from "./EditorTabs";
 
 const Editor = lazy(() => import("./WorkspaceDocumentEditor"));
+const Inspector = lazy(() => import("./WorkspaceInspector"));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
 const NotebookTemplateDialog = lazy(() => import("../templates/NotebookTemplateDialog"));
 const StarterKitDialog = lazy(() => import("../templates/StarterKitDialog"));
@@ -70,7 +70,7 @@ interface PaletteRequest {
 const subscribeEmpty = () => () => undefined;
 const getEmpty = () => undefined;
 const emptyBlocks = [] as const, emptyTemplates = [] as const, emptySnippets = [] as const;
-const priorityCommands: ReadonlySet<string> = new Set(["view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
+const priorityCommands: ReadonlySet<string> = new Set(["view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
 interface WorkspaceProps {
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
@@ -628,7 +628,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       if (event.defaultPrevented) return;
       const id = matchCommand(priorityBindings, keyboardInput(event), { editor: false, selection: false });
       if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
-      // Workspace navigation, tabs and split take priority over editor keymaps.
+      // Workspace navigation and view commands take priority over editor keymaps.
       event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
     };
     window.addEventListener("keydown", dispatchPriority, true);
@@ -688,7 +688,16 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     setAction(undefined);
   }
 
-  const { outline, backlinks } = useMemo(() => inspectorContents(inspector, document, documents), [inspector, document, documents]);
+  function inspectorEditor() {
+    const current = store.api.getState(), handle = editorHandle.current;
+    return current.selectedPath === state.selectedPath && handle?.documentKey() === `${current.record.id}/${current.selectedPath}` ? handle : undefined;
+  }
+  function captureInspectorMove(source: string) {
+    const handle = inspectorEditor(), path = state.selectedPath, target = handle?.sectionTarget(source);
+    return target ? { move(index: number, before: number) {
+      return store.api.getState().selectedPath === path && editorHandle.current === handle && target.move(index, before);
+    } } : undefined;
+  }
   const pinned = state.preferences.pinned.includes(state.selectedPath);
 
   return <main className="browserWorkspace" data-editor-ready={editorReady} onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
@@ -786,7 +795,13 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         </div>
       </section>
       {tidy.open && <Suspense fallback={<aside className="tidyPanel" aria-label="Tidy review"><p role="status">Opening Tidy…</p></aside>}><TidyPanel review={tidy} readOnly={!state.owned} onClose={closeTidy} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} /></Suspense>}
-      {inspector && <aside className="browserInspector" aria-label="Inspector"><button className="inspectorClose" aria-label="Close inspector" onClick={() => setInspector(false)}><X size={16} /></button><h2>Outline</h2>{outline.map((line, i) => <p key={i}>{line.replace(/^#+ /, "")}</p>)}{!outline.length && <p className="quiet">Headings appear here.</p>}<h2>Backlinks</h2>{backlinks.map((sheet) => <button key={sheet.path} onClick={() => run(() => store.select(sheet.path))}>{sheet.title}</button>)}{!backlinks.length && <p className="quiet">No backlinks yet.</p>}{document?.goal && <><h2>Writing goal</h2><p>{document.goal.current.toLocaleString()} / {document.goal.target.toLocaleString()} {document.goal.type === "readingTimeMinutes" ? "minutes" : document.goal.type}</p><progress aria-label="Writing goal" value={document.goal.current} max={document.goal.target} /></>}<h2>File</h2><p>{selected?.path}</p></aside>}
+      {inspector && <Suspense fallback={<aside className="browserInspector" aria-label="Inspector"><p role="status">Opening Inspector…</p></aside>}>
+        <Inspector key={`${state.record.id}/${state.selectedPath}`} document={selected?.unsupportedEncoding ? undefined : document} documents={documents} store={store} pool={editors.pool} sheets={state.sheets}
+          {...(runtime?.fileActions ? { fileActions: runtime.fileActions } : {})}
+          path={state.selectedPath} cursor={cursor} readOnly={!state.owned || !!selected?.unsupportedEncoding} closeShortcut={shortcut("view.inspector")}
+          onClose={() => setInspector(false)} onJump={(source, offset) => { const handle = inspectorEditor(); if (!handle?.goToSourceOffset(source, offset)) return false; setPane("editor"); return true; }}
+          onOpen={(path) => { setPane("editor"); run(() => store.select(path)); }} captureMove={captureInspectorMove} />
+      </Suspense>}
     </div>
     <input ref={input} type="file" aria-label="Import files" multiple accept=".md,.zip" className="visuallyHidden" onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />

@@ -1,4 +1,5 @@
 use tauri::Manager;
+mod file_info;
 mod legacy_workspace;
 mod workspace;
 mod workspace_index;
@@ -19,6 +20,8 @@ fn main() {
             legacy_workspace::write_tidy_settings,
             workspace::list_workspace_files,
             workspace::read_workspace_file,
+            file_info::read_workspace_file_info,
+            file_info::reveal_workspace_file,
             workspace::create_workspace_file,
             workspace::save_workspace_file,
             workspace::move_workspace_file,

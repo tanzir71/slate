@@ -34,6 +34,8 @@ Draft copy for #writing/work and [[Research Notes|research]].
     expect(sheet.links).toEqual([
       {
         raw: "[[Research Notes|research]]",
+        from: 48,
+        to: 75,
         target: "Research Notes",
         display: "research",
         targetId: undefined

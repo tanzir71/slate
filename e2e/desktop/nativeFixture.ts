@@ -48,6 +48,16 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
         if (command === "plugin:event|unlisten") { listeners.delete(Number(args.eventId)); return null; }
         if (command === "plugin:window|destroy") { localStorage.setItem("native-destroyed", "true"); return null; }
         if (command === "workspace_watch_status") return [];
+        if (command === "read_workspace_file_info") {
+          if (localStorage.getItem("native-fail-info")) throw { kind: "permission", message: "File information unavailable" };
+          const bytes = read("space", path); if (bytes === null) throw { kind: "io", message: "This sheet no longer exists" };
+          return { absolutePath: "C:\\Slate test Space\\" + path.replaceAll("/", "\\"), bytes: bytes.length, modifiedAt: Date.UTC(2026, 10, 20), revealLabel: "Show in Explorer" };
+        }
+        if (command === "reveal_workspace_file") {
+          if (localStorage.getItem("native-fail-reveal")) throw { kind: "io", message: "File manager unavailable" };
+          if (read("space", path) === null) throw { kind: "io", message: "This sheet no longer exists" };
+          localStorage.setItem("native-revealed", path); return null;
+        }
         if (command === "list_workspace_files") return Object.keys(localStorage).filter((key) => key.startsWith(prefix(scope))).map((key) => key.slice(prefix(scope).length)).filter((name) => args.includePrivate || !name.startsWith(".slate/")).sort();
         if (command === "read_workspace_file") {
           if (localStorage.getItem("native-fail-read")) throw { kind: "permission", message: "Access denied. Your files were kept." };

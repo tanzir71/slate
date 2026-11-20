@@ -475,7 +475,7 @@ test("the closed inspector avoids full-body scans and shows current headings whe
   await expect(
     inspector.getByText("First section", { exact: true }),
   ).toBeVisible();
-  expect(await scans()).toBeGreaterThan(0);
+  expect(await scans()).toBe(0);
   await editor.focus();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.insertText("\n\n### New third section");

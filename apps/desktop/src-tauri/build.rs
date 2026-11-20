@@ -9,6 +9,8 @@ fn main() {
             "write_tidy_settings",
             "list_workspace_files",
             "read_workspace_file",
+            "read_workspace_file_info",
+            "reveal_workspace_file",
             "create_workspace_file",
             "save_workspace_file",
             "move_workspace_file",

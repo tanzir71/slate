@@ -67,7 +67,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 .sheetActionsItems button { justify-content: flex-start; inline-size: 100%; block-size: 32px; padding-inline: 10px; text-align: start; }
 .nativeWindowControls { display: flex; border-inline-start: 1px solid var(--border-default); margin-inline-start: 4px; padding-inline-start: 6px; }
 .browserPanes { position: relative; display: grid; --sidebar-size: 248px; --list-size: 300px; --inspector-size: 0px; grid-template-columns: var(--sidebar-size) var(--list-size) minmax(0, 1fr) var(--inspector-size); flex: 1; min-block-size: 0; }
-.browserPanes.withInspector { --inspector-size: 280px; }
+.browserPanes.withInspector { --inspector-size: 300px; }
 .browserPanes.withoutSidebar { --sidebar-size: 0px; }
 .browserPanes.withoutSheets { --list-size: 0px; }
 .browserPanes > aside, .browserPanes > section { grid-row: 1; }
@@ -152,11 +152,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 .browserEmpty { padding: 28px; color: var(--text-secondary); line-height: 1.6; }
 .editorEmpty { margin: auto; text-align: center; }
 .editorEmpty h1 { color: var(--text-primary); font: 500 34px Newsreader, Georgia, serif; }
-.browserInspector { border-inline-start: 1px solid var(--border-default); background: var(--bg-panel); padding: 20px; overflow: auto; font-size: 12px; }
-.browserInspector h2 { font-size: 12px; margin: 15px 0; }
-.browserInspector p { overflow-wrap: anywhere; }
-.inspectorClose { float: right; }
-.browserInspector progress { inline-size: 100%; accent-color: var(--accent-default); }
 .mobileAppearance { display: none; }
 .workspaceStatus { display: flex; align-items: center; gap: 12px; min-block-size: 28px; flex-shrink: 0; background: var(--bg-app); border-block-start: 1px solid var(--border-default); padding-inline: 10px; font-size: 11px; color: var(--text-secondary); }
 .workspaceStatus .statusSpacer { flex: 1; }
@@ -188,7 +183,7 @@ kbd { font-size: 11px; color: var(--text-tertiary); }
 @media (max-width: 1279px) {
   .browserPanes { --sidebar-size: 220px; --list-size: 280px; }
   .browserPanes.withInspector { --inspector-size: 0px; }
-  .browserInspector { position: absolute; z-index: 8; inset-block: 0; inset-inline-end: 0; inline-size: 280px; box-shadow: -10px 0 25px #0002; }
+  .browserInspector { position: absolute; z-index: 8; inset-block: 0; inset-inline-end: 0; inline-size: 300px; box-shadow: -10px 0 25px #0002; }
   .onboarding { margin-inline: max(28px, calc((100% - 880px) / 2)); }
 }
 @media (max-width: 1099px) { .browserPanes { --sidebar-size: 190px; --list-size: 260px; } .welcomeFooter > div { gap: 14px; } .liveModeLabel { display: none; } }
