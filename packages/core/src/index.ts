@@ -7,6 +7,7 @@ import type { MarkdownHeading } from "./markdownHeadings.js";
 
 export * from "./commands.js";
 export * from "./palette.js";
+export * from "./workspaceSearch.js";
 export * from "./markdownHeadings.js";
 export * from "./workspacePreferences.js";
 export * from "./textChanges.js";

@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Plan literal search edits against physical source
+
+The initial F-73 domain API searches literal text with optional case matching. Escape every pattern metacharacter and use Unicode-aware matching so punctuation cannot turn a search into a regular expression, a case conversion cannot shift offsets, and a surrogate half cannot select part of an astral character. Match and edit offsets refer to the unchanged UTF-16 source. CRLF counts as one physical line; BOM and mixed endings are never normalized. Results are yielded in source order for bounded previews.
+
+Replacement text is also literal, including dollar signs and backslashes. Empty queries make no edits; identical replacements are omitted while still counting matches. The planner produces exact source/output/TextChange snapshots without platform imports or disk access. This preparatory API does not expose a new UI: Space-wide results, reviewed disk snapshots, conflict handling and Undo belong to the forthcoming storage/UI integration.
+
 ## 2026-11-20 - Keep sheet visits separate from browser and document history
 
 F-76 uses a per-Space session of up to 100 sheet visits, observed from the shared workspace store so list, palette, wiki, creation and route selections follow the same path. AltLeft/AltRight and registry/menu actions navigate this session. A different ordinary visit discards the forward branch; repeating the current sheet does not add a visit. Deleted cached destinations are skipped. Visits do not change browser page history or persist private note locations in another file.
