@@ -148,17 +148,18 @@ function dateResult(
       {
         label: "Choose date…",
         detail: "YYYY-MM-DD",
-        apply(view, _completion, from, to) {
+        apply(view, _completion, from, _to) {
           const current = markdownCompletionQuery(view.state);
           const pick = view.state.facet(completionData).onPickDate;
           if (
             view.compositionStarted ||
             !pick ||
             current?.kind !== "date" ||
-            current.contentFrom !== from ||
-            current.to !== to
+            current.contentFrom !== from
           )
             return;
+          // This action captures a fresh picker request. Its displayed end may
+          // lag while the same trigger is edited; no text is inserted here.
           closeCompletion(view);
           pick(view);
         },

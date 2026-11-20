@@ -1,5 +1,10 @@
 # Slate Decisions
 
+## 2026-11-20 - Live date-picker activation
+
+- The generic Choose date action opens a picker and inserts no text. A displayed option can outlive its query end while typing or deleting, so activate it from the live date query when the same trigger start remains valid. Retain current enabled/composition/family/start guards.
+- Opening captures the current source/range; confirmation still requires that exact request to match before a single Undo edit. Text-inserting wiki and tag completions retain their strict cached range checks.
+
 ## 2026-11-20 - Outline section move plans
 
 - Reuse semantic Markdown headings to define a movable section: its physical heading line and all content/descendant headings until the next root heading at the same or shallower depth. Code, metadata, and headings inside containers never become cut points.

@@ -7,6 +7,7 @@ import {
 } from "@codemirror/autocomplete";
 import { afterEach, expect, it, vi } from "vitest";
 import { createSlateMarkdownExtensions } from "../src/index";
+import { requestEditorDate } from "../src/dateInsertion";
 import {
   createMarkdownCompletions,
   markdownCompletionSource,
@@ -66,6 +67,48 @@ it("opens a date picker without changing the query or undo history", () => {
   expect(onPickDate).toHaveBeenCalledExactlyOnceWith(view);
   expect(view.state.doc.toString()).toBe("Words @date");
   expect(undo(view)).toBe(false);
+});
+
+it.each([["@", "2026-11-18"], ["Words @", "2024-02-29"], ["বাংলা 🙂 @", "2026-11-19"]])(
+  "opens the current date query when typing extends the displayed %s option",
+  (initial, tail) => {
+    const onPickDate = vi.fn((view: EditorView) => requestEditorDate(view.state));
+    const view = editor(initial, { onPickDate }), found = result(view)!, option = found.options[0]!;
+    view.dispatch({ changes: { from: initial.length, insert: tail }, selection: { anchor: initial.length + tail.length }, userEvent: "input.type" });
+    if (typeof option.apply !== "function") throw new Error("Expected a picker action");
+    option.apply(view, option, found.from, found.to!);
+    expect(onPickDate).toHaveBeenCalledExactlyOnceWith(view);
+    const request = onPickDate.mock.results[0]?.value;
+    expect(request?.source).toBe(view.state.doc); expect(request?.query.query).toBe(tail);
+    expect(view.state.doc.toString()).toBe(initial + tail);
+    expect(undo(view)).toBe(true); expect(view.state.doc.toString()).toBe(initial);
+  },
+);
+
+it("opens a fresh picker request after shortening a date query without editing it", () => {
+  const onPickDate = vi.fn((view: EditorView) => requestEditorDate(view.state));
+  const view = editor("@2026-11-18", { onPickDate }), found = result(view)!, option = found.options[0]!;
+  view.dispatch({ changes: { from: 1, to: view.state.doc.length }, selection: { anchor: 1 } });
+  if (typeof option.apply !== "function") throw new Error("Expected a picker action");
+  option.apply(view, option, found.from, found.to!);
+  expect(onPickDate).toHaveBeenCalledExactlyOnceWith(view);
+  expect(onPickDate.mock.results[0]?.value?.query.query).toBe(""); expect(view.state.doc.toString()).toBe("@");
+});
+
+it.each(["Words @", "#work", "Removed"])("keeps an old date action inert after its trigger changes to %s", next => {
+  const onPickDate = vi.fn(), view = editor("@", { onPickDate }), found = result(view)!, option = found.options[0]!;
+  view.dispatch({ changes: { from: 0, to: 1, insert: next }, selection: { anchor: next.length } });
+  if (typeof option.apply !== "function") throw new Error("Expected a picker action");
+  option.apply(view, option, found.from, found.to!);
+  expect(onPickDate).not.toHaveBeenCalled(); expect(view.state.doc.toString()).toBe(next);
+});
+
+it("keeps a displayed date action inert while composition is active", () => {
+  const onPickDate = vi.fn(), view = editor("@", { onPickDate }), found = result(view)!, option = found.options[0]!;
+  vi.spyOn(view, "compositionStarted", "get").mockReturnValue(true);
+  if (typeof option.apply !== "function") throw new Error("Expected a picker action");
+  option.apply(view, option, found.from, found.to!);
+  expect(onPickDate).not.toHaveBeenCalled(); expect(view.state.doc.toString()).toBe("@");
 });
 
 it("keeps a disabled or stale date option inert independently of wiki/tag rules", () => {
