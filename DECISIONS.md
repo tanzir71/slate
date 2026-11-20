@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Apply only reviewed replacement snapshots and retain exact originals
+
+F-73 replacement review reads current disk bytes and produces a session of explicit per-file proposals. Review is read-only, including in a read-only Space. Apply validates every selected path before writing, preserves the exact original in private history, rechecks ownership and preview bytes, and delegates the final write to FileSpace.saveSnapshot. A concurrent external edit remains authoritative; the reviewed proposal is saved as a conflict copy if needed. Stop at the first failed or conflicting row, retaining earlier successes and later untouched rows for an explicit retry or new preview.
+
+Apply and Undo serialize within a session. Undo restores a file only while its bytes still equal the applied proposal, or recognizes an already restored original without rewriting it. Deleted files and newer words remain untouched; history retains the original. Reject private metadata/version-control paths, invalid UTF-8 originals and replacement strings that cannot round-trip UTF-8. Public row snapshots are copies. Keep this independent of Tidy settings because explicit text replacement changes content under its own reviewed action. The new storage API is preparatory; the Space search/review UI follows separately.
+
 ## 2026-11-20 - Plan literal search edits against physical source
 
 The initial F-73 domain API searches literal text with optional case matching. Escape every pattern metacharacter and use Unicode-aware matching so punctuation cannot turn a search into a regular expression, a case conversion cannot shift offsets, and a surrogate half cannot select part of an astral character. Match and edit offsets refer to the unchanged UTF-16 source. CRLF counts as one physical line; BOM and mixed endings are never normalized. Results are yielded in source order for bounded previews.

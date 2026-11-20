@@ -16,6 +16,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@slate/storage/replace-batch": fromRoot("../../packages/storage/src/replaceBatch.ts"),
       "@slate/storage/tidy-batch": fromRoot("../../packages/storage/src/tidyBatch.ts"),
       "@slate/ui/native": fromRoot("../../packages/ui/src/native/NativeApp.tsx"),
       "@slate/storage/tauri-workspace-index": fromRoot("../../packages/storage/src/tauriWorkspaceIndex.ts"),

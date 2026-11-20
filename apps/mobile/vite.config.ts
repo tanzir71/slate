@@ -10,6 +10,7 @@ export default defineConfig({
   worker: { format: "es", plugins: () => [markdownWorker()] },
   resolve: {
     alias: {
+      "@slate/storage/replace-batch": fromRoot("../../packages/storage/src/replaceBatch.ts"),
       "@slate/storage/tidy-batch": fromRoot("../../packages/storage/src/tidyBatch.ts"),
       "@slate/storage/tauri-workspace-index": fromRoot("../../packages/storage/src/tauriWorkspaceIndex.ts"),
       "@slate/storage/tauri-files": fromRoot("../../packages/storage/src/tauriFiles.ts"),

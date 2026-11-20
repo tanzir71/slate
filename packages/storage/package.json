@@ -3,6 +3,10 @@
   "version": "0.3.0",
   "type": "module",
   "exports": {
+    "./replace-batch": {
+      "types": "./dist/replaceBatch.d.ts",
+      "import": "./dist/replaceBatch.js"
+    },
     "./tidy-batch": {
       "types": "./dist/tidyBatch.d.ts",
       "import": "./dist/tidyBatch.js"
