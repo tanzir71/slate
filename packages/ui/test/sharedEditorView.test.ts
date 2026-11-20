@@ -1,8 +1,8 @@
-import { act, createElement } from "react";
+import { act, createElement, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, runScopeHandlers } from "@codemirror/view";
-import { createDocumentSession, editorSource, enterEditorFence, chooseEditorFenceLanguage, type DocumentSession, type EditorFenceRequest } from "@slate/editor";
+import { createDocumentSession, editorSource, enterEditorFence, chooseEditorFenceLanguage, livePreviewSettings, type DocumentSession, type EditorFenceRequest } from "@slate/editor";
 import { fix, readTidyConfiguration } from "@slate/core/tidy";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../src/MarkdownEditor";
@@ -29,21 +29,23 @@ afterEach(async () => {
   if (rangeBounds) Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeBounds); else Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
   localStorage.clear();
 });
-async function mount(session: DocumentSession, panes: readonly ("left" | "right")[] = ["left", "right"]) {
+async function mount(session: DocumentSession, panes: readonly ("left" | "right")[] = ["left", "right"], options: Pick<ComponentProps<typeof MarkdownEditor>, "sourceMode" | "readOnly"> = {}) {
   const host = document.body.appendChild(document.createElement("div")), root = createRoot(host);
   const changed = vi.fn(), handles = new Map<string, MarkdownEditorHandle>();
   const detach = session.subscribe((update) => { if (update.kind !== "external") changed(update.source, update.kind, update.userEvent); });
   roots.push({ root, host, detach });
-  async function render(next: readonly ("left" | "right")[]) {
+  const initialModes: boolean[] = [];
+  async function render(next: readonly ("left" | "right")[], preferences = options) {
     await act(async () => root.render(createElement("div", {}, next.map((pane) => createElement("section", { key: pane, "data-pane": pane },
       createElement(MarkdownEditor, { documentSession: session, documentKey: "shared-test/note.md", viewKey: `shared-test/${pane}/note.md`,
+        ...preferences,
         ...(pane === "right" ? { initialCursor: session.snapshot().source.length } : {}),
-        onHandle(handle) { if (handle) handles.set(pane, handle); else handles.delete(pane); },
+        onHandle(handle) { if (handle) { handles.set(pane, handle); initialModes.push(EditorView.findFromDOM(host.querySelector<HTMLElement>(`[data-pane="${pane}"] .cm-content`)!)!.state.facet(livePreviewSettings).sourceMode === true); } else handles.delete(pane); },
       }))))));
   }
   await render(panes);
   const view = (pane: "left" | "right") => EditorView.findFromDOM(host.querySelector<HTMLElement>(`[data-pane="${pane}"] .cm-content`)!)!;
-  return { render, view, changed, handles };
+  return { render, view, changed, handles, initialModes };
 }
 async function type(view: EditorView, from: number, text: string) {
   await act(async () => view.dispatch({ changes: { from, insert: text }, selection: { anchor: from + text.length },
@@ -54,6 +56,32 @@ async function historyKey(view: EditorView, redo = false) {
   const event = new KeyboardEvent("keydown", { key: redo && !mac ? "y" : "z", ctrlKey: !mac, metaKey: mac, shiftKey: redo && mac });
   await act(async () => { expect(runScopeHandlers(view, event, "editor")).toBe(true); });
 }
+
+it("installs Source before the first handle and preserves exact source, selection and shared Undo across modes", async () => {
+  const session = createDocumentSession(original), { render, view, initialModes } = await mount(session, ["left"], { sourceMode: true });
+  expect(initialModes).toEqual([true]); const editor = view("left");
+  expect(editor.state.facet(livePreviewSettings).sourceMode).toBe(true);
+  await type(editor, editor.state.doc.length, "Kept"); const position = editor.state.selection.main.head;
+  await render(["left"], { sourceMode: false }); expect(view("left")).toBe(editor);
+  expect(editor.state.selection.main.head).toBe(position); expect(editorSource(editor.state)).toBe(original + "Kept");
+  await historyKey(editor); expect(session.snapshot().source).toBe(original);
+  await render(["left"], { sourceMode: true }); await historyKey(editor, true);
+  expect(editorSource(editor.state)).toBe(original + "Kept");
+});
+
+it("blocks typing, shared Undo/Redo, formatting and captured edits in Read mode while the session owns the file", async () => {
+  const session = createDocumentSession(original), { render, view, handles, changed } = await mount(session, ["left"]);
+  const editor = view("left"); await type(editor, editor.state.doc.length, "Editable");
+  const source = session.snapshot().source, target = handles.get("left")!.creationTarget();
+  await render(["left"], { readOnly: true }); expect(session.canEdit()).toBe(true); expect(editor.state.readOnly).toBe(true);
+  expect(editor.contentDOM.tabIndex).toBe(0);
+  expect(target?.matches()).toBe(false); await type(editor, editor.state.doc.length, "Blocked");
+  await historyKey(editor); await historyKey(editor, true);
+  await act(async () => { expect(handles.get("left")!.runFormat("format.bold")).toBe(false); });
+  expect(session.snapshot().source).toBe(source); expect(editorSource(editor.state)).toBe(source); expect(changed).toHaveBeenCalledTimes(1);
+  await render(["left"], { readOnly: false }); expect(view("left")).toBe(editor);
+  await historyKey(editor); expect(session.snapshot().source).toBe(original);
+});
 
 it("moves a raw section and its descendants once through the captured file writer and shared history", async () => {
   const source = "\uFEFF---\r\ntitle: Kept\n---\r\n\r\n## Alpha\r\nA\n\n### Child\nC\r\n\r\n## Beta\nB\r\n";

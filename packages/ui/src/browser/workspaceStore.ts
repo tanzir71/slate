@@ -43,6 +43,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   let explicitlyEmptySelection = false;
   let onSaved: () => void = () => undefined;
   const noteSaved = new Set<(snapshot: NoteSaveSnapshot) => void>();
+  const sheetMoved = new Set<(from: string, to: string) => void>();
   let linking: Promise<unknown> = Promise.resolve();
   let updatingPreferences: Promise<unknown> = Promise.resolve();
   const pendingKits = new Set<StarterKitInstallation>();
@@ -266,6 +267,10 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       noteSaved.add(observer);
       return () => { noteSaved.delete(observer); };
     },
+    subscribeSheetMoved(observer: (from: string, to: string) => void) {
+      sheetMoved.add(observer);
+      return () => { sheetMoved.delete(observer); };
+    },
     async save() {
       const { owned, selectedPath, sheets } = api.getState();
       const sheet = sheets.find((entry) => entry.path === selectedPath);
@@ -470,6 +475,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       const content = bases.get(path);
       if (content === undefined) throw new Error("Sheet not found.");
       await space.move(path, to, content);
+      for (const observer of sheetMoved) observer(path, to);
       api.setState({ selectedPath: to });
       await refresh();
       onSaved();

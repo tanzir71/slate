@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-21: Per-sheet editor view modes
+
+Live, Source and Read are local UI preferences keyed by Space identity and exact sheet path, following the existing last-sheet/cursor device preferences. Readable sheets can change mode without the editing lease. Only the mounted/requested paths read optional localStorage; malformed or unavailable storage falls back to Live and in-memory choices remain usable. Storage events invalidate cached choices. A successful internal file move transfers the preference; a failed move does not. External rename identity and cross-device view preference sync are not inferred from Markdown. No mode change writes document bytes or workspace metadata.
+
+Both split panes of a sheet use its saved choice. Source configuration is installed before the first editor handle and reconfigured without remounting or changing document history or selection. Read uses CodeMirror readOnly/editable facets alongside the existing session transaction/history guards; ownership remains independent. Tidy's temporary Source display does not overwrite the saved mode, and Read also guards Tidy fixes and inspector changes. Mod E is registered for the implemented file workspace on web and native desktop; ordinary inputs, composition and modal dialogs retain their input. The Figma three-segment control uses existing tokens and CSS, with keyboard radio navigation and 44px touch controls.
+
 ## 2026-11-20 - Preload the actual workspace editor boundary
 
 - When a Space starts opening, request WorkspaceDocumentEditor alongside Workspace and the file/catalog reads. This loads MarkdownEditor plus the document session wrapper used by the actual lazy view, retaining the existing lazy boundary, rejection handling and file/ownership checks. Loading the lower-level editor alone leaves another module dependency until after the workspace render.

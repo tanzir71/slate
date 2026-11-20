@@ -49,6 +49,12 @@ import type { ImportBlockImage } from "./BlockResourcePicker";
 
 const externalValue = Annotation.define<boolean>();
 
+function sourceViewExtensions(enabled: boolean) {
+  return enabled ? [lineNumbers(), livePreviewSettings.of({ sourceMode: true, hideSyntax: false, highContrastMarkers: false }),
+    EditorView.theme({ "&": { fontFamily: "var(--font-mono)", fontSize: "14px", lineHeight: "26px" },
+      ".cm-scroller": { fontFamily: "var(--font-mono)" }, ".cm-line span": { fontStyle: "normal", fontWeight: "400" } })] : [];
+}
+
 function wikiExtensions(targets?: ReadonlySet<string>, sheets: readonly WikiCompletionTarget[] = []) {
   return [
     wikiTargets.of(new Set([...targets ?? [], ...sheets.flatMap((sheet) => [sheet.title.toLowerCase(), ...(/^01[0-9A-HJKMNP-TV-Z]{24}$/i.test(sheet.id) ? [sheet.id.toLowerCase()] : [])])])),
@@ -221,10 +227,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
     let observedScroll = position.scroll;
     const extensions = [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
-          EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
+          EditorView.contentAttributes.of({ "aria-label": "Markdown editor", tabindex: "0" }),
           ...createSlateMarkdownExtensions({ history: !documentSession, formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
           tidyEditorHistory(source),
-          tidyView.current.of([]),
+          tidyView.current.of(sourceViewExtensions(sourceMode)),
           fenceRules.current.of(fenceInput.extension),
           pasteRules.current.of(paste.extension),
           tableKeys.current.of(createSmartTableBindings(smartTables)),
@@ -354,7 +360,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: [
-      tidyView.current.reconfigure(sourceMode ? [lineNumbers(), livePreviewSettings.of({ sourceMode: true, hideSyntax: false, highContrastMarkers: false }), EditorView.theme({ "&": { fontFamily: "var(--font-mono)", fontSize: "14px", lineHeight: "26px" }, ".cm-scroller": { fontFamily: "var(--font-mono)" }, ".cm-line span": { fontStyle: "normal", fontWeight: "400" } })] : []),
+      tidyView.current.reconfigure(sourceViewExtensions(sourceMode)),
       editorTidyLines(sourceMode ? tidyLines ?? [] : []),
     ], annotations: Transaction.addToHistory.of(false) });
   }, [sourceMode, tidyLines]);

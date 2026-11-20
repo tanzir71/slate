@@ -36,6 +36,7 @@ import { createWorkspaceNavigation } from "./workspaceNavigation";
 import { createEditorDocumentPool } from "./editorDocumentPool";
 import { createWorkspaceEditorLayout, type EditorPaneId } from "./workspaceEditorLayout";
 import { EditorTabs } from "./EditorTabs";
+import { createWorkspaceViewModes, nextWorkspaceViewMode, type WorkspaceViewMode } from "./workspaceViewModes";
 
 const Editor = lazy(() => import("./WorkspaceDocumentEditor"));
 const Inspector = lazy(() => import("./WorkspaceInspector"));
@@ -70,7 +71,7 @@ interface PaletteRequest {
 const subscribeEmpty = () => () => undefined;
 const getEmpty = () => undefined;
 const emptyBlocks = [] as const, emptyTemplates = [] as const, emptySnippets = [] as const;
-const priorityCommands: ReadonlySet<string> = new Set(["view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
+const priorityCommands: ReadonlySet<string> = new Set(["view.mode", "view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
 interface WorkspaceProps {
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
@@ -85,6 +86,9 @@ interface WorkspaceProps {
 
 export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance, runtime }: WorkspaceProps) {
   const state = useStore(store.api);
+  const viewModes = useMemo(() => createWorkspaceViewModes(store), [store]);
+  useSyncExternalStore(viewModes.subscribe, viewModes.getSnapshot);
+  useEffect(() => viewModes.connect(), [viewModes]);
   const editors = useMemo(() => ({ pool: createEditorDocumentPool(store), layout: createWorkspaceEditorLayout(store), lease: 0 }), [store]);
   const editorLayout = useSyncExternalStore(editors.layout.subscribe, editors.layout.getSnapshot);
   useLayoutEffect(() => {
@@ -168,7 +172,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     space: store.space,
     source: editorReady && selected && !selected.unsupportedEncoding ? selected.content : undefined,
     path: selected && !selected.unsupportedEncoding ? selected.path : undefined,
-    canWrite: () => store.api.getState().owned,
+    canWrite: () => store.api.getState().owned && viewModes.mode(store.api.getState().selectedPath) !== "read",
     apply(result) {
       const current = store.api.getState();
       const sheet = current.sheets.find((item) => item.path === current.selectedPath);
@@ -177,6 +181,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     },
   });
   const tidyLines = useMemo(() => tidy.report ? [...new Set(tidy.report.issues.map((issue) => issue.line))] : [], [tidy.report]);
+  const viewMode = tidy.open ? "source" : viewModes.mode(state.selectedPath);
+  const viewDisabled = !selected || !!selected.unsupportedEncoding || tidy.busy || tidy.saving;
   const tidyLayout = useRef({ sheets: true, inspector: false });
   useLayoutEffect(() => { refreshTidy.current = tidy.refresh; }, [tidy.refresh]);
   function openTidy() {
@@ -192,6 +198,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     setSheetsVisible(tidyLayout.current.sheets);
     setInspector(tidyLayout.current.inspector);
     editorHandle.current?.focus();
+  }
+  function changeViewMode(mode: WorkspaceViewMode) {
+    if (viewDisabled) return;
+    if (tidy.open) closeTidy();
+    viewModes.set(state.selectedPath, mode);
   }
   const documents = useSheetSummaries(state.sheets);
   const fileIdentities = useMemo(() => JSON.stringify(state.sheets.map(({ path, unsupportedEncoding }) => ({ path, ...(unsupportedEncoding ? { unsupportedEncoding: true } : {}) }))), [state.sheets]);
@@ -371,7 +382,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const active = window.document.activeElement;
     const request: PaletteRequest = { mode, catalog: paletteCatalog, target: handle?.creationTarget(),
       returnFocus: active instanceof HTMLElement ? active : undefined,
-      editor: current.owned && !!selected && !selected.unsupportedEncoding,
+      editor: current.owned && !!selected && !selected.unsupportedEncoding && viewModes.mode(current.selectedPath) !== "read",
       selection: handle?.hasSelection() ?? false, tableColumns: handle?.tableColumns() ?? 0,
     };
     flushSync(() => setPalette(request));
@@ -383,6 +394,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (action.kind === "blocks" || action.kind === "snippets")
       return owned && (palette.target?.matches() ?? false) && (action.kind !== "snippets" || !!snippets.library && !!snippets.session);
     if (action.kind !== "commands") return true;
+    if (action.command.id === "view.mode") return !viewDisabled;
     if (/^(format|table)\./.test(action.command.id) && !palette.target?.matches()) return false;
     if (["sheet.new", "sheet.fromTemplate", "sheet.save", "sheet.pin", "view.density", "tidy.undoBatch", "search.undoReplace", "snippet.picker"].includes(action.command.id) && !owned) return false;
     if (action.command.id === "search.undoReplace" && !store.api.getState().hasReplaceBatchUndo) return false;
@@ -455,6 +467,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "sheet.today": () => run(async () => { await store.openToday(); setFilter("Daily"); setPane("editor"); }),
       "sheet.pin": () => { if (state.selectedPath && state.owned) run(() => store.togglePinned(state.selectedPath)); },
       "view.sidebar": toggleNavigation,
+      "view.mode": () => changeViewMode(nextWorkspaceViewMode(viewMode)),
       "view.sheets": toggleSheets,
       "view.density": () => { if (state.owned) run(() => store.setDensity(state.preferences.density === "compact" ? "comfortable" : "compact")); },
       "sheet.save": () => run(store.save),
@@ -630,16 +643,20 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       if (palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
-      if (id) { if (window.document.querySelector("dialog[open]")) return; event.preventDefault(); dispatchCommand(id); }
+      if (id) { if (window.document.querySelector("dialog[open]") || id === "view.mode" && !canCycleView(event)) return; event.preventDefault(); dispatchCommand(id); }
     };
     const priorityBindings = keymap.bindings.filter((binding) => binding.command.id.startsWith("navigation.") || priorityCommands.has(binding.command.id));
     const dispatchPriority = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const id = matchCommand(priorityBindings, keyboardInput(event), { editor: false, selection: false });
+      if (id === "view.mode" && !canCycleView(event)) return;
       if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
       // Workspace navigation and view commands take priority over editor keymaps.
       event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
     };
+    function canCycleView(event: KeyboardEvent) {
+      return !viewDisabled && !(event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]:not(.cm-content)'));
+    }
     window.addEventListener("keydown", dispatchPriority, true);
     window.addEventListener("keydown", listener);
     return () => { window.removeEventListener("keydown", dispatchPriority, true); window.removeEventListener("keydown", listener); };
@@ -716,7 +733,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       run(async () => importPicked(await dropped));
     } }}>
     {workspaceSearch && <Suspense fallback={<WorkspaceDialog title="Search everywhere" returnFocus={workspaceSearch.returnFocus} onClose={() => setWorkspaceSearch(undefined)}><p role="status">Opening search…</p></WorkspaceDialog>}><WorkspaceSearchDialog store={store} returnFocus={workspaceSearch.returnFocus} onChoose={chooseSearchResult} onClose={() => setWorkspaceSearch(undefined)} /></Suspense>}
-    <WorkspaceTitleBar viewLabel={tidy.open ? "Source" : "Live"} windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
+    <WorkspaceTitleBar viewMode={viewMode} viewDisabled={viewDisabled} onViewMode={changeViewMode} windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
       onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={openWorkspaceSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
       controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); openEditorSettings(); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
@@ -789,9 +806,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
               {sheet?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(() => downloadOriginal(path))}>Download original</button></div>
                 : sheet ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={documentKey} pool={editors.pool} store={store} path={path} title={summary?.title ?? "Untitled"}
                   documentKey={documentKey} viewKey={id === "primary" ? documentKey : documentKey + "/split"} onDocumentError={documentError}
-                  sourceMode={active && tidy.open} tidyLines={active ? tidyLines : []} initialCursor={active && state.initialCursor?.path === path ? state.initialCursor.position : undefined}
+                  sourceMode={active && tidy.open || viewModes.mode(path) === "source"} tidyLines={active ? tidyLines : []} initialCursor={active && state.initialCursor?.path === path ? state.initialCursor.position : undefined}
                   smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter}
-                  smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned}
+                  smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned || viewModes.mode(path) === "read"}
                   onCursorChange={id === "primary" ? cursorPrimary : cursorSecondary} keymap={keymap} completionSheets={completionSheets} completionTags={tags}
                   wikiCompletion={editorPreferences.preferences.wikiCompletion} tagCompletion={editorPreferences.preferences.tagCompletion} dateCompletion={editorPreferences.preferences.dateCompletion}
                   templateMenuLibrary={templates.library} snippetMenuLibrary={snippets.library} canInsertBlock={canInsertBlock} customBlockLibrary={blocks.library}
@@ -803,11 +820,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
           })}
         </div>
       </section>
-      {tidy.open && <Suspense fallback={<aside className="tidyPanel" aria-label="Tidy review"><p role="status">Opening Tidy…</p></aside>}><TidyPanel review={tidy} readOnly={!state.owned} onClose={closeTidy} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} /></Suspense>}
+      {tidy.open && <Suspense fallback={<aside className="tidyPanel" aria-label="Tidy review"><p role="status">Opening Tidy…</p></aside>}><TidyPanel review={tidy} readOnly={!state.owned || viewModes.mode(state.selectedPath) === "read"} onClose={closeTidy} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} /></Suspense>}
       {inspector && <Suspense fallback={<aside className="browserInspector" aria-label="Inspector"><p role="status">Opening Inspector…</p></aside>}>
         <Inspector key={`${state.record.id}/${state.selectedPath}`} document={selected?.unsupportedEncoding ? undefined : document} documents={documents} store={store} pool={editors.pool} sheets={state.sheets}
           {...(runtime?.fileActions ? { fileActions: runtime.fileActions } : {})}
-          path={state.selectedPath} cursor={cursor} readOnly={!state.owned || !!selected?.unsupportedEncoding} closeShortcut={shortcut("view.inspector")}
+          path={state.selectedPath} cursor={cursor} readOnly={!state.owned || !!selected?.unsupportedEncoding || viewModes.mode(state.selectedPath) === "read"} closeShortcut={shortcut("view.inspector")}
           onClose={() => setInspector(false)} onJump={(source, offset) => { const handle = inspectorEditor(); if (!handle?.goToSourceOffset(source, offset)) return false; setPane("editor"); return true; }}
           onOpen={(path) => { setPane("editor"); run(() => store.select(path)); }} captureMove={captureInspectorMove} />
       </Suspense>}

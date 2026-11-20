@@ -33,6 +33,7 @@ export const slateCommands: readonly CommandDefinition[] = [
   { id: "view.sidebar", label: "Toggle navigation", group: "View", shortcut: "Mod+\\" },
   { id: "view.sheets", label: "Toggle sheet list", group: "View", shortcut: "Mod+Alt+\\" },
   { id: "view.density", label: "Toggle sheet density", group: "View" },
+  { id: "view.mode", label: "Cycle editor view", group: "View", shortcut: "Mod+e", surfaces: ["web"] },
   {
     id: "app.palette",
     label: "Command palette",

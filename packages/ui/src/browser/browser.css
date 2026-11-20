@@ -58,7 +58,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 .breadcrumbFile { color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; max-inline-size: 240px; }
 .workspaceHeaderTools { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 .workspaceHeader .appearanceControl select { padding: 3px; font-size: 11px; }
-.liveModeLabel { background: var(--bg-canvas); border: 1px solid var(--border-subtle); border-radius: 5px; padding: 3px 10px; margin-inline: 6px; color: var(--text-primary); }
+.segmentedViewMode { display: flex; align-items: center; gap: 2px; padding: 2px; inline-size: 160px; block-size: 26px; flex-shrink: 0; border-radius: 7px; background: var(--bg-subtle); }
+.workspaceHeader .segmentedViewMode button { flex: none; min-inline-size: 0; inline-size: 43px; block-size: 22px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-tertiary); font-family: var(--font-ui); font-size: 12px; font-weight: 500; line-height: 16px; letter-spacing: 0; justify-content: center; white-space: nowrap; }
+.workspaceHeader .segmentedViewMode button:nth-child(2) { inline-size: 60px; }
+.workspaceHeader .segmentedViewMode button:nth-child(3) { inline-size: 49px; }
+.workspaceHeader .segmentedViewMode button[aria-checked="true"] { background: var(--bg-raised); color: var(--text-primary); box-shadow: 0 8px 24px -4px rgb(20 20 18 / 10%), 0 1px 2px rgb(20 20 18 / 6%); }
+.headerViewMode { margin-inline: 6px; }
+.menuViewMode { display: none; }
 .sheetActionsMenu { position: relative; }
 .sheetActionsMenu summary { cursor: pointer; border-radius: 5px; list-style: none; }
 .sheetActionsMenu summary::-webkit-details-marker { display: none; }
@@ -186,7 +192,7 @@ kbd { font-size: 11px; color: var(--text-tertiary); }
   .browserInspector { position: absolute; z-index: 8; inset-block: 0; inset-inline-end: 0; inline-size: 300px; box-shadow: -10px 0 25px #0002; }
   .onboarding { margin-inline: max(28px, calc((100% - 880px) / 2)); }
 }
-@media (max-width: 1099px) { .browserPanes { --sidebar-size: 190px; --list-size: 260px; } .welcomeFooter > div { gap: 14px; } .liveModeLabel { display: none; } }
+@media (max-width: 1099px) { .browserPanes { --sidebar-size: 190px; --list-size: 260px; } .welcomeFooter > div { gap: 14px; } .headerViewMode { display: none; } .menuViewMode { display: flex; margin: 4px auto 8px; inline-size: max-content; block-size: 48px; } .workspaceHeader .menuViewMode button { block-size: 44px; min-inline-size: 44px; } }
 @media (max-width: 899px) {
   .browserPanes { --sidebar-size: 0px; --list-size: 240px; }
   .browserSidebar { display: none; }
@@ -230,6 +236,8 @@ kbd { font-size: 11px; color: var(--text-tertiary); }
   .notice { flex-wrap: wrap; gap: 6px; padding: 5px 10px; font-size: 11px; }
 }
 @media (pointer: coarse) {
+  .segmentedViewMode { inline-size: max-content; block-size: 48px; }
+  .workspaceHeader .segmentedViewMode button { block-size: 44px; min-inline-size: 44px; }
   .browserSlate button, .browserSlate summary, .browserSlate select { min-block-size: 44px; }
   .workspaceHeader { min-block-size: 48px; }
   .workspaceHeader button, .workspaceHeader summary { min-inline-size: 44px; }

@@ -25,6 +25,14 @@ const profile = { os: "windows", surface: "web" } as const;
 const editor = { editor: true, selection: false };
 
 describe("shared command registry", () => {
+  it("cycles view modes with the specified Mod E chord on every workspace platform", () => {
+    for (const os of ["windows", "linux", "mac"] as const) {
+      const { bindings, issues } = resolveCommandKeymap({ os, surface: "web" }); expect(issues).toEqual([]);
+      const mod = { ctrlKey: os !== "mac", metaKey: os === "mac" };
+      expect(matchCommand(bindings, input("e", mod), { editor: false, selection: false })).toBe("view.mode");
+      expect(matchCommand(bindings, input("e", { ...mod, isComposing: true }), editor)).toBeUndefined();
+    }
+  });
   it("uses the handover's browser tab bindings without consuming browser tab shortcuts", () => {
     for (const os of ["windows", "linux", "mac"] as const) {
       const { bindings, issues } = resolveCommandKeymap({ os, surface: "web" }); expect(issues).toEqual([]);

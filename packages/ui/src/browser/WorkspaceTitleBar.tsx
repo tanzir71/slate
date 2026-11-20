@@ -12,6 +12,8 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { SegmentedViewMode } from "./SegmentedViewMode";
+import type { WorkspaceViewMode } from "./workspaceViewModes";
 
 interface WindowActions {
   minimize(): void;
@@ -37,7 +39,9 @@ interface TitleBarProps {
   menuControls?: ReactNode;
   actions: { label: string; disabled?: boolean; run(): void }[];
   canWrite: boolean;
-  viewLabel?: string;
+  viewMode: WorkspaceViewMode;
+  viewDisabled: boolean;
+  onViewMode(mode: WorkspaceViewMode): void;
 }
 
 export function WorkspaceTitleBar({
@@ -58,7 +62,9 @@ export function WorkspaceTitleBar({
   menuControls,
   actions,
   canWrite,
-  viewLabel = "Live",
+  viewMode,
+  viewDisabled,
+  onViewMode,
 }: TitleBarProps) {
   const menu = useRef<HTMLDetailsElement>(null);
   const menuButton = useRef<HTMLElement>(null);
@@ -127,9 +133,7 @@ export function WorkspaceTitleBar({
         ))}
       </nav>
       <div className="workspaceHeaderTools">
-        <span className="liveModeLabel" title="Live Markdown preview">
-          {viewLabel}
-        </span>
+        <SegmentedViewMode className="headerViewMode" value={viewMode} disabled={viewDisabled} onChange={onViewMode} />
         <button
           aria-label="Search everywhere"
           title={`Search everywhere (${shortcut("sheet.search")})`}
@@ -171,6 +175,7 @@ export function WorkspaceTitleBar({
             <MoreHorizontal size={17} />
           </summary>
           <div className="sheetActionsItems">
+            <SegmentedViewMode className="menuViewMode" value={viewMode} disabled={viewDisabled} onChange={onViewMode} />
             {actions.map((action) => (
               <button
                 key={action.label}
