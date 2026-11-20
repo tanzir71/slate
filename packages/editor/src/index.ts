@@ -26,7 +26,7 @@ export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEd
 import { createSelectionPairs } from "./selectionPairs.js";
 export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
 export { createDocumentSession, type DocumentSession, type DocumentSessionSnapshot, type DocumentSessionUpdate } from "./documentSession.js";
-export { tidyEditorHistory, editorTidyLines, editorSource, editorSourceEffect, applyEditorTidy } from "./tidy.js";
+export { tidyEditorHistory, editorTidyLines, editorSource, editorSourceEffect, editorSourceEffects, editorSourceStateEffect, applyEditorTidy } from "./tidy.js";
 export { markdownCompletionQuery, type MarkdownCompletionQuery } from "./completionQuery.js";
 export { createMarkdownCompletions, type MarkdownCompletionOptions } from "./markdownCompletions.js";
 export { requestEditorDate, insertEditorDate, type EditorDateRequest } from "./dateInsertion.js";
@@ -62,6 +62,7 @@ export interface EditorHud {
 
 export function createSlateMarkdownExtensions(
   options: {
+    history?: boolean;
     formattingKeys?: boolean;
     hideSyntax?: boolean;
     highContrastMarkers?: boolean;
@@ -73,7 +74,7 @@ export function createSlateMarkdownExtensions(
   } = {},
 ): Extension[] {
   return [
-    history(),
+    options.history === false ? [] : history(),
     historyIsolation,
     markdown({ extensions: slateMarkdownSyntax, addKeymap: false, pasteURLAsLink: false }),
     search(),
@@ -103,7 +104,7 @@ export function createSlateMarkdownExtensions(
     createSelectionPairs(options.selectionPairs !== false),
     options.smartPaste === false ? [] : createSmartPaste(options.smartPaste),
     options.fenceInput === false ? [] : createFenceInput(options.fenceInput),
-    keymap.of([...defaultKeymap, ...historyKeymap]),
+    keymap.of([...defaultKeymap, ...(options.history === false ? [] : historyKeymap)]),
     EditorView.lineWrapping,
     EditorView.theme({
       "&": {

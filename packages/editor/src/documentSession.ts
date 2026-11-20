@@ -21,6 +21,7 @@ export interface DocumentSessionUpdate {
 }
 export interface DocumentSession {
   snapshot(): DocumentSessionSnapshot;
+  canEdit(): boolean;
   subscribe(listener: (update: DocumentSessionUpdate) => void): () => void;
   /** A rejected proposal stays with its caller for explicit reconciliation or recovery. */
   apply(transaction: Transaction, revision: number, actor?: object): boolean;
@@ -77,6 +78,7 @@ export function createDocumentSession(source: string, canEdit: () => boolean = (
   }
   return {
     snapshot: () => current,
+    canEdit,
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     apply(transaction, revision, actor) {
       if (!canEdit() || transaction.startState.readOnly || revision !== current.revision || !transaction.startState.doc.eq(current.state.doc) || editorSource(transaction.startState) !== current.source) return false;

@@ -28,6 +28,8 @@ import {
   type SaveClipboardImage,
   type WikiLinkHit
 } from "@slate/editor";
+import type { DocumentSession } from "@slate/editor";
+import { createEditorDocumentBinding } from "./editorDocumentBinding";
 import { prepareBlockSnippet, createWikiPathIndex, type ResolvedKeymap, type TextChange, type WikiCompletionTarget, type SnippetIndex, type ScopedSnippet } from "@slate/core";
 import type { SnippetTarget } from "./snippets/snippetTypes";
 import type { EditorChangeOrigin, EditorCreationTarget, EditorCursor, MarkdownEditorHandle } from "./commands";
@@ -61,14 +63,14 @@ function documentChange(previous: string, next: string) {
   return { from, to, insert: next.slice(from, end) };
 }
 
-interface MarkdownEditorProps {
+interface MarkdownEditorCommonProps {
   sourceMode?: boolean;
   tidyLines?: readonly number[];
-  value: string;
-  onChange: (value: string, changes: readonly TextChange[], origin: EditorChangeOrigin) => void;
   onNavigateWikiLink?: (link: WikiLinkHit) => void;
   readOnly?: boolean;
   documentKey?: string;
+  viewKey?: string;
+  onDocumentError?: (error: unknown) => void;
   onReady?: () => void;
   initialCursor?: number | undefined;
   keymap?: ResolvedKeymap;
@@ -100,8 +102,12 @@ interface MarkdownEditorProps {
   onManageBlocks?: (() => void) | undefined;
   onSnippet?: ((definition: ScopedSnippet, target: SnippetTarget, context?: BlockInsertionContext) => boolean) | undefined;
 }
+type MarkdownEditorProps = MarkdownEditorCommonProps & (
+  | { documentSession: DocumentSession; value?: never; onChange?: never }
+  | { documentSession?: undefined; value: string; onChange: (value: string, changes: readonly TextChange[], origin: EditorChangeOrigin) => void }
+);
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, documentSession, viewKey, onDocumentError, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks, {
     templates: templateMenuLibrary, snippets: snippetMenuLibrary, note: blockNote, canInsert: canInsertBlock,
     onSnippet(view, request, definition, separate, context, onInserted) {
@@ -122,6 +128,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
+  const onDocumentErrorRef = useRef(onDocumentError);
   const onNavigateWikiLinkRef = useRef(onNavigateWikiLink);
   const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
@@ -149,6 +156,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  useLayoutEffect(() => { onDocumentErrorRef.current = onDocumentError; }, [onDocumentError]);
 
   useEffect(() => {
     onNavigateWikiLinkRef.current = onNavigateWikiLink;
@@ -188,9 +196,14 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       return undefined;
     }
 
-    const preferenceKey = documentKey ? `slate.editor.${documentKey}` : undefined;
-    const initialValue = value.replace(/\r\n?/g, "\n");
-    let position = { anchor: 0, scroll: 0 };
+    const preferenceId = viewKey ?? documentKey;
+    const preferenceKey = preferenceId ? `slate.editor.${preferenceId}` : undefined;
+    const source = documentSession?.snapshot().source ?? value ?? "";
+    const initialValue = source.replace(/\r\n?/g, "\n");
+    const binding = documentSession ? createEditorDocumentBinding(documentSession, (error) => {
+      if (onDocumentErrorRef.current) onDocumentErrorRef.current(error); else throw error;
+    }) : undefined;
+    let position = { anchor: documentSession?.snapshot().state.selection.main.head ?? 0, scroll: 0 };
     try {
       const stored: unknown = preferenceKey ? JSON.parse(localStorage.getItem(preferenceKey) ?? "null") : null;
       if (typeof stored === "object" && stored !== null && "anchor" in stored && "scroll" in stored && typeof stored.anchor === "number" && typeof stored.scroll === "number") {
@@ -198,21 +211,16 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       }
     } catch { /* Invalid view preferences never prevent opening a file. */ }
     if (initialCursor !== undefined && Number.isFinite(initialCursor)) {
-      const before = value.slice(0, Math.max(0, Math.min(value.length, Math.trunc(initialCursor))));
+      const before = source.slice(0, Math.max(0, Math.min(source.length, Math.trunc(initialCursor))));
       position = { anchor: before.replace(/\r\n?/g, "\n").length, scroll: 0 };
     }
     // Reading scrollTop after a text update can force layout; scroll/pagehide refresh this cache.
     let observedScroll = position.scroll;
-    const view = new EditorView({
-      parent: hostRef.current,
-      state: EditorState.create({
-        doc: initialValue,
-        selection: { anchor: position.anchor },
-        extensions: [
+    const extensions = [
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor" }),
-          ...createSlateMarkdownExtensions({ formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
-          tidyEditorHistory(value),
+          ...createSlateMarkdownExtensions({ history: !documentSession, formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
+          tidyEditorHistory(source),
           tidyView.current.of([]),
           fenceRules.current.of(fenceInput.extension),
           pasteRules.current.of(paste.extension),
@@ -267,22 +275,24 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
               const line = update.state.doc.lineAt(update.state.selection.main.head);
               onCursorRef.current?.({ line: line.number, column: update.state.selection.main.head - line.from + 1, lines: update.state.doc.lines });
             }
-            if (update.docChanged && update.transactions.some((transaction) => transaction.docChanged && !transaction.annotation(externalValue))) {
+            if (!binding && update.docChanged && update.transactions.some((transaction) => transaction.docChanged && !transaction.annotation(externalValue))) {
               const changes: TextChange[] = [];
               update.changes.iterChanges((...change) => { changes.push({ from: change[0], to: change[1], text: change[4].toString() }); });
               const content = editorSource(update.state);
               lastEmittedValue.current = content;
               const history = update.transactions.some((transaction) => transaction.isUserEvent("undo") || transaction.isUserEvent("redo"));
               const tidy = update.transactions.some((transaction) => transaction.isUserEvent("input.tidy"));
-              onChangeRef.current(content, changes, history ? "history" : tidy ? "tidy" : "input");
+              onChangeRef.current?.(content, changes, history ? "history" : tidy ? "tidy" : "input");
             }
             if (preferenceKey && (update.selectionSet || update.docChanged)) {
               try { localStorage.setItem(preferenceKey, JSON.stringify({ anchor: update.state.selection.main.head, scroll: observedScroll })); } catch { /* View preferences are optional. */ }
             }
           })
-        ]
-      })
-    });
+    ];
+    const selection = { anchor: position.anchor };
+    const state = binding?.state(extensions, selection) ?? EditorState.create({ doc: initialValue, selection, extensions });
+    const view = new EditorView({ parent: hostRef.current, state });
+    const disconnect = binding?.connect(view);
 
     viewRef.current = view;
     onHandleRef.current?.({
@@ -321,6 +331,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
     view.scrollDOM.addEventListener("scroll", scroll);
     window.addEventListener("pagehide", scroll);
     return () => {
+      disconnect?.();
       cancelAnimationFrame(readyFrame);
       if (view.dom.isConnected) scroll();
       view.scrollDOM.removeEventListener("scroll", scroll);
@@ -329,7 +340,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       viewRef.current = null;
       onHandleRef.current?.(undefined);
     };
-  }, []);
+  }, [documentSession, viewKey]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: [
@@ -380,6 +391,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
   }, [knownWikiTargets, completionSheets]);
 
   useEffect(() => {
+    if (documentSession || value === undefined) return;
     const view = viewRef.current;
     if (!view) return;
     if (value === lastEmittedValue.current) { lastEmittedValue.current = undefined; return; }
@@ -396,7 +408,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, on
       effects: editorSourceEffect(value),
       annotations: [externalValue.of(true), Transaction.addToHistory.of(false)]
     });
-  }, [value]);
+  }, [value, documentSession]);
 
   return <>{blocks.menu}{gutter.dialog}{dates.dialog}{fenceInput.dialog}{paste.notices}<div ref={hostRef} className={sourceMode ? "editorHost tidySourceEditor" : "editorHost"} aria-label="Markdown editor" />{!readOnly && selectionRect && selectionRect !== dismissedSelection && <SelectionToolbar rect={selectionRect} toolbarRef={toolbarRef} keymap={keymap} onCommand={(id) => { const view = viewRef.current; if (view && runFormattingCommand(view, id)) view.focus(); }} onEscape={() => { setDismissedSelection(selectionRect); viewRef.current?.focus(); }} />}</>;
 });

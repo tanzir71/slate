@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-20 - Bind shared editor views to one captured-path draft writer
+
+MarkdownEditor accepts either the legacy controlled value/onChange pair or one document session, never both. Session views keep separate cursor/scroll preferences and UI callbacks, disable local history, and delegate Undo/Redo to the retained document. Permission and revision filters block disallowed input before a local document mutation. Synchronous peer deliveries bypass local input transformations and use remote/non-echo annotations. Reapply the canonical raw-source field after fresh view configuration so deleting every newline and remounting cannot discard the preferred physical line ending.
+
+A Space-scoped document pool retains sessions across view lifetimes and registers exactly one writer before any view. This writer sends source, normalized TextChange deltas and input/tidy/history origin to workspaceStore.editSheet with the captured file path. Existing draft bases, recovery journals, autosave, checked disk writes and conflict copies remain authoritative. Genuine disk or batch changes synchronize without echo writes; identical draft echoes retain history. Cached sessions consult current ownership, file availability/encoding and exact visible source before allowing edits, including while the store subscription is detached. Disposal disables all retained references and removes writers.
+
+The pool has only type imports from the editor and receives its session factory from the lazy editor chunk, preserving the shell loading boundary. This adapter is covered through actual React/CodeMirror peer views, real MemoryFiles saves/recovery and external-edit conflicts. The workspace has not adopted it yet; tabs, pane controls, active command routing and browser/native acceptance remain separate implementation work.
+
 ## 2026-11-20 - Retain one history authority for each open document
 
 F-74 uses a DOM-independent CodeMirror state per open file for document history and exact physical source metadata. Mounted views keep their own selection and UI configuration, forward edits once, and delegate Undo/Redo to this authority. Publish source changes synchronously with actor/revision information so views can avoid echoing their acting edit and map independent cursors. Retain the session across tab view lifetimes. This follows the single-history split pattern documented at https://codemirror.net/examples/split/ .

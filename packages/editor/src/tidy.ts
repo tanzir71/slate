@@ -113,6 +113,10 @@ export function editorSourceEffect(
 export function editorSourceEffects(transaction: Transaction): readonly StateEffect<unknown>[] {
   return transaction.effects.filter((effect) => effect.is(rawSource));
 }
+/** Retain the current physical-ending preference when fresh view configuration initializes fields. */
+export function editorSourceStateEffect(state: EditorState): StateEffect<LineEndings | undefined> {
+  return rawSource.of(state.field(retainedSource, false));
+}
 const normalizedOffset = (source: string, offset: number) =>
   normalize(source.slice(0, offset)).length;
 
