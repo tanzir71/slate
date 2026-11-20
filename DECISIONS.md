@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Callout rendering
+
+- Build callout cards with line decorations and a single-line title/icon widget over parsed Markdown blockquotes. Keep body text inside CodeMirror so inline Markdown, selection and existing interactions retain their source positions.
+- Inspect a bounded opening marker and decorate only viewport intersections. Rendering never serializes the callout body, replaces line breaks, edits source or adds an Undo entry.
+- Editing any callout line exposes its complete source; Source mode and visible-syntax settings also expose the original Markdown. Keep the original light/dark 16px Figma info assets and shared typography/color tokens.
+
 ## Inspector view commands and section focus
 
 The resolved physical Inspector shortcut runs in the existing workspace capture handler before editor keymaps, retaining the modal, composition and AltGr exclusions. Keyboard section moves track their expected semantic heading order and logical destination. After current metadata arrives, restore the moved row only while its original row still owns focus; a later user focus choice takes precedence. This also handles repeated heading labels without treating their previous ordinal as their identity.

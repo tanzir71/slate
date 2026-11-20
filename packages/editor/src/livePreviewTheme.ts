@@ -1,6 +1,26 @@
 import { EditorView } from "@codemirror/view";
 
 export const livePreviewTheme = EditorView.baseTheme({
+  ".cm-content .cm-slate-callout": {
+    position: "relative",
+    background: "var(--accent-soft)",
+    borderLeft: "3px solid var(--accent-default)",
+    paddingInline: "44px 16px",
+    font: "13px/20px var(--font-ui, Geist, sans-serif)",
+    color: "var(--text-secondary)",
+  },
+  ".cm-content .cm-slate-callout-title": {
+    borderRadius: "8px 8px 0 0",
+    paddingTop: "14px", paddingBottom: "2px",
+    color: "var(--text-accent)", fontWeight: "500",
+  },
+  ".cm-content .cm-slate-callout-end": { borderRadius: "0 0 8px 8px", paddingBottom: "14px" },
+  ".cm-content .cm-slate-callout-title.cm-slate-callout-end": { borderRadius: "8px" },
+  ".cm-slate-callout-icon": { position: "absolute", top: "14px", left: "16px", width: "16px", height: "16px", cursor: "text" },
+  ".cm-slate-callout-icon img": { display: "block" },
+  ".cm-slate-callout-icon .cm-slate-callout-icon-dark": { display: "none" },
+  ':root[data-theme="dark"] & .cm-slate-callout-icon .cm-slate-callout-icon-light': { display: "none" },
+  ':root[data-theme="dark"] & .cm-slate-callout-icon .cm-slate-callout-icon-dark': { display: "block" },
   ".cm-content .cm-slate-source-marker": {
     color: "var(--md-marker)",
     textDecoration: "none",

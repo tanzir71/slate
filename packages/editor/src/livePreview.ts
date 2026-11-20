@@ -10,6 +10,7 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import { livePreviewTheme } from "./livePreviewTheme.js";
+import { CalloutLabel, editorCallout, type EditorCallout } from "./calloutPreview.js";
 import { findWikiLinkAtPosition } from "./wikiLinks.js";
 import {
   createWikiPathIndex,
@@ -158,12 +159,15 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   const visited = new Set<string>();
   const lineClasses = new Set<string>();
   const metadataEnd = frontmatterEnd(view);
+  const callouts: EditorCallout[] = [];
+  const sourceCallouts: EditorCallout[] = [];
   const activeLines = state.selection.ranges.map((range) => ({
     from: state.doc.lineAt(range.from).from,
     to: state.doc.lineAt(range.to).to,
   }));
   const active = (from: number, to: number) =>
-    activeLines.some((line) => from <= line.to && to >= line.from);
+    activeLines.some((line) => from <= line.to && to >= line.from) ||
+    sourceCallouts.some((callout) => from < callout.to && to > callout.from);
   const mark = (
     from: number,
     to: number,
@@ -246,6 +250,27 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
         const key = `${node.name}:${node.from}:${node.to}`;
         if (visited.has(key)) return undefined;
         visited.add(key);
+        if (node.name === "Blockquote") {
+          const callout = editorCallout(state, node);
+          if (callout) {
+            if (!settings.hideSyntax || active(node.from, node.to)) sourceCallouts.push(callout);
+            else {
+              callouts.push(callout);
+              const first = state.doc.lineAt(node.from), last = state.doc.lineAt(node.to);
+              for (const range of view.visibleRanges) {
+                const from = Math.max(first.number, state.doc.lineAt(range.from).number);
+                const to = Math.min(last.number, state.doc.lineAt(range.to).number);
+                for (let number = from; number <= to; number++) {
+                  lineClass(state.doc.line(number).from, `cm-slate-callout ${number === first.number ? "cm-slate-callout-title" : "cm-slate-callout-body"}${number === last.number ? " cm-slate-callout-end" : ""}`);
+                }
+              }
+              if (view.visibleRanges.some(range => first.to >= range.from && first.from <= range.to))
+                ranges.push(Decoration.replace({ widget: new CalloutLabel(callout) }).range(callout.markerFrom, callout.markerTo));
+            }
+          }
+        }
+        const callout = callouts.find(card => node.from >= card.from && node.to <= card.to);
+        if (callout && node.from >= callout.markerFrom && node.to <= callout.markerTo) return false;
         if (/^ATXHeading[1-6]$/.test(node.name)) {
           lineClass(
             node.from,
@@ -305,6 +330,7 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
                       state.sliceDoc(from, to)
                   : state.sliceDoc(from, to),
               );
+          if (href === undefined) return undefined;
           mark(
             from,
             to,
@@ -391,10 +417,11 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
           else mark(node.from, node.to, "cm-slate-ordered-marker");
         } else if (node.name === "QuoteMark") {
           if (!active(node.from, node.to)) {
-            lineClass(node.from, "cm-slate-quote-line");
+            if (!callout) lineClass(node.from, "cm-slate-quote-line");
             hide(
               node.from,
-              node.to + (state.sliceDoc(node.to, node.to + 1) === " " ? 1 : 0),
+              callout?.from === node.from ? callout.markerFrom :
+                node.to + (state.sliceDoc(node.to, node.to + 1) === " " ? 1 : 0),
             );
           }
         } else if (
