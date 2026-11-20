@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { openLibrary } from "./helpers";
+import { expectSavedSheet as saved, openLibrary } from "./helpers";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
@@ -15,7 +15,10 @@ test("keyboard-only walkthrough completes core workspace flows", async ({ page, 
   await expect(palette).toBeVisible();
 
   await page.keyboard.press("Escape");
+  const originalURL = page.url();
   await page.keyboard.press("Alt+n");
+  await expect(page).not.toHaveURL(originalURL);
+  await expect(page.locator(".browserWorkspace")).toHaveAttribute("data-editor-ready", "true");
   await expect(page.locator(".cm-content")).toBeVisible();
   await expect(palette).toBeHidden();
 
@@ -46,10 +49,13 @@ test("keyboard-only walkthrough completes core workspace flows", async ({ page, 
   await expect(inspector).toBeVisible();
   await expect(editor).toBeFocused();
   await page.keyboard.insertText("my words");
+  await saved(page, "my words");
   await page.keyboard.press(`${modifier}+a`);
   await page.keyboard.press(`${modifier}+i`);
   await expect(page.locator(".cm-content")).toHaveText("*my words*");
+  await saved(page, "*my words*");
   await expect(inspector).toBeVisible();
   await page.keyboard.press(`${modifier}+z`);
   await expect(page.locator(".cm-content")).toHaveText("my words");
+  await saved(page, "my words");
 });

@@ -1,6 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "./fixtures";
-import { chooseAppearance, createSheet, openLibrary, readCurrentSheet, workspaceAction } from "./helpers";
+import { chooseAppearance, createSheet, expectSavedSheet as saved, openLibrary, workspaceAction } from "./helpers";
 import { libraryFile } from "./libraryFiles";
 import type { Page } from "@playwright/test";
 
@@ -125,15 +125,16 @@ test("tag mode filters the real sheet list without changing either note", async 
 });
 
 test("palette resources and templates use their real creation flows with one-step Undo", async ({ page }) => {
-  await openLibrary(page); const editor = await createSheet(page, "Words kept."); await editor.press("ControlOrMeta+End");
+  await openLibrary(page); const editor = await createSheet(page, "Words kept."); await saved(page, "Words kept."); await editor.press("ControlOrMeta+End");
   let modal = await open(page); await modal.locator("input").fill("/ code block");
   await modal.getByRole("button", { name: "Code block", exact: true }).click();
   const language = page.getByRole("dialog", { name: "Code language", exact: true });
   await expect(language.getByRole("combobox", { name: "Code language", exact: true })).toBeFocused();
   await language.getByRole("combobox", { name: "Code language", exact: true }).fill("python");
   await language.getByRole("button", { name: "Insert code block", exact: true }).click();
-  await expect.poll(() => readCurrentSheet(page)).toContain("```python\n"); await expect(editor).toBeFocused();
+  await saved(page, "Words kept.\n\n```python\n\n```"); await expect(editor).toBeFocused();
   await editor.press("ControlOrMeta+z"); await expect(editor).toHaveText("Words kept.");
+  await saved(page, "Words kept.");
   await editor.press("ControlOrMeta+End"); modal = await open(page); await modal.locator("input").fill("/ meeting notes");
   await modal.getByRole("button", { name: "Meeting notes", exact: true }).click();
   const template = page.getByRole("dialog", { name: "Insert Meeting notes", exact: true });
@@ -142,6 +143,7 @@ test("palette resources and templates use their real creation flows with one-ste
   await expect(editor).toContainText("Agenda"); await expect(editor).toContainText("Words kept.");
   await expect(editor).toContainText("Action items"); await expect(editor).toBeFocused();
   await editor.press("ControlOrMeta+z"); await expect(editor).toHaveText("Words kept.");
+  await saved(page, "Words kept.");
 });
 
 test("palette assets, geometry, theme, touch targets, preview and accessibility hold in the actual modal", async ({ page, isMobile }) => {

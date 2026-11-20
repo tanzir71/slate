@@ -77,8 +77,15 @@ test("grid cells retain inline formatting and ordinary external and wiki-link na
     { name: "Table.md", mimeType: "text/markdown", buffer: Buffer.from(source) },
     { name: "Target.md", mimeType: "text/markdown", buffer: Buffer.from("# Target\n\nKept words.") },
   ]);
-  await showSheets(page);
-  await page.locator('.browserSheetRow[data-path="Table.md"]').click();
+  await expect(page.locator(".notice").filter({ hasText: "Imported your files. Existing files were kept." })).toBeVisible();
+  await expect(page.locator(".browserWorkspace")).toHaveAttribute("data-editor-ready", "true");
+  if (!page.url().endsWith("/Table.md")) {
+    await showSheets(page);
+    await page.locator('.browserSheetRow[data-path="Table.md"]').click();
+  }
+  await expect(page).toHaveURL(/\/Table\.md$/);
+  await saved(page, source);
+  expect(await libraryFile(page, "Target.md")).toEqual(Array.from(Buffer.from("# Target\n\nKept words.")));
   const grid = page.locator(".cm-slate-table-grid");
   await expect(grid.locator(".cm-slate-strong")).toHaveText("Bold");
   await expect(grid.locator(".cm-slate-wiki-link")).toHaveText("alias");
