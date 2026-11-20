@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Outline section move plans
+
+- Reuse semantic Markdown headings to define a movable section: its physical heading line and all content/descendant headings until the next root heading at the same or shallower depth. Code, metadata, and headings inside containers never become cut points.
+- Return raw source-relative text changes and selection bounds using the existing block-move contract. Preserve payload bytes, BOM/front matter, prologue and EOF whitespace; use the established block separator policy only at new boundaries. A parent cannot move into itself or its descendants.
+- Scan only at explicit move interactions, never on the typing path. Editor integration must verify the exact reviewed source and file identity, check live write permission, and apply the plan as one Undo step. The domain planner performs no disk or DOM operations.
+
 ## 2026-11-20 - Tab navigation and close history
 
 - Closed-tab history belongs to the workspace layout for the current Space lifetime. Restore prior tab positions in reverse close order, forget entries opened through ordinary navigation, and prune deleted/private paths. Closing a tab never deletes source or releases its retained document Undo.
