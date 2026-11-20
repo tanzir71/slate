@@ -144,6 +144,14 @@ function dateResult(
     from: query.contentFrom,
     to: query.to,
     filter: false,
+    update(result, from, to, currentContext) {
+      const current = markdownCompletionQuery(currentContext.state);
+      return currentContext.state.facet(completionData).onPickDate &&
+        current?.kind === "date" &&
+        current.contentFrom === from && current.to === to
+        ? { ...result, from, to }
+        : null;
+    },
     options: [
       {
         label: "Choose date…",

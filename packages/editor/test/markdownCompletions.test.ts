@@ -3,6 +3,9 @@ import { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
 import {
   CompletionContext,
+  acceptCompletion,
+  selectedCompletion,
+  startCompletion,
   type CompletionResult,
 } from "@codemirror/autocomplete";
 import { afterEach, expect, it, vi } from "vitest";
@@ -67,6 +70,47 @@ it("opens a date picker without changing the query or undo history", () => {
   expect(onPickDate).toHaveBeenCalledExactlyOnceWith(view);
   expect(view.state.doc.toString()).toBe("Words @date");
   expect(undo(view)).toBe(false);
+});
+
+it.each(["command", "pointer"] as const)("accepts the displayed date action by %s immediately after typing extends its query", async (activation) => {
+  const onPickDate = vi.fn((view: EditorView) => requestEditorDate(view.state));
+  const view = editor("@", { onPickDate });
+  expect(startCompletion(view)).toBe(true);
+  await vi.waitFor(() => expect(selectedCompletion(view.state)?.label).toBe("Choose date…"));
+  view.dispatch({ changes: { from: 1, insert: "date" }, selection: { anchor: 5 }, userEvent: "input.type" });
+  if (activation === "command") expect(acceptCompletion(view)).toBe(true);
+  else {
+    const option = view.dom.querySelector('[role="option"]');
+    expect(option).not.toBeNull();
+    option!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+  }
+  expect(onPickDate).toHaveBeenCalledExactlyOnceWith(view);
+  expect(onPickDate.mock.results[0]?.value?.source).toBe(view.state.doc);
+  expect(onPickDate.mock.results[0]?.value?.query.query).toBe("date");
+  expect(view.state.doc.toString()).toBe("@date");
+  expect(undo(view)).toBe(true);
+  expect(view.state.doc.toString()).toBe("@");
+});
+
+it("accepts a displayed date action immediately after backspacing its query", async () => {
+  const onPickDate = vi.fn((view: EditorView) => requestEditorDate(view.state));
+  const view = editor("@2024-02-29", { onPickDate });
+  startCompletion(view);
+  await vi.waitFor(() => expect(selectedCompletion(view.state)?.label).toBe("Choose date…"));
+  view.dispatch({ changes: { from: 1, to: view.state.doc.length }, selection: { anchor: 1 }, userEvent: "delete.backward" });
+  expect(acceptCompletion(view)).toBe(true);
+  expect(onPickDate.mock.results[0]?.value?.query.query).toBe("");
+  expect(view.state.doc.toString()).toBe("@");
+});
+
+it.each([" ", "\n", "!", "d".repeat(65)])("invalidates the displayed date action when editing leaves its query: %j", async (insert) => {
+  const onPickDate = vi.fn(), view = editor("@", { onPickDate });
+  startCompletion(view);
+  await vi.waitFor(() => expect(selectedCompletion(view.state)?.label).toBe("Choose date…"));
+  view.dispatch({ changes: { from: 1, insert }, selection: { anchor: 1 + insert.length }, userEvent: "input.type" });
+  expect(acceptCompletion(view)).toBe(false);
+  expect(onPickDate).not.toHaveBeenCalled();
+  expect(view.state.doc.toString()).toBe("@" + insert);
 });
 
 it.each([["@", "2026-11-18"], ["Words @", "2024-02-29"], ["বাংলা 🙂 @", "2026-11-19"]])(
