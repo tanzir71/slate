@@ -57,7 +57,10 @@ test("batch review writes only chosen notes offline, keeps exact originals, and 
   await dialog.getByRole("button", { name: "Close Batch Tidy", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sheet actions", exact: true })).toBeFocused();
   await workspaceAction(page, "Undo batch Tidy");
-  await expect.poll(() => libraryFile(page, "one.md")).toEqual(bytes(one));
+  // Undo writes asynchronously; a snapshot read overlapping that write can reject.
+  await expect(async () => {
+    expect(await libraryFile(page, "one.md")).toEqual(bytes(one));
+  }).toPass({ timeout: 5_000 });
   await context.setOffline(false);
   await page.reload();
   await expect(page.locator(".cm-content")).toBeVisible();

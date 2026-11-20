@@ -157,7 +157,12 @@ test("desktop formatting, registry shortcuts and IPC saves agree", async ({ page
 
 test("desktop palette executes formatting and appearance and preserves invoker focus", async ({ page }) => {
   const editor = page.locator(".cm-content");
-  await editor.fill("My words.");
+  const saved = () => page.evaluate(() => localStorage.getItem("native-test:product/strategy/principles.md"));
+  await editor.click();
+  await editor.press("ControlOrMeta+A");
+  await page.keyboard.insertText("My words.");
+  await expect(editor).toHaveText("My words.");
+  await expect.poll(saved).toBe("My words.");
   await page.keyboard.press("ControlOrMeta+Home");
   await page.keyboard.press("ControlOrMeta+Shift+End");
   await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
@@ -166,6 +171,7 @@ test("desktop palette executes formatting and appearance and preserves invoker f
   await palette.getByRole("textbox", { name: "Search commands and sheets" }).fill("Bold");
   await palette.getByRole("button", { name: /Bold/ }).click();
   await expect(editor).toHaveText("**My words.**");
+  await expect.poll(saved).toBe("**My words.**");
   await page.getByRole("button", { name: "Sheet actions", exact: true }).click();
   await page.getByRole("button", { name: "Command palette", exact: true }).click();
   palette = page.getByRole("dialog", { name: "Command palette", exact: true });
