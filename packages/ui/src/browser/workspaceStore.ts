@@ -127,9 +127,14 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   async function refresh() {
     const disk = await space.sheets();
     for (const sheet of disk) bases.set(sheet.path, sheet.content);
-    const sheets = overlayDrafts(disk);
-    const selected = api.getState().selectedPath;
-    api.setState({ sheets, selectedPath: sheets.some((sheet) => sheet.path === selected) ? selected : sheets[0]?.path ?? "" });
+    const current = api.getState(), previous = new Map(current.sheets.map((sheet) => [sheet.path, sheet]));
+    const sheets = overlayDrafts(disk).map((sheet) => {
+      const before = previous.get(sheet.path);
+      return before && before.content === sheet.content && before.unsupportedEncoding === sheet.unsupportedEncoding ? before : sheet;
+    });
+    const selectedPath = sheets.some((sheet) => sheet.path === current.selectedPath) ? current.selectedPath : sheets[0]?.path ?? "";
+    if (selectedPath === current.selectedPath && sheets.length === current.sheets.length && sheets.every((sheet, index) => sheet === current.sheets[index])) return;
+    api.setState({ sheets, selectedPath });
   }
 
   async function flush(): Promise<void> {

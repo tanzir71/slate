@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Publish only changed visible disk snapshots
+
+Workspace refresh continues listing and reading every file and updating its disk bases. After overlaying current drafts, reuse existing sheet objects only when path, exact source and encoding support are identical. Skip the store publication only when the entire ordered sheet list and selected path are unchanged. Preserve per-path references across insertions/removals; notify real source, encoding, membership and selection changes. Compare against the live store after asynchronous reads so intervening edits and selections remain authoritative.
+
+This removes redundant notifications from unchanged polls rather than avoiding disk authority or delaying external updates. A visible draft can remain unchanged while its external disk base changes; retain the draft's original write base so a later save still makes a conflict copy. Notification/identity regressions prove the work reduction and data boundaries; only the unchanged strict reference frame gates can establish a latency pass.
+
 ## 2026-11-20 - Bind pane drafts to their captured file path
 
 F-74 needs an explicit editSheet(path, ...) store entry point before multiple editor views can write. Keep each pane callback bound to its own file instead of resolving the globally selected sheet when an event arrives. Existing selected-sheet edit delegates to this same implementation. Only known UTF-8 sheets in an owned Space accept edits. Return whether the draft was accepted so future pane integration can handle an invalidated target explicitly.
