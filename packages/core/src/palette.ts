@@ -29,9 +29,38 @@ function folded(value: string) {
     : value;
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
-function score(value: string, query: string, characters: readonly string[]) {
+const cachedCharacterCount = 5;
+const countsPerField = cachedCharacterCount * 2;
+interface CharacterRequirement { offset: number; mask: number }
+/** Necessary ASCII counts only. Other code points keep the existing scorer. */
+function writeCharacterCounts(value: string, counts: Uint32Array, from: number) {
+  for (let position = 0; position < value.length; position++) {
+    const code = value.charCodeAt(position);
+    const slot = code >= 97 && code <= 122 ? code - 97 : code >= 48 && code <= 57 ? code - 48 + 26 : -1;
+    if (slot < 0) continue;
+    const word = slot >>> 5, bit = 1 << (slot & 31);
+    for (let count = 0; count < cachedCharacterCount; count++) {
+      const offset = from + count * 2 + word;
+      if (counts[offset]! & bit) continue;
+      counts[offset] = counts[offset]! | bit; break;
+    }
+  }
+}
+function characterRequirements(query: string) {
+  const counts = new Uint32Array(countsPerField), required: CharacterRequirement[] = [];
+  writeCharacterCounts(query, counts, 0);
+  // Rare repeated characters reject candidates before common single letters.
+  for (let offset = counts.length - 1; offset >= 0; offset--)
+    if (counts[offset]) required.push({ offset, mask: counts[offset]! });
+  return required;
+}
+function hasCharacters(counts: Uint32Array, from: number, required: readonly CharacterRequirement[]) {
+  for (const { offset, mask } of required) if (((counts[from + offset]! & mask) >>> 0) !== mask) return false;
+  return true;
+}
+function score(value: string, query: string, characters: readonly string[], counts: Uint32Array, from: number, required: readonly CharacterRequirement[]) {
   if (!query || value === query) return 0;
-  if (value.length < query.length) return Infinity;
+  if (value.length < query.length || !hasCharacters(counts, from, required)) return Infinity;
   let occurrence = value.indexOf(query);
   if (occurrence === 0) return 1;
   if (occurrence > 0) {
@@ -50,13 +79,13 @@ function score(value: string, query: string, characters: readonly string[]) {
   }
   return 4 + (position - query.length) / Math.max(1, value.length);
 }
-interface IndexedEntry { item: PaletteEntry; label: string; other: readonly string[] }
+interface IndexedEntry { item: PaletteEntry; label: string; countsFrom: number; other: readonly string[] }
 interface Match { entry: IndexedEntry; score: number }
-function entryScore(entry: IndexedEntry, query: string, characters: readonly string[]) {
-  let rank = score(entry.label, query, characters);
+function entryScore(entry: IndexedEntry, query: string, characters: readonly string[], counts: Uint32Array, required: readonly CharacterRequirement[]) {
+  let rank = score(entry.label, query, characters, counts, entry.countsFrom, required);
   if (rank === 0) return rank;
-  for (const value of entry.other) {
-    rank = Math.min(rank, score(value, query, characters) + 0.25);
+  for (let index = 0; index < entry.other.length; index++) {
+    rank = Math.min(rank, score(entry.other[index]!, query, characters, counts, entry.countsFrom + (index + 1) * countsPerField, required) + 0.25);
     if (rank === 0.25) break;
   }
   return rank;
@@ -85,15 +114,22 @@ function retainBest(matches: Match[], candidate: Match, limit: number) {
  * IDs remain literal so two matching titles never become an ambiguous file action.
  */
 export function createPaletteIndex(entries: readonly PaletteEntry[]) {
+  let fieldCount = 0;
   const indexed: IndexedEntry[] = entries.map((entry) => {
     const label = folded(entry.label);
     // The label's score always beats the same field with the secondary penalty.
     const other = [...new Set([entry.id, ...(entry.detail ? [entry.detail] : []), ...(entry.aliases ?? [])].map(folded))]
       .filter((value) => value !== label);
-    return { item: { ...entry, ...(entry.aliases ? { aliases: [...entry.aliases] } : {}) }, label, other };
+    fieldCount += 1 + other.length;
+    return { item: { ...entry, ...(entry.aliases ? { aliases: [...entry.aliases] } : {}) }, label, other, countsFrom: 0 };
   }).sort(compareEntries);
+  const counts = new Uint32Array(fieldCount * countsPerField);
+  let countsFrom = 0;
   const kinds = new Map<PaletteKind, IndexedEntry[]>();
   for (const entry of indexed) {
+    entry.countsFrom = countsFrom;
+    writeCharacterCounts(entry.label, counts, countsFrom); countsFrom += countsPerField;
+    for (const value of entry.other) { writeCharacterCounts(value, counts, countsFrom); countsFrom += countsPerField; }
     const list = kinds.get(entry.item.kind);
     if (list) list.push(entry); else kinds.set(entry.item.kind, [entry]);
   }
@@ -116,11 +152,12 @@ export function createPaletteIndex(entries: readonly PaletteEntry[]) {
         return { mode, total, items };
       }
       const characters = Array.from(query);
+      const required = characterRequirements(query);
       const matches: Match[] = [];
       let total = 0;
       for (const entry of candidates) {
         if (options.accept?.(entry.item) === false) continue;
-        const rank = entryScore(entry, query, characters);
+        const rank = entryScore(entry, query, characters, counts, required);
         if (!Number.isFinite(rank)) continue;
         total++;
         if (limit) retainBest(matches, { entry, score: rank }, limit);

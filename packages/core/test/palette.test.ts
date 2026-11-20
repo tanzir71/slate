@@ -130,6 +130,60 @@ describe("indexed palette search", () => {
     expect(choices.search("Note 9999", { limit: 1 }).items[0]?.id).toBe("Folder/Note 9999.md");
     expect(choices.search("Note", { limit: 0 })).toMatchObject({ items: [], total: 10_000 });
   });
+  it.each(["0", "5", "9"])("rejects impossible repeated-%s fields before scanning a real 10k-sheet and heading corpus", digit => {
+    const choices = createPaletteIndex(Array.from({ length: 10_000 }, (_, value) => {
+      const title = `Note ${String(value).padStart(5, "0")}`;
+      return [{ id: `Folder/${title}.md`, kind: "sheets" as const, label: title },
+        { id: `Folder/${title}.md:heading`, kind: "headings" as const, label: title }];
+    }).flat());
+    const title = `Note 0${digit.repeat(4)}`, original = String.prototype.indexOf;
+    let scans = 0;
+    const scan = vi.spyOn(String.prototype, "indexOf").mockImplementation(function (this: string, needle: string, position?: number) {
+      if (/^(?:folder\/)?note \d{5}/.test(String(this))) scans++;
+      return original.call(this, needle, position);
+    });
+    let result;
+    try { result = choices.search(title); } finally { scan.mockRestore(); }
+    expect(result?.total).toBe(2);
+    expect(result?.items.map(entry => entry.id)).toEqual([`Folder/${title}.md`, `Folder/${title}.md:heading`]);
+    expect(scans).toBeLessThan(100);
+  });
+  it.each([
+    ["ete9999", "accent-alias"], ["৯৯৯৯", "bengali"], ["🙂9🙂9🙂9🙂9", "emoji"],
+    ["a:b9+9", "punctuation"], ["aaaaa", "saturated"], ["nine 9999", "secondary"],
+    ["nine 99999", "secondary"], ["5555", "signed-bit"],
+  ] as const)("preserves literal matches for repeated, Unicode and secondary query %s", (query, id) => {
+    const choices = createPaletteIndex([
+      { id: "accent-alias", kind: "sheets", label: "Angstrom", aliases: ["Été9999"] },
+      { id: "bengali", kind: "sheets", label: "৯৯৯৯" },
+      { id: "emoji", kind: "sheets", label: "a🙂9🙂9🙂9🙂9" },
+      { id: "punctuation", kind: "sheets", label: "alpha:beta9+9+9+9" },
+      { id: "saturated", kind: "sheets", label: "aaaaaaaa" },
+      { id: "secondary", kind: "sheets", label: "Nine 999", detail: "nine 9999", aliases: ["nine 99999"] },
+      { id: "signed-bit", kind: "sheets", label: "x5555" },
+    ]);
+    expect(choices.search(query)).toMatchObject({ total: 1, items: [{ id }] });
+    expect(choices.search(query, { limit: 0 })).toMatchObject({ total: 1, items: [] });
+    expect(choices.search(query, { accept: () => false })).toMatchObject({ total: 0, items: [] });
+  });
+  it("keeps repeated-character rejection conservative beyond the cached count bound", () => {
+    const choices = createPaletteIndex([{ id: "row", kind: "sheets", label: "aaaaaaaa" }]);
+    expect(choices.search("aaaaaaaa").total).toBe(1);
+    expect(choices.search("aaaaaaaaa").total).toBe(0);
+  });
+  it("keeps character-cache buffer allocations constant across a 10k-sheet index", () => {
+    const entries = Array.from({ length: 10_000 }, (_, value) => ({
+      id: `Folder/Note ${value}.md`, kind: "sheets" as const, label: `Note ${value}`,
+    }));
+    let allocations = 0;
+    vi.stubGlobal("Uint32Array", new Proxy(Uint32Array, {
+      construct(target, argumentsList: unknown[]) { allocations++; return Reflect.construct(target, argumentsList) as Uint32Array; },
+    }));
+    let choices;
+    try { choices = createPaletteIndex(entries); } finally { vi.unstubAllGlobals(); }
+    expect(choices?.search("Note 9999").items[0]?.id).toBe("Folder/Note 9999.md");
+    expect(allocations).toBeLessThanOrEqual(2);
+  });
   it("returns no false action for an unmatched query or an invalid result limit", () => {
     expect(index.search("zzzzzzz")).toMatchObject({ items: [], total: 0 });
     for (const limit of [-1, 0.5, NaN, Infinity, 101]) expect(() => index.search("", { limit })).toThrow();

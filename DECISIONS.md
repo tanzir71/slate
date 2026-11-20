@@ -1,5 +1,16 @@
 # Slate Decisions
 
+## 2026-11-20 - Contiguous palette character cache
+
+- Store all field counts in one contiguous Uint32Array owned by the index. Sorted entries retain offsets into that buffer, and their secondary fields remain ordinary normalized strings. Build masks while grouping entries by kind; queries use one fixed-size scratch buffer. Avoid a separate typed array or view for each field.
+- Cover constant buffer allocation count on a 10k-sheet index alongside the existing scan reduction and complete previous-scorer parity checks. Preserve the first per-field-buffer candidate and its failed complete four-profile benchmark. Fewer allocations do not by themselves establish a browser latency win or satisfy a strict release gate.
+
+## 2026-11-20 - Conservative palette field rejection
+
+- Cache five levels of necessary character counts for each distinct normalized palette field. Two 32-bit words cover ASCII letters and digits at each level; storage per field is independent of its length. Prepare query requirements once and check rarer repeated counts first. Skip existing string scoring only when a field cannot contain enough copies of a required character.
+- Saturated counts, punctuation and non-ASCII code points remain conservative: the original contiguous/word/subsequence scorer decides every surviving field with unchanged ranks, secondary penalties and Unicode behavior. Keep context filtering before scoring and preserve full totals, modes, limits, ties and immutable metadata. Empty queries retain their existing path.
+- Verify actual field-scan reductions without timing tolerances and compare results against the previous committed scorer. This optimization does not establish a cause or a pass for the Linux reference palette or typing gates; every strict release threshold and first failure remains authoritative.
+
 ## 2026-11-20 - Properties text frames and retained views
 
 - Apply precise glyph rendering and normal kerning on the actual property controls and keys, because button defaults can reset inherited text rendering. After fonts load, measure each actual text range in a CodeMirror read phase and round its intrinsic width up to a whole CSS pixel in the write phase. This matches the supplied Figma text frames without hardcoded fixture or property widths, font scaling or resized assets. Recheck row resize and changed relative-time text; disconnect the observer and cancel timers when the widget retires.
