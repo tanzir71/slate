@@ -254,8 +254,11 @@ test("large sheet lists render a bounded window and allow keyboard access to the
 }) => {
   await openLibrary(page);
   await createSheet(page, "# Original\n\nKeep this file.");
-  await page.evaluate(async () => {
-    const id = decodeURIComponent(location.hash.split("/")[2]!);
+  const appUrl = page.url(), id = decodeURIComponent(new URL(appUrl).hash.split("/")[2]!);
+  // Seed before loading the list, so workspace polling/indexing does not compete
+  // with this fixture's real OPFS writers. The landing page shares its origin.
+  await page.goto(new URL("../", appUrl).href);
+  await page.evaluate(async (id) => {
     const root = await navigator.storage.getDirectory();
     const space = await (
       await root.getDirectoryHandle("spaces")
@@ -274,8 +277,8 @@ test("large sheet lists render a bounded window and allow keyboard access to the
         }
       }),
     );
-  });
-  await page.reload();
+  }, id);
+  await page.goto(appUrl);
   await showSheets(page);
   await expect(page.locator(".listFoot")).toHaveText("101 sheets");
   const rows = page.locator(".browserSheetRow");

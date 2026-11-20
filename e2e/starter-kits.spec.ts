@@ -146,9 +146,12 @@ for (const [id, name, folder, template] of [
       await expect(
         gallery.getByRole("combobox", { name: "Notebook", exact: true }),
       ).toHaveValue(root + "/Meetings");
-      await gallery
-        .getByRole("textbox", { name: "Title", exact: true })
-        .fill("Follow-up");
+      const title = gallery.getByRole("textbox", { name: "Title", exact: true });
+      await title.click();
+      await expect(title).toBeFocused();
+      await title.press("ControlOrMeta+a");
+      await title.pressSequentially("Follow-up");
+      await expect(title).toHaveValue("Follow-up");
       await gallery
         .getByRole("button", { name: "Create ↵", exact: true })
         .click();

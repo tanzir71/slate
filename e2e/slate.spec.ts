@@ -14,9 +14,13 @@ test("creates a persistent browser sheet with palette and inspector closed", asy
 test("filters sheets by search text", async ({ page }) => {
   await openLibrary(page);
   await createSheet(page, "# Research\n\nA unique research note.");
+  const previous = page.url();
   await page.getByRole("button", { name: "New Sheet", exact: true }).first().click();
+  await expect(page).not.toHaveURL(previous);
+  await expect(page.locator(".cm-content")).toHaveText("");
   await showSheets(page);
   await page.getByRole("textbox", { name: "Search sheets" }).fill("unique");
+  await expect(page.getByRole("textbox", { name: "Search sheets" })).toHaveValue("unique");
   await expect(page.getByRole("button", { name: /Research.*unique research/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Untitled.*Start writing/ })).toBeHidden();
 });
