@@ -9,6 +9,16 @@ import {
   workspaceAction,
 } from "./helpers";
 
+declare global {
+  interface Window {
+    inspectorBodyScans?: number;
+    summaryPostTimes?: number[];
+    summaryStarted?: number;
+    holdSheetSummaries?: boolean;
+    releaseSheetSummaries?: () => void;
+  }
+}
+
 test("workspace dimensions, truthful goal rows, saved pins and density survive reopening", async ({
   page,
   isMobile,
@@ -105,7 +115,7 @@ test("mobile switches panes, exposes all workspace actions and keeps touch contr
   for (const name of [
     "Show navigation",
     "Show sheets",
-    "Search sheets",
+    "Search everywhere",
     "New Sheet",
     "Toggle inspector",
     "Sheet actions",
@@ -221,9 +231,9 @@ test("bulk move and trash preserve every selected file and its recoverable copy"
       const result: string[] = [];
       for await (const handle of directory.values()) {
         if (handle.kind === "directory")
-          result.push(...(await collect(handle)));
+          result.push(...(await collect(handle as FileSystemDirectoryHandle)));
         else if (handle.name.endsWith(".md"))
-          result.push(await (await handle.getFile()).text());
+          result.push(await (await (handle as FileSystemFileHandle).getFile()).text());
       }
       return result;
     }

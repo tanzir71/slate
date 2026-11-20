@@ -19,16 +19,29 @@ test("keyboard-only walkthrough completes core workspace flows", async ({ page, 
   await expect(page.locator(".cm-content")).toBeVisible();
   await expect(palette).toBeHidden();
 
+  const editor = page.locator(".cm-content");
+  for (let step = 0; step < 40; step++) {
+    if (await editor.evaluate((element) => document.activeElement === element)) break;
+    await page.keyboard.press("Tab");
+  }
+  await expect(editor).toBeFocused();
+
   await page.keyboard.press(`${modifier}+Shift+F`);
-  const sheetSearch = page.getByRole("textbox", { name: "Search sheets" });
-  await expect(sheetSearch).toBeFocused();
+  const search = page.getByRole("dialog", { name: "Search everywhere", exact: true });
+  await expect(search.getByRole("textbox", { name: /^Search in / })).toBeFocused();
 
   const inspector = page.getByRole("complementary", { name: "Inspector" });
   await expect(inspector).toBeHidden();
 
   await page.keyboard.press(`${modifier}+Shift+I`);
+  await expect(inspector).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(search).toBeHidden();
+  await expect(page.locator(".cm-content")).toBeFocused();
+
+  await page.keyboard.press(`${modifier}+Shift+I`);
   await expect(inspector).toBeVisible();
-  await page.locator(".cm-content").click();
+  await expect(editor).toBeFocused();
   await page.keyboard.insertText("my words");
   await page.keyboard.press(`${modifier}+a`);
   await page.keyboard.press(`${modifier}+i`);

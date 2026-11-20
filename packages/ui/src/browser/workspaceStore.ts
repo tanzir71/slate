@@ -8,6 +8,7 @@ import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 import type { StarterKitInstallation } from "../templates/starterKits";
 import type { EditorChangeOrigin } from "../commands";
 import type { BatchTidySession } from "@slate/storage/tidy-batch";
+import type { ReplaceBatchSession } from "@slate/storage/replace-batch";
 
 export interface NoteSaveSnapshot {
   readonly path: string;
@@ -25,11 +26,12 @@ export interface WorkspaceState {
   notice: string;
   preferences: WorkspacePreferences;
   hasTidyBatchUndo: boolean;
+  hasReplaceBatchUndo: boolean;
   initialCursor?: { path: string; position: number } | undefined;
 }
 
 export function createWorkspaceStore(record: BrowserSpaceRecord, files: WorkspaceFiles) {
-  const api = createStore<WorkspaceState>(() => ({ record, sheets: [], selectedPath: "", owned: record.id === "sample", saveState: "Saved", error: "", notice: "", preferences: readWorkspacePreferences(), hasTidyBatchUndo: false }));
+  const api = createStore<WorkspaceState>(() => ({ record, sheets: [], selectedPath: "", owned: record.id === "sample", saveState: "Saved", error: "", notice: "", preferences: readWorkspacePreferences(), hasTidyBatchUndo: false, hasReplaceBatchUndo: false }));
   const space = createFileSpace(files, () => api.getState().owned);
   const bases = new Map<string, string>();
   const drafts = new Map<string, Draft>();
@@ -43,6 +45,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   let updatingPreferences: Promise<unknown> = Promise.resolve();
   const pendingKits = new Set<StarterKitInstallation>();
   const tidyBatches: BatchTidySession[] = [];
+  const replacementBatches: ReplaceBatchSession[] = [];
   const preferencesPath = ".slate/view.json";
 
   async function readPreferences() {
@@ -83,6 +86,18 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
     api.setState({ hasTidyBatchUndo: tidyBatches.length > 0 });
     if (batch.rows().some((row) => ["applied", "undo-failed", "undone"].includes(row.status)))
       await finishCreated("Your batch changes are saved. Refresh the workspace when available to update its lists.");
+    else {
+      try { await refresh(); }
+      catch { api.setState({ notice: "Your files are kept. Refresh the workspace when available to update its lists." }); }
+    }
+  }
+
+  async function finishReplacementBatch(batch: ReplaceBatchSession) {
+    if (batch.hasUndo() && !replacementBatches.includes(batch)) replacementBatches.push(batch);
+    while (replacementBatches.length && !replacementBatches.at(-1)!.hasUndo()) replacementBatches.pop();
+    api.setState({ hasReplaceBatchUndo: replacementBatches.length > 0 });
+    if (batch.rows().some((row) => ["applied", "undo-failed", "undone"].includes(row.status)))
+      await finishCreated("Your replacements are saved. Refresh the workspace when available to update its lists.");
     else {
       try { await refresh(); }
       catch { api.setState({ notice: "Your files are kept. Refresh the workspace when available to update its lists." }); }
@@ -162,6 +177,31 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
 
   return {
     api, space, refresh, flush,
+    applyReplaceBatch(batch: ReplaceBatchSession, paths: readonly string[]): Promise<void> {
+      const selected = new Set(paths);
+      const next = linking.then(async () => {
+        await flush();
+        try {
+          await batch.apply([...selected]);
+          const failed = batch.rows().find((row) => selected.has(row.path) && (row.status === "failed" || row.status === "conflict"));
+          if (failed) throw new Error(`${failed.path}: ${failed.error}`);
+        } finally { await finishReplacementBatch(batch); }
+      });
+      linking = next.catch(() => undefined); return next;
+    },
+    undoReplaceBatch(): Promise<void> {
+      const next = linking.then(async () => {
+        const batch = replacementBatches.at(-1);
+        if (!batch) return;
+        await flush();
+        try {
+          await batch.undo();
+          const failed = batch.rows().find((row) => row.status === "undo-failed");
+          if (failed) throw new Error(`${failed.path}: ${failed.error}`);
+        } finally { await finishReplacementBatch(batch); }
+      });
+      linking = next.catch(() => undefined); return next;
+    },
     applyTidyBatch(batch: BatchTidySession, paths: readonly string[]): Promise<void> {
       const selected = new Set(paths);
       const next = linking.then(async () => {
@@ -265,7 +305,7 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       if (!sheet.unsupportedEncoding) bases.set(safe, sheet.content);
       if (target) {
         if (sheet.unsupportedEncoding) throw new Error("This file needs UTF-8. Open the sheet to download its original bytes.");
-        if (target.source !== sheet.content) throw new Error("This sheet changed. Search again before jumping to its heading.");
+        if (target.source !== sheet.content) throw new Error("This sheet changed. Search again before jumping to this result.");
         if (!Number.isSafeInteger(target.position) || target.position < 0 || target.position > sheet.content.length)
           throw new Error("This heading position is unavailable. Search again.");
       }

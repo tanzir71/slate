@@ -1,0 +1,40 @@
+.workspaceSearchDialog { inline-size: min(760px, calc(100vw - 24px)); padding: 0; }
+.workspaceSearchDialog[open] { display: flex; flex-direction: column; }
+.workspaceSearchDialog > header { padding: 16px 20px; margin: 0; border-block-end: 1px solid var(--border-default); flex-shrink: 0; }
+.workspaceSearchDialog input[type="checkbox"] { inline-size: 16px; block-size: 16px; padding: 0; flex-shrink: 0; accent-color: var(--accent-default); }
+.workspaceSearchDialog .searchCase, .workspaceSearchDialog .replacementSelectAll, .workspaceSearchDialog .replacementRow > label { flex-direction: row; }
+.workspaceSearchFields { padding: 16px; border-block-end: 1px solid var(--border-default); }
+.workspaceSearchFields fieldset { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border: 0; padding: 0; margin: 0; }
+.workspaceSearchFields label { display: grid; gap: 6px; font-size: 12px; }
+.workspaceSearchFields input:not([type="checkbox"]) { inline-size: 100%; min-block-size: 36px; }
+.workspaceSearchFields .searchCase, .replacementSelectAll { display: flex; align-items: center; gap: 8px; }
+.workspaceSearchFields .searchCase { grid-column: 1 / -1; }
+.workspaceSearchFields button { align-self: end; min-block-size: 36px; }
+.workspaceSearchBody { padding: 0 16px 16px; min-block-size: 0; max-block-size: 48vh; overflow: auto; flex: 1 1 auto; }
+.workspaceSearchResults, .replacementPreview ul { padding: 0; list-style: none; }
+.workspaceSearchResults > li, .replacementRow { padding-block: 12px; border-block-end: 1px solid var(--border-subtle); }
+.workspaceSearchResults button { inline-size: 100%; text-align: start; }
+.searchFile { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.searchFile small, .searchExcerpt small, .replacementRow label > span { color: var(--text-secondary); font-weight: 400; }
+.searchExcerpt { display: grid; gap: 5px; margin-block: 6px; }
+.searchExcerpt > span { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-editor); font-size: 14px; }
+.searchExcerpt mark { background: var(--bg-selected); color: var(--text-primary); border-radius: 2px; }
+.workspaceSearchActions { display: flex; justify-content: space-between; gap: 8px; border-block-start: 1px solid var(--border-default); padding: 12px 16px; }
+.searchError, .searchNotice { padding: 10px 16px; margin: 0; }
+.searchError, .replacementError { color: var(--text-primary); border-inline-start: 3px solid var(--status-danger); }
+.replacementRow > label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.replacementRow > label strong { overflow-wrap: anywhere; }
+.replacementRow > label span { margin-inline-start: auto; }
+.replacementComparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.replacementComparison section { min-inline-size: 0; }
+.replacementComparison pre { padding: 10px; background: var(--bg-canvas); border: 1px solid var(--border-subtle); max-block-size: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.6 var(--font-mono); }
+@media (max-width: 699px) {
+  .workspaceSearchDialog button { min-block-size: 44px; min-inline-size: 44px; }
+  .workspaceSearchDialog .searchCase, .workspaceSearchDialog .replacementSelectAll { min-block-size: 44px; }
+  .workspaceSearchFields fieldset { grid-template-columns: 1fr; }
+  .workspaceSearchFields button, .workspaceSearchActions button, .workspaceSearchResults button, .replacementRow button { min-block-size: 44px; }
+  .workspaceSearchFields input:not([type="checkbox"]) { min-block-size: 44px; }
+  .workspaceSearchBody { max-block-size: 40vh; }
+  .replacementComparison { grid-template-columns: 1fr; }
+  .replacementRow > label { flex-wrap: wrap; min-block-size: 44px; }
+}

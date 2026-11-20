@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Separate worker search results from reviewed disk replacements
+
+F-73 loads a shared Search everywhere dialog and dedicated module worker only when used. Search literal Markdown source and filenames, return physical source offsets, count every match and bound the displayed file/excerpt list. Cache unchanged source snapshots, allow one active worker request plus the latest queued query, and discard superseded generations. Render excerpts as text. A result jump must still match its captured source before the existing editor navigation path positions and focuses the cursor. Search and preview remain available in a read-only Space.
+
+Replacement review flushes drafts and reads a fresh complete disk listing; it does not mutate or rely on the bounded search results. Input changes invalidate the review. External writes leave the existing review visible so Apply can explicitly refuse stale snapshots. Selected Apply and workspace-level Undo serialize with other file operations, retain partial successes and exact-byte originals, and refresh the workspace after failures as well as success. Undo survives closing the dialog for the current Space session. Explicit replacement does not invoke Tidy on save. Existing history copies remain on disk after the in-memory Undo session ends.
+
 ## 2026-11-20 - Apply only reviewed replacement snapshots and retain exact originals
 
 F-73 replacement review reads current disk bytes and produces a session of explicit per-file proposals. Review is read-only, including in a read-only Space. Apply validates every selected path before writing, preserves the exact original in private history, rechecks ownership and preview bytes, and delegates the final write to FileSpace.saveSnapshot. A concurrent external edit remains authoritative; the reviewed proposal is saved as a conflict copy if needed. Stop at the first failed or conflicting row, retaining earlier successes and later untouched rows for an explicit retry or new preview.

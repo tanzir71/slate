@@ -64,13 +64,14 @@ export const slateCommands: readonly CommandDefinition[] = [
   },
   {
     id: "sheet.search",
-    label: "Search sheets",
+    label: "Search everywhere",
     group: "Workspace",
     shortcut: "Mod+Shift+f",
   },
   { id: "sheet.save", label: "Save", group: "Workspace", shortcut: "Mod+s" },
   { id: "space.export", label: "Export Space as .zip", group: "Workspace" },
   { id: "space.switch", label: "Switch Space", group: "Workspace" },
+  { id: "search.undoReplace", label: "Undo replacements", group: "Edit", surfaces: ["web"] },
   { id: "navigation.back", label: "Go back", group: "Workspace", shortcut: "Alt+ArrowLeft", surfaces: ["web"] },
   { id: "navigation.forward", label: "Go forward", group: "Workspace", shortcut: "Alt+ArrowRight", surfaces: ["web"] },
   {

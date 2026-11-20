@@ -131,9 +131,9 @@ export function WorkspaceTitleBar({
           {viewLabel}
         </span>
         <button
-          aria-label="Search sheets"
-          title={`Search sheets (${shortcut("sheet.search")})`}
-          onClick={onSearch}
+          aria-label="Search everywhere"
+          title={`Search everywhere (${shortcut("sheet.search")})`}
+          onClick={(event) => { event.currentTarget.focus(); onSearch(); }}
         >
           <Search size={16} />
         </button>

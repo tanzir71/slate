@@ -47,6 +47,7 @@ const BlockSettings = lazy(() => import("../blocks/BlockSettings"));
 const SnippetSettings = lazy(() => import("../snippets/SnippetSettings"));
 const TidyPanel = lazy(() => import("../tidy/TidyPanel"));
 const BatchTidyDialog = lazy(() => import("../tidy/BatchTidyDialog"));
+const WorkspaceSearchDialog = lazy(() => import("../search/WorkspaceSearchDialog"));
 interface TemplateRequest {
   notebook: string; selection: string; returnFocus: HTMLElement | undefined;
   initialTemplateId?: string; initialDestination?: string;
@@ -108,6 +109,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     try { return localStorage.getItem(inspectorKey) === "true"; } catch { return false; }
   });
   const [palette, setPalette] = useState<PaletteRequest>();
+  const [workspaceSearch, setWorkspaceSearch] = useState<{ returnFocus: HTMLElement | undefined }>();
   const [shortcuts, setShortcuts] = useState(false);
   const [editorSettings, setEditorSettings] = useState(false);
   const [templateRequest, setTemplateRequest] = useState<TemplateRequest>();
@@ -138,7 +140,6 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [editorReady, setEditorReady] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
-  const search = useRef<HTMLInputElement>(null);
   const editorSettingsInvoker = useRef<HTMLElement | undefined>(undefined);
   const aboutButton = useRef<HTMLButtonElement>(null);
   const index = useRef<ReturnType<typeof createFreshIndex> | undefined>(undefined);
@@ -208,14 +209,22 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (window.matchMedia("(max-width: 699px)").matches) setPane((current) => current === "sheets" && state.selectedPath ? "editor" : "sheets");
     else setSheetsVisible((value) => !value);
   }
-  function focusSearch() { setPane("sheets"); setSheetsVisible(true); requestAnimationFrame(() => search.current?.focus()); }
+  function openWorkspaceSearch() {
+    const active = window.document.activeElement;
+    setWorkspaceSearch({ returnFocus: active instanceof HTMLElement ? active : undefined });
+  }
+  async function chooseSearchResult(path: string, target?: { source: string; position: number }) {
+    const sheet = await store.openSheet(path, target);
+    pendingNavigation.current = sheet.unsupportedEncoding ? undefined : { path: sheet.path, source: sheet.content, ...(target ? { position: target.position } : {}) };
+    setPane("editor"); setWorkspaceSearch(undefined);
+  }
 
   const run = useCallback((work: () => Promise<unknown>) => {
     void work().catch((error: unknown) => store.api.setState({ error: error instanceof Error ? error.message : "The operation failed. Your files were kept." }));
   }, [store]);
   const receiveEditor = useCallback((handle: MarkdownEditorHandle | undefined) => { editorHandle.current = handle; }, []);
   const focusCreatedSheet = useCallback(() => {
-    if (templateRequest || starterKitRequest || palette) return;
+    if (templateRequest || starterKitRequest || palette || workspaceSearch) return;
     const current = store.api.getState(), handle = editorHandle.current;
     const navigation = pendingNavigation.current;
     if (navigation && current.selectedPath === navigation.path && handle?.documentKey() === `${current.record.id}/${navigation.path}` && handle.source() === navigation.source) {
@@ -226,15 +235,15 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const source = current.sheets.find((sheet) => sheet.path === current.selectedPath)?.content;
       if (source !== undefined && handle.goToSourceOffset(source, current.initialCursor.position)) store.clearInitialCursor();
     }
-  }, [store, templateRequest, starterKitRequest, palette]);
+  }, [store, templateRequest, starterKitRequest, palette, workspaceSearch]);
   const editorBecameReady = useCallback(() => { setEditorReady(true); focusCreatedSheet(); }, [focusCreatedSheet]);
   useEffect(() => {
-    if (!templateRequest && !starterKitRequest && !palette && (state.initialCursor || pendingNavigation.current)) {
+    if (!templateRequest && !starterKitRequest && !palette && !workspaceSearch && (state.initialCursor || pendingNavigation.current)) {
       // Native dialog cleanup restores its invoker; focus the new editor after it closes.
       const frame = requestAnimationFrame(focusCreatedSheet);
       return () => cancelAnimationFrame(frame);
     }
-  }, [templateRequest, starterKitRequest, palette, state.initialCursor, focusCreatedSheet]);
+  }, [templateRequest, starterKitRequest, palette, workspaceSearch, state.initialCursor, focusCreatedSheet]);
   const navigateWiki = useCallback((link: Parameters<WorkspaceStore["followWikiLink"]>[0]) => run(() => store.followWikiLink(link)), [store, run]);
 
   function shortcut(id: string) { return commandShortcut(id, keymap, os); }
@@ -317,7 +326,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       return owned && (palette.target?.matches() ?? false) && (action.kind !== "snippets" || !!snippets.library && !!snippets.session);
     if (action.kind !== "commands") return true;
     if (/^(format|table)\./.test(action.command.id) && !palette.target?.matches()) return false;
-    if (["sheet.new", "sheet.fromTemplate", "sheet.save", "sheet.pin", "view.density", "tidy.undoBatch", "snippet.picker"].includes(action.command.id) && !owned) return false;
+    if (["sheet.new", "sheet.fromTemplate", "sheet.save", "sheet.pin", "view.density", "tidy.undoBatch", "search.undoReplace", "snippet.picker"].includes(action.command.id) && !owned) return false;
+    if (action.command.id === "search.undoReplace" && !store.api.getState().hasReplaceBatchUndo) return false;
     return commandAvailable(action.command, { editor: palette.editor && owned, selection: palette.selection, tableColumns: palette.tableColumns });
   }
   function afterPalette(work: () => void) {
@@ -380,7 +390,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         if (!state.owned) return;
         setTemplateRequest(captureTemplateRequest(filter && !/^[#@]/.test(filter) ? filter : notebookFor(state.selectedPath) || "Inbox"));
       },
-      "sheet.search": focusSearch,
+      "sheet.search": openWorkspaceSearch,
+      "search.undoReplace": () => run(store.undoReplaceBatch),
       "sheet.today": () => run(async () => { await store.openToday(); setFilter("Daily"); setPane("editor"); }),
       "sheet.pin": () => { if (state.selectedPath && state.owned) run(() => store.togglePinned(state.selectedPath)); },
       "view.sidebar": toggleNavigation,
@@ -550,7 +561,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") { if (!window.document.querySelector("dialog[open]")) { setPalette(undefined); setShortcuts(false); if (!actionBusy) setAction(undefined); } return; }
-      if (palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
+      if (palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { if (window.document.querySelector("dialog[open]")) return; event.preventDefault(); dispatchCommand(id); }
@@ -559,7 +570,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const navigate = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const id = matchCommand(navigationBindings, keyboardInput(event), { editor: false, selection: false });
-      if (!id || palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
+      if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
       // These app shortcuts take priority over macOS editor word movement.
       event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
     };
@@ -630,13 +641,16 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
+    {workspaceSearch && <Suspense fallback={<WorkspaceDialog title="Search everywhere" returnFocus={workspaceSearch.returnFocus} onClose={() => setWorkspaceSearch(undefined)}><p role="status">Opening search…</p></WorkspaceDialog>}><WorkspaceSearchDialog store={store} returnFocus={workspaceSearch.returnFocus} onChoose={chooseSearchResult} onClose={() => setWorkspaceSearch(undefined)} /></Suspense>}
     <WorkspaceTitleBar viewLabel={tidy.open ? "Source" : "Live"} windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
-      onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={focusSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
+      onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={openWorkspaceSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
       controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); openEditorSettings(); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
       actions={[
         { label: "Command palette", run: () => dispatchCommand("app.palette") },
         { label: "Quick open", run: () => dispatchCommand("app.quickOpen") },
+        { label: "Search everywhere", run: () => dispatchCommand("sheet.search") },
+        { label: "Undo replacements", disabled: !state.owned || !state.hasReplaceBatchUndo, run: () => dispatchCommand("search.undoReplace") },
         { label: "Go back", disabled: navigationState.busy || !navigationState.canBack, run: () => dispatchCommand("navigation.back") },
         { label: "Go forward", disabled: navigationState.busy || !navigationState.canForward, run: () => dispatchCommand("navigation.forward") },
         { label: "New from template", disabled: !state.owned, run: () => dispatchCommand("sheet.fromTemplate") },
@@ -665,7 +679,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     {state.notice && <div className="notice" role="status">{state.notice}<button aria-label="Dismiss notice" onClick={() => store.api.setState({ notice: "" })}>×</button></div>}
     <div className={`browserPanes ${tidy.open ? "withTidy" : ""} ${inspector ? "withInspector" : ""} ${sidebarVisible ? "" : "withoutSidebar"} ${sheetsVisible ? "" : "withoutSheets"}`} data-pane={pane}>
       <aside className="browserSidebar" aria-label="Workspace navigation">
-        <div className="spaceHeading"><button className="spaceSwitcher" title="Switch Space" onClick={() => run(onSwitchSpace)}><span className="spaceAvatar"><BrandMark size={17} /></span><strong>{state.record.name}</strong><ChevronDown size={13} /></button><button title={`Search sheets (${shortcut("sheet.search")})`} aria-label="Search workspace" onClick={focusSearch}><Search size={16} /></button></div>
+        <div className="spaceHeading"><button className="spaceSwitcher" title="Switch Space" onClick={() => run(onSwitchSpace)}><span className="spaceAvatar"><BrandMark size={17} /></span><strong>{state.record.name}</strong><ChevronDown size={13} /></button><button title={`Search everywhere (${shortcut("sheet.search")})`} aria-label="Search workspace" onClick={openWorkspaceSearch}><Search size={16} /></button></div>
         <button className={!filter ? "navItem selected" : "navItem"} onClick={() => selectFilter("")}><BookOpen size={16} />All sheets<span>{state.sheets.length}</span></button>
         <button className={filter === "Inbox" ? "navItem selected" : "navItem"} onClick={() => selectFilter("Inbox")}><Inbox size={16} />Inbox<span>{documents.filter((sheet) => sheet.path.startsWith("Inbox/")).length}</span></button>
         <button className={filter === "Daily" ? "navItem selected" : "navItem"} title={`Today (${shortcut("sheet.today")})`} onClick={() => dispatchCommand("sheet.today")} disabled={!state.owned}><CalendarDays size={16} />Today</button>
@@ -682,7 +696,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       </aside>
       <aside className="browserSheetList" aria-label="Sheets">
         <div className="listHeading"><strong>{listTitle}</strong><small>{visible.length}</small><label className="densityControl"><span className="visuallyHidden">Sheet density</span><select aria-label="Sheet density" value={state.preferences.density} disabled={!state.owned} onChange={(event) => run(() => store.setDensity(event.target.value as "comfortable" | "compact"))}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label><button title={`New sheet (${shortcut("sheet.new")})`} aria-label="New Sheet" disabled={!state.owned} onClick={() => dispatchCommand("sheet.new")}><Plus size={17} /></button></div>
-        <label className="browserSearch"><Search size={15} /><input ref={search} aria-label="Search sheets" placeholder={filter ? `Filter ${listTitle}…` : "Search sheets…"} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <label className="browserSearch"><Search size={15} /><input aria-label="Search sheets" placeholder={filter ? `Filter ${listTitle}…` : "Search sheets…"} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <SheetList sheets={visible} selectedPath={state.selectedPath} preferences={state.preferences} owned={state.owned} pending={summariesPending} readOnlyPaths={new Set(state.sheets.filter((sheet) => sheet.unsupportedEncoding).map((sheet) => sheet.path))} onOpen={(path) => run(async () => { await store.select(path); setPane("editor"); })} onBulk={(kind, paths) => { setActionPaths(paths); setAction(kind); setActionValue(notebookFor(paths[0] ?? "")); }} onTidy={openBatchTidy} />
         {!visible.length && <div className="browserEmpty"><strong>{query ? "No sheets match" : "A little room to think"}</strong><p>{query ? "Try another search." : "Create your first sheet or import your notes."}</p></div>}
         <div className="listFoot">{visible.length} sheets</div>
