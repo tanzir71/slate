@@ -13,6 +13,9 @@ import {
 import { livePreviewTheme } from "./livePreviewTheme.js";
 import { CalloutLabel, editorCallout, type EditorCallout } from "./calloutPreview.js";
 import { previewTable, tablePreviewKeyboard, previewTableRow, previewTableWrappers, type PreviewTable } from "./tablePreview.js";
+import { editorFrontmatter, frontmatterPreviewState } from "./frontmatterPreview.js";
+import { livePreviewSettings } from "./livePreviewSettings.js";
+export { livePreviewSettings, type LivePreviewSettings } from "./livePreviewSettings.js";
 import { findWikiLinkAtPosition } from "./wikiLinks.js";
 import {
   createWikiPathIndex,
@@ -22,21 +25,8 @@ import {
   type WikiPathIndex,
 } from "@slate/core";
 
-export interface LivePreviewSettings {
-  hideSyntax: boolean;
-  highContrastMarkers: boolean;
-  sourceMode?: boolean;
-}
-const defaults: LivePreviewSettings = {
-  hideSyntax: true,
-  highContrastMarkers: false,
-};
 const emptyTargets: ReadonlySet<string> = new Set();
 const emptyPaths = createWikiPathIndex<{ readonly path: string }>([]);
-export const livePreviewSettings = Facet.define<
-  LivePreviewSettings,
-  LivePreviewSettings
->({ combine: (values) => values.at(-1) ?? defaults });
 export const knownWikiTargets = Facet.define<
   ReadonlySet<string>,
   ReadonlySet<string>
@@ -167,14 +157,6 @@ function children(node: MarkdownNode) {
   return nodes;
 }
 
-function frontmatterEnd(view: EditorView) {
-  if (view.state.doc.line(1).text !== "---") return 0;
-  for (let number = 2; number <= view.state.doc.lines; number++) {
-    const line = view.state.doc.line(number);
-    if (line.text === "---") return line.to;
-  }
-  return 0;
-}
 
 /** Only visible syntax nodes are decorated. Rendering never edits the document. */
 export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<BlockWrapper>[] = []): DecorationSet {
@@ -185,7 +167,7 @@ export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<Bl
   const ranges: Range<Decoration>[] = [];
   const visited = new Set<string>();
   const lineClasses = new Set<string>();
-  const metadataEnd = frontmatterEnd(view);
+  const metadataEnd = editorFrontmatter(state)?.end ?? 0;
   const callouts: EditorCallout[] = [];
   const sourceCallouts: EditorCallout[] = [];
   const tables: PreviewTable[] = [];
@@ -503,6 +485,7 @@ export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<Bl
 
 export function createLivePreviewExtension(): Extension {
   return [
+    frontmatterPreviewState,
     tablePreviewKeyboard,
     ViewPlugin.fromClass(
       class {

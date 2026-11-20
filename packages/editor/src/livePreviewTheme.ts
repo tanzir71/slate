@@ -1,6 +1,19 @@
 import { EditorView } from "@codemirror/view";
 
 export const livePreviewTheme = EditorView.baseTheme({
+  ".cm-slate-properties": { display: "flex", width: "fit-content", flexWrap: "wrap", alignItems: "center", gap: "6px", minHeight: "24px", padding: "0", maxWidth: "100%", boxSizing: "border-box", textRendering: "geometricPrecision" },
+  ".cm-slate-property, .cm-slate-property-add": { display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", border: "1px solid var(--border-default)", borderRadius: "6px", background: "transparent", font: "12px/16px var(--font-ui, Geist, sans-serif)", fontKerning: "normal", textRendering: "geometricPrecision", color: "var(--text-secondary)", cursor: "pointer", maxWidth: "100%", boxSizing: "border-box", textAlign: "start", overflow: "hidden" },
+  ".cm-slate-property-key": { font: '11px/16px var(--font-mono, "Geist Mono", monospace)', fontKerning: "normal", textRendering: "geometricPrecision", color: "var(--text-tertiary)", flexShrink: "0", whiteSpace: "pre" },
+  ".cm-slate-property-value": { fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "pre" },
+  '.cm-slate-property[data-tone="warning"] .cm-slate-property-value': { color: "var(--status-warning)" },
+  ".cm-slate-property-add": { gap: "4px", padding: "3px 6px", border: "0", borderRadius: "0", color: "var(--text-tertiary)", flexShrink: "0" },
+  ".cm-slate-property-add:disabled": { cursor: "default", opacity: ".5" },
+  ".cm-slate-property:focus-visible, .cm-slate-property-add:focus-visible": { outline: "2px solid var(--accent-default)", outlineOffset: "2px" },
+  ".cm-slate-property-plus": { display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: "0", width: "16px", height: "16px" },
+  ".cm-slate-property-plus img": { display: "block" },
+  ".cm-slate-property-plus .cm-slate-property-plus-dark": { display: "none" },
+  ':root[data-theme="dark"] & .cm-slate-property-plus .cm-slate-property-plus-light': { display: "none" },
+  ':root[data-theme="dark"] & .cm-slate-property-plus .cm-slate-property-plus-dark': { display: "block" },
   ".cm-slate-table-container": { position: "relative", marginBlock: "0" },
   ".cm-slate-table-container[data-list-marker]::after": { content: "attr(data-list-marker)", position: "absolute", insetInlineStart: "var(--slate-table-list-offset)", top: "9px", font: "13px/20px var(--font-ui, Geist, sans-serif)" },
   ".cm-slate-table-quoted::before": { content: '""', position: "absolute", insetInlineStart: "0", top: "0", bottom: "0", borderLeft: "2px solid var(--border-strong)", boxShadow: "var(--slate-table-quote-shadows)" },
@@ -158,6 +171,7 @@ export const livePreviewTheme = EditorView.baseTheme({
     background: "var(--bg-app)",
   },
   "@media (pointer: coarse)": {
+    ".cm-slate-property, .cm-slate-property-add": { minHeight: "44px" },
     ".cm-content .cm-slate-checkbox": {
       width: "44px",
       height: "44px",

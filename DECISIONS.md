@@ -1,5 +1,17 @@
 # Slate Decisions
 
+## 2026-11-20 - Properties text frames and retained views
+
+- Apply precise glyph rendering and normal kerning on the actual property controls and keys, because button defaults can reset inherited text rendering. After fonts load, measure each actual text range in a CodeMirror read phase and round its intrinsic width up to a whole CSS pixel in the write phase. This matches the supplied Figma text frames without hardcoded fixture or property widths, font scaling or resized assets. Recheck row resize and changed relative-time text; disconnect the observer and cancel timers when the widget retires.
+- A pooled detached editor keeps its minute clock scheduled but skips disconnected DOM updates. It resumes text updates after reattachment without creating document transactions or changing source/history.
+
+## 2026-11-20 - Frontmatter properties preview
+
+- Parse YAML metadata in the pure core with original UTF-16 key/value bounds. Keep comments, quotes, delimiters, BOM and line endings in the original source; rendering never serializes the mapping. Invalid, duplicate, aliased or unsupported metadata remains editable literal source.
+- Use a cached editor state field for the bounded header and its block replacement, because a direct state-field decoration can safely replace multiple lines. Body edits reuse the metadata model. Limit scanning and preview work independently; oversized metadata falls back to source without materializing long values.
+- Show the original light/dark properties row and 16px plus assets. Chips focus their original YAML value; Add inserts a unique empty property, selects its name and creates one isolated Undo step. Guard detached or obsolete controls and read-only state. Focused YAML or an explicit chip action exposes source; a fresh unfocused Live note retains the row even with its default caret at zero.
+- Keep relative-time refresh inside the widget DOM with timer cleanup. It preserves source, history and focused controls. Source mode and visible syntax expose raw YAML. Keep the existing preview-settings API while sharing its facet outside the renderer to avoid a module cycle.
+
 ## 2026-11-20 - Source-preserving table grids
 
 - Wrap parsed Markdown tables with native CodeMirror block wrappers and mark individual cells over the existing editor text. Keep source positions, inline formatting, ordinary link handlers, selection and row virtualization; do not render copied HTML or replace table line breaks.

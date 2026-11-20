@@ -1,0 +1,1 @@
+export const frontmatterFileSource = "\uFEFF---\r\n# Keep this comment\r\nstatus: Draft # Keep this too\r\ntags: [strategy, planning]\r\ngoal: 1500\r\nupdated: 2026-11-17T12:00:00Z\r\n---\r\n\r\n# Body\r\n\r\nActive.\r\n";

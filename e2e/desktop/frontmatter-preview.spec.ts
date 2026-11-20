@@ -1,0 +1,30 @@
+import { expect, test } from "@playwright/test";
+import { nativeFixture } from "./nativeFixture";
+import { frontmatterFileSource } from "../frontmatterPreviewFixture";
+
+test("native properties load their original assets and preserve IPC bytes, value edits, unique additions and separate Undo", async ({ page }) => {
+  await nativeFixture(page, { "Properties.md": frontmatterFileSource });
+  await page.goto("./");
+  await expect(page.locator(".browserWorkspace")).toHaveAttribute("data-editor-ready", "true");
+  const row = page.getByRole("group", { name: "Properties", exact: true }), editor = page.locator(".cm-content");
+  await expect(row).toBeVisible();
+  await expect(row.locator(".cm-slate-property-plus img")).toHaveCount(2);
+  await expect.poll(() => row.locator(".cm-slate-property-plus img").evaluateAll(images => images.every(element => (element as HTMLImageElement).complete && (element as HTMLImageElement).naturalWidth === 16))).toBe(true);
+  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem("native-file:space:Properties.md") ?? "null") as number[] | null);
+  const bytes = (source: string) => Array.from(Buffer.from(source));
+  expect(await saved()).toEqual(bytes(frontmatterFileSource));
+  await row.getByRole("button", { name: "Show status property in source", exact: true }).click();
+  await expect(editor).toBeFocused();
+  for (let step = 0; step < 5; step++) await editor.press("Shift+ArrowRight");
+  await page.keyboard.insertText("Ready");
+  await expect.poll(saved).toEqual(bytes(frontmatterFileSource.replace("status: Draft", "status: Ready")));
+  await editor.press("ControlOrMeta+z"); await expect.poll(saved).toEqual(bytes(frontmatterFileSource));
+  await editor.press("ControlOrMeta+End"); await page.keyboard.insertText("!");
+  const typed = frontmatterFileSource + "!";
+  await expect.poll(saved).toEqual(bytes(typed));
+  await row.getByRole("button", { name: "Add property", exact: true }).click();
+  await expect.poll(saved).toEqual(bytes(typed.replace("\r\n---\r\n", "\r\nproperty: \r\n---\r\n")));
+  await expect.poll(() => page.evaluate(() => getSelection()?.toString())).toBe("property");
+  await editor.press("ControlOrMeta+z"); await expect.poll(saved).toEqual(bytes(typed));
+  await editor.press("ControlOrMeta+z"); await expect.poll(saved).toEqual(bytes(frontmatterFileSource));
+});

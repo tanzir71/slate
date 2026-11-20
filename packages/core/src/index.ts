@@ -21,6 +21,7 @@ export * from "./editorPreferences.js";
 export * from "./wikiCompletion.js";
 export * from "./calendarDate.js";
 export * from "./markdownTable.js";
+export * from "./markdownProperties.js";
 export * from "./clipboardText.js";
 export * from "./blockMovement.js";
 export * from "./templateVariables.js";
