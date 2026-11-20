@@ -90,6 +90,7 @@ export interface MarkdownEditorHandle {
   selectedText(): string;
   snippetTarget(): SnippetTarget | undefined;
   creationTarget(): EditorCreationTarget | undefined;
+  sectionTarget(source: string): { move(index: number, before: number): boolean } | undefined;
   goToLine(line: number): void;
   goToSourceOffset(source: string, offset: number): boolean;
 }

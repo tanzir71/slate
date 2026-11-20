@@ -21,6 +21,8 @@ import {
   tidyEditorHistory,
   editorSource,
   editorSourceEffect,
+  editorSourceEffects,
+  editorSectionTarget,
   editorTidyLines,
   applyEditorTidy,
   livePreviewSettings,
@@ -195,6 +197,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
     if (!hostRef.current) {
       return undefined;
     }
+    let sourceRevision = 0;
 
     const preferenceId = viewKey ?? documentKey;
     const preferenceKey = preferenceId ? `slate.editor.${preferenceId}` : undefined;
@@ -271,6 +274,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
             }
           }),
           EditorView.updateListener.of((update) => {
+            if (update.docChanged || update.transactions.some((transaction) => editorSourceEffects(transaction).length)) sourceRevision++;
             if (update.selectionSet || update.docChanged) {
               const line = update.state.doc.lineAt(update.state.selection.main.head);
               onCursorRef.current?.({ line: line.number, column: update.state.selection.main.head - line.from + 1, lines: update.state.doc.lines });
@@ -308,6 +312,12 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
       selectedText() { const { from, to } = view.state.selection.main; return view.state.sliceDoc(from, to); },
       snippetTarget() { return snippetTarget(view); },
       creationTarget() { return creationTarget(view); },
+      sectionTarget(source) {
+        const key = currentDocument.current, revision = sourceRevision;
+        const sessionRevision = documentSession?.snapshot().revision;
+        return editorSectionTarget(view, source, () => currentDocument.current === key && sourceRevision === revision &&
+          creationAllowed.current?.() !== false && (!documentSession || documentSession.canEdit() && documentSession.snapshot().revision === sessionRevision));
+      },
       goToSourceOffset(source, offset) {
         if (!view.dom.isConnected || editorSource(view.state) !== source || !Number.isSafeInteger(offset) || offset < 0 || offset > source.length) return false;
         const anchor = source.slice(0, offset).replace(/\r\n?/g, "\n").length;

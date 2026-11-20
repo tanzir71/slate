@@ -29,6 +29,24 @@ async function mount(value: string, extra: Partial<Parameters<typeof MarkdownEdi
   })));
   return { changed, view: EditorView.findFromDOM(host.querySelector<HTMLElement>(".cm-content")!)! };
 }
+it("guards outline moves by file scope, current source, editability and composition", async () => {
+  const source = "# Alpha\nA\n\n# Beta\nB\n";
+  const onChange = vi.fn(), onHandle = (next: MarkdownEditorHandle | undefined) => { handle = next; };
+  const { view } = await mount(source, { documentKey: "first", onChange, onHandle });
+  expect(handle!.sectionTarget(source + "stale")).toBeUndefined();
+  const target = handle!.sectionTarget(source)!;
+  expect(target.move(0, 1)).toBe(false);
+  expect(target.move(-1, 0)).toBe(false); expect(target.move(0, 99)).toBe(false);
+  Object.defineProperty(view, "compositionStarted", { configurable: true, value: true });
+  expect(target.move(1, 0)).toBe(false);
+  Object.defineProperty(view, "compositionStarted", { value: false });
+  await act(async () => root?.render(createElement(MarkdownEditor, { value: source, documentKey: "second", onChange, onHandle })));
+  expect(target.move(1, 0)).toBe(false);
+  const other = handle!.sectionTarget(source)!;
+  await act(async () => root?.render(createElement(MarkdownEditor, { value: source, documentKey: "second", readOnly: true, onChange, onHandle })));
+  expect(other.move(1, 0)).toBe(false); expect(handle!.sectionTarget(source)).toBeUndefined();
+  expect(handle!.source()).toBe(source); expect(onChange).not.toHaveBeenCalled();
+});
 it("starts a block insertion from the captured editor with one undo and exact BOM/CRLF originals", async () => {
   const source = "\uFEFFWords kept.\r\n";
   const { view } = await mount(source);

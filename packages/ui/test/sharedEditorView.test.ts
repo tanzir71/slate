@@ -55,6 +55,47 @@ async function historyKey(view: EditorView, redo = false) {
   await act(async () => { expect(runScopeHandlers(view, event, "editor")).toBe(true); });
 }
 
+it("moves a raw section and its descendants once through the captured file writer and shared history", async () => {
+  const source = "\uFEFF---\r\ntitle: Kept\n---\r\n\r\n## Alpha\r\nA\n\n### Child\nC\r\n\r\n## Beta\nB\r\n";
+  const output = "\uFEFF---\r\ntitle: Kept\n---\r\n\r\n## Beta\nB\r\n\r\n## Alpha\r\nA\n\n### Child\nC\r\n";
+  const files = createMemoryFiles({ "a.md": source, "b.md": "Other file" });
+  const store = createWorkspaceStore({ id: "section-move", name: "Notes", tier: "library" }, files); store.setOwned(true); await store.load();
+  const pool = createEditorDocumentPool(store); pool.connect();
+  try {
+    await store.select("b.md"); const session = pool.get("a.md", createDocumentSession)!;
+    expect(session.snapshot().source).toBe(source);
+    const { view, handles } = await mount(session), saved = vi.spyOn(store, "editSheet");
+    expect(session.canEdit()).toBe(true);
+    expect(view("left").state.readOnly).toBe(false);
+    expect(editorSource(view("left").state)).toBe(source);
+    const target = handles.get("left")!.sectionTarget(source)!;
+    await act(async () => { expect(target.move(0, 3)).toBe(true); });
+    expect(session.snapshot().source).toBe(output);
+    expect(editorSource(view("right").state)).toBe(output);
+    expect(saved).toHaveBeenCalledTimes(1); expect(saved.mock.calls[0]?.[0]).toBe("a.md");
+    await store.flush(); expect(await files.read("a.md")).toEqual(encodeText(output));
+    await historyKey(view("right")); expect(session.snapshot().source).toBe(source);
+    await store.flush(); expect(await files.read("a.md")).toEqual(encodeText(source));
+    await historyKey(view("left"), true); expect(session.snapshot().source).toBe(output);
+    expect(saved).toHaveBeenCalledTimes(3); expect(await files.read("b.md")).toEqual(encodeText("Other file"));
+    expect(store.api.getState().selectedPath).toBe("b.md");
+  } finally { pool.dispose(); }
+});
+
+it("rejects a section drag after peer typing, Undo back to identical text, or lost ownership", async () => {
+  const source = "# Alpha\nA\n\n# Beta\nB\n";
+  let owned = true; const session = createDocumentSession(source, () => owned);
+  const { view, handles, changed } = await mount(session);
+  const stale = handles.get("left")!.sectionTarget(source)!;
+  await type(view("right"), view("right").state.doc.length, "New words");
+  expect(stale.move(1, 0)).toBe(false);
+  await historyKey(view("right")); expect(session.snapshot().source).toBe(source);
+  expect(stale.move(1, 0)).toBe(false);
+  const current = handles.get("left")!.sectionTarget(source)!; owned = false;
+  await act(async () => { expect(current.move(1, 0)).toBe(false); });
+  expect(session.snapshot().source).toBe(source); expect(changed).toHaveBeenCalledTimes(2);
+});
+
 it("mounts two actual editor views with exact physical source", async () => {
   const session = createDocumentSession(original), { view, changed } = await mount(session);
   for (const pane of ["left", "right"] as const) {

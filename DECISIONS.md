@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Guarded editor section moves
+
+- Capture the semantic section plan only on an explicit outline interaction, inside the lazy editor boundary. A request belongs to one editor, document key, exact raw source and revision; live ownership, editability, connection and composition checks apply again at execution. An intervening edit and Undo still invalidate the captured request.
+- Translate raw source offsets to CodeMirror offsets, carry the exact output line-ending metadata, and isolate the move as one canonical history action. The existing document binding and captured-path writer synchronize peers and persist the edit once. Do not write files or rebuild shared sessions from an Inspector callback.
+- Rejected, invalid, stale and no-op moves emit no edit. Report success only when the live transaction filters accepted the resulting source.
+
 ## 2026-11-20 - Live date-picker activation
 
 - The generic Choose date action opens a picker and inserts no text. A displayed option can outlive its query end while typing or deleting, so activate it from the live date query when the same trigger start remains valid. Retain current enabled/composition/family/start guards.
