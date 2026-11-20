@@ -128,7 +128,8 @@ test("fence and front-matter settings disable independently and persist", async 
   await editor.press("ControlOrMeta+End");
   await editor.press("Enter");
   await saved(page, "---\n");
-  await expect(editor.locator(".cm-slate-rule")).toBeVisible();
+  await expect(editor.getByText("---", { exact: true })).toBeVisible();
+  await expect(editor.locator(".cm-slate-properties")).toHaveCount(0);
   await workspaceAction(page, "Editor settings");
   await settings
     .getByRole("checkbox", { name: "Close code fences", exact: true })
