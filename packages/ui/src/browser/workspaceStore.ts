@@ -244,14 +244,15 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
     },
     async select(path: string) { await flush(); api.setState({ selectedPath: path, initialCursor: undefined }); },
     /** Read only the selected destination; a cached heading is never an authority for disk text. */
-    async openSheet(path: string, target?: { source: string; position: number }): Promise<FileSheet> {
+    async openSheet(path: string, target?: { source: string; position: number }, isCurrent?: () => boolean): Promise<FileSheet> {
       const safe = safeWorkspacePath(path);
       if (!/\.md$/i.test(safe)) throw new Error("Choose a Markdown sheet.");
       await flush();
+      if (isCurrent?.() === false) throw new Error("This navigation changed. Choose the destination again.");
       const generation = editGeneration, selectedPath = api.getState().selectedPath;
       const bytes = await files.read(safe);
       if (bytes === undefined) throw new Error("This file no longer exists. Refresh your Space.");
-      if (generation !== editGeneration || api.getState().selectedPath !== selectedPath)
+      if (generation !== editGeneration || api.getState().selectedPath !== selectedPath || isCurrent?.() === false)
         throw new Error("The current sheet changed while opening. Your words are kept; choose the destination again.");
       if (drafts.has(safe))
         throw new Error("This sheet has a retained draft. Choose Use here to finish saving before reopening it.");

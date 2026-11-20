@@ -14,6 +14,8 @@ describe("workspace keyboard adapter", () => {
     expect(commandShortcut("sheet.new", native, "mac")).toBe("⌘ N");
     expect(commandShortcut("sheet.fromTemplate", native, "mac")).toBe("⌘ ⇧ N");
     expect(commandShortcut("app.quickOpen", native, "mac")).toBe("⌘ P");
+    expect(commandShortcut("navigation.back", native, "mac")).toBe("⌥ ←");
+    expect(commandShortcut("navigation.forward", readKeymap(undefined, "windows"), "windows")).toBe("Alt →");
     expect(native.issues).toEqual([]);
     expect(workspaceCommands("desktop").map((command) => command.id)).toEqual(workspaceCommands("web").map((command) => command.id));
     expect(workspaceCommands("desktop").some((command) => command.id.startsWith("space.activate"))).toBe(false);

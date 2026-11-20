@@ -1,5 +1,11 @@
 # Slate Decisions
 
+## 2026-11-20 - Keep sheet visits separate from browser and document history
+
+F-76 uses a per-Space session of up to 100 sheet visits, observed from the shared workspace store so list, palette, wiki, creation and route selections follow the same path. AltLeft/AltRight and registry/menu actions navigate this session. A different ordinary visit discards the forward branch; repeating the current sheet does not add a visit. Deleted cached destinations are skipped. Visits do not change browser page history or persist private note locations in another file.
+
+Back/forward uses the existing openSheet authority: flush current drafts, re-read destination bytes, preserve unsupported encodings as read-only, and reject reads overtaken by typing or another selection. A failed read/save does not advance the visit position. Only navigation and sheet-count changes compute availability; content-only edits do not scan the workspace or notify history consumers. The shared web/native file workspace uses the same adapter. This is sheet navigation; document Undo remains the editor's own transaction history. A navigation intent is checked before and after the disk read, so later visits invalidate an old request even if they return to its original path. Successful navigation returns its freshly opened sheet to the workspace's existing source-checked editor-ready focus path, so typing resumes after a remount. Only registered back/forward bindings use window capture priority because macOS CodeMirror otherwise consumes AltLeft/AltRight for word movement; composition, AltGr and modal guards still apply.
+
 ## 2026-11-20 - Complete native palette opening inside its user action
 
 The global native keyboard listener captures document identity, source selection and current action context before committing the palette state synchronously. The shared native dialog then opens and focuses during layout before dispatch returns. This keeps a real imperative browser interaction in one user action; only palette opening uses this explicit React flush. Existing composition, ownership, stale-source, pending-choice and return-focus guards remain in the execution paths. A real workspace browser regression fails in all four profiles with the deferred state update.

@@ -35,6 +35,7 @@ import { EditorSettingsDialog } from "../EditorSettingsDialog";
 import { useEditorPreferences } from "../editorPreferences";
 import { useTidyReview } from "../tidy/useTidyReview";
 import { createFreshIndex } from "./freshIndex";
+import { createWorkspaceNavigation } from "./workspaceNavigation";
 
 const Editor = lazy(() => import("../MarkdownEditor").then((module) => ({ default: module.MarkdownEditor })));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
@@ -81,6 +82,9 @@ interface WorkspaceProps {
 
 export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance, runtime }: WorkspaceProps) {
   const state = useStore(store.api);
+  const navigation = useMemo(() => createWorkspaceNavigation(store), [store]);
+  const navigationState = useSyncExternalStore(navigation.subscribe, navigation.getSnapshot);
+  useEffect(() => navigation.connect(), [navigation]);
   const snippets = useSnippetLibrary(store, runtime?.openGlobalSnippets);
   const blocks = useBlockLibrary(store);
   const templates = useTemplateLibrary(store);
@@ -353,6 +357,15 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     return text === undefined ? <p>{entry.detail ?? "Choose this result to continue."}</p> : <pre>{text.slice(0, 3000)}{text.length > 3000 ? "\n…" : ""}</pre>;
   }
 
+  function navigateHistory(direction: -1 | 1) {
+    run(async () => {
+      const sheet = await navigation.go(direction);
+      if (!sheet || sheet.unsupportedEncoding) return;
+      pendingNavigation.current = { path: sheet.path, source: sheet.content };
+      setPane("editor"); focusCreatedSheet();
+    });
+  }
+
   function dispatchCommand(id: string) {
     if (id.startsWith("table.")) { if (state.owned) editorHandle.current?.runTable(id); return; }
     if (id.startsWith("format.")) { if (state.owned) editorHandle.current?.runFormat(id); return; }
@@ -376,6 +389,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "sheet.save": () => run(store.save),
       "space.export": () => run(exportZip),
       "space.switch": () => run(onSwitchSpace),
+      "navigation.back": () => navigateHistory(-1),
+      "navigation.forward": () => navigateHistory(1),
       "view.inspector": () => setInspector((open) => !open),
       "app.shortcuts": () => setShortcuts(true),
       "app.editorSettings": openEditorSettings,
@@ -540,8 +555,17 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { if (window.document.querySelector("dialog[open]")) return; event.preventDefault(); dispatchCommand(id); }
     };
+    const navigationBindings = keymap.bindings.filter((binding) => binding.command.id.startsWith("navigation."));
+    const navigate = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      const id = matchCommand(navigationBindings, keyboardInput(event), { editor: false, selection: false });
+      if (!id || palette || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
+      // These app shortcuts take priority over macOS editor word movement.
+      event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
+    };
+    window.addEventListener("keydown", navigate, true);
     window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
+    return () => { window.removeEventListener("keydown", navigate, true); window.removeEventListener("keydown", listener); };
   });
 
   async function importPicked(files: FileList | File[] | BrowserImportFile[]) {
@@ -613,6 +637,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       actions={[
         { label: "Command palette", run: () => dispatchCommand("app.palette") },
         { label: "Quick open", run: () => dispatchCommand("app.quickOpen") },
+        { label: "Go back", disabled: navigationState.busy || !navigationState.canBack, run: () => dispatchCommand("navigation.back") },
+        { label: "Go forward", disabled: navigationState.busy || !navigationState.canForward, run: () => dispatchCommand("navigation.forward") },
         { label: "New from template", disabled: !state.owned, run: () => dispatchCommand("sheet.fromTemplate") },
         { label: "Starter kits", disabled: !state.owned, run: () => setStarterKitRequest(captureTemplateRequest("Inbox")) },
         { label: "Insert snippet", disabled: !state.owned || !selected || selected.unsupportedEncoding || !snippets.library, run: openSnippetPicker },
