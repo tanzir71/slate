@@ -70,6 +70,7 @@ interface PaletteRequest {
 const subscribeEmpty = () => () => undefined;
 const getEmpty = () => undefined;
 const emptyBlocks = [] as const, emptyTemplates = [] as const, emptySnippets = [] as const;
+const priorityCommands: ReadonlySet<string> = new Set(["view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
 interface WorkspaceProps {
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
@@ -454,7 +455,11 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "navigation.forward": () => navigateHistory(1),
       "view.inspector": () => setInspector((open) => !open),
       "view.split": toggleSplit,
+      "view.newTab": () => openPalette("sheets"),
       "view.closeTab": () => { if (editors.layout.close(store.api.getState().selectedPath)) focusSelected(); },
+      "view.reopenTab": () => { if (editors.layout.reopen()) focusSelected(); },
+      "view.nextTab": () => { if (editors.layout.cycle(1)) focusSelected(); },
+      "view.previousTab": () => { if (editors.layout.cycle(-1)) focusSelected(); },
       "app.shortcuts": () => setShortcuts(true),
       "app.editorSettings": openEditorSettings,
       "snippet.picker": openSnippetPicker,
@@ -618,17 +623,17 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { if (window.document.querySelector("dialog[open]")) return; event.preventDefault(); dispatchCommand(id); }
     };
-    const navigationBindings = keymap.bindings.filter((binding) => binding.command.id.startsWith("navigation."));
-    const navigate = (event: KeyboardEvent) => {
+    const priorityBindings = keymap.bindings.filter((binding) => binding.command.id.startsWith("navigation.") || priorityCommands.has(binding.command.id));
+    const dispatchPriority = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      const id = matchCommand(navigationBindings, keyboardInput(event), { editor: false, selection: false });
+      const id = matchCommand(priorityBindings, keyboardInput(event), { editor: false, selection: false });
       if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
-      // These app shortcuts take priority over macOS editor word movement.
+      // Workspace navigation, tabs and split take priority over editor keymaps.
       event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
     };
-    window.addEventListener("keydown", navigate, true);
+    window.addEventListener("keydown", dispatchPriority, true);
     window.addEventListener("keydown", listener);
-    return () => { window.removeEventListener("keydown", navigate, true); window.removeEventListener("keydown", listener); };
+    return () => { window.removeEventListener("keydown", dispatchPriority, true); window.removeEventListener("keydown", listener); };
   });
 
   async function importPicked(files: FileList | File[] | BrowserImportFile[]) {

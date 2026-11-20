@@ -25,11 +25,28 @@ const profile = { os: "windows", surface: "web" } as const;
 const editor = { editor: true, selection: false };
 
 describe("shared command registry", () => {
+  it("uses the handover's browser tab bindings without consuming browser tab shortcuts", () => {
+    for (const os of ["windows", "linux", "mac"] as const) {
+      const { bindings, issues } = resolveCommandKeymap({ os, surface: "web" }); expect(issues).toEqual([]);
+      const alt = { ctrlKey: false, altKey: true };
+      for (const [key, shiftKey, command] of [
+        ["t", false, "view.newTab"], ["w", false, "view.closeTab"], ["t", true, "view.reopenTab"],
+        ["]", false, "view.nextTab"], ["[", false, "view.previousTab"],
+      ] as const) {
+        expect(matchCommand(bindings, input(key, { ...alt, shiftKey }), editor)).toBe(command);
+        expect(matchCommand(bindings, input(key, { ...alt, shiftKey, isComposing: true }), editor)).toBeUndefined();
+        expect(matchCommand(bindings, input(key, { ...alt, shiftKey, altGraph: true }), editor)).toBeUndefined();
+      }
+      const mod = { ctrlKey: os !== "mac", metaKey: os === "mac" };
+      expect(matchCommand(bindings, input("\\", { ...mod, shiftKey: true }), editor)).toBe("view.split");
+      for (const key of ["t", "w", "Tab"]) expect(matchCommand(bindings, input(key, mod), editor)).toBeUndefined();
+    }
+  });
   it("offers actual tab and split workspace actions without taking browser-reserved shortcuts", () => {
     const web = commandsForSurface("web");
     expect(web.find((command) => command.id === "view.split")).toMatchObject({ label: "Toggle split editor", group: "View" });
     expect(web.find((command) => command.id === "view.closeTab")).toMatchObject({ label: "Close current tab", group: "View" });
-    expect(web.find((command) => command.id === "view.closeTab")?.shortcut).toBeUndefined();
+    expect(web.find((command) => command.id === "view.closeTab")?.webShortcut).toBe("Alt+w");
     expect(commandsForSurface("desktop").some((command) => command.id === "view.split")).toBe(false);
   });
   it("registers Quick open on Mod P without changing selection-aware Mod K or IME input", () => {

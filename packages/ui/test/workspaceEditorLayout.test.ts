@@ -88,3 +88,49 @@ it("invalidates a pending open when focus moves to another pane showing the same
   await expect(opening).rejects.toThrow(/changed/); expect(store.api.getState().selectedPath).toBe("a.md");
   expect(layout.getSnapshot()).toMatchObject({ primary: "a.md", secondary: "a.md", active: "primary" });
 });
+
+it("cycles open tabs in order and only replaces the focused pane", async () => {
+  const { store, layout } = await setup(); expect(layout.cycle(1)).toBe(false);
+  layout.open("b.md"); layout.open("c.md"); layout.split(); layout.focus("primary");
+  expect(layout.cycle(1)).toBe(true); expect(layout.getSnapshot()).toMatchObject({ primary: "a.md", secondary: "c.md", active: "primary" });
+  expect(store.api.getState().selectedPath).toBe("a.md");
+  expect(layout.cycle(-1)).toBe(true); expect(layout.getSnapshot().primary).toBe("c.md");
+  layout.focus("secondary"); expect(layout.cycle(-1)).toBe(true);
+  expect(layout.getSnapshot()).toMatchObject({ primary: "c.md", secondary: "b.md", active: "secondary" });
+  expect(store.api.getState().selectedPath).toBe("b.md");
+});
+
+it("reopens closed tabs in reverse close order at their previous positions", async () => {
+  const { layout } = await setup(); layout.open("b.md"); layout.open("c.md");
+  layout.close("b.md"); layout.close("c.md");
+  expect(layout.reopen()).toBe(true); expect(layout.getSnapshot()).toMatchObject({ tabs: ["a.md", "c.md"], primary: "c.md" });
+  expect(layout.reopen()).toBe(true); expect(layout.getSnapshot()).toMatchObject({ tabs: ["a.md", "b.md", "c.md"], primary: "b.md" });
+  expect(layout.reopen()).toBe(false);
+});
+
+it("reopens the last closed tab after an empty selection without losing its saved bytes or Undo", async () => {
+  const { files, store, layout } = await setup(), pool = createEditorDocumentPool(store); pool.connect();
+  const session = pool.get("a.md", createDocumentSession)!;
+  try {
+    session.apply(session.snapshot().state.update({ changes: { from: 5, insert: " draft" } }), 0);
+    layout.close("a.md"); await store.flush(); await store.refresh();
+    expect(layout.getSnapshot().tabs).toEqual([]); expect(layout.reopen()).toBe(true);
+    expect(pool.get("a.md", createDocumentSession)).toBe(session); expect(session.undo()).toBe(true); await store.flush();
+    expect(await files.read("a.md")).toEqual(encodeText("Alpha"));
+  } finally { pool.dispose(); }
+});
+
+it("does not reopen a tab already reopened through ordinary navigation", async () => {
+  const { store, layout } = await setup(); layout.open("b.md"); layout.open("c.md"); layout.close("b.md"); layout.close("c.md");
+  await store.select("c.md"); expect(layout.reopen()).toBe(true);
+  expect(layout.getSnapshot()).toMatchObject({ tabs: ["a.md", "b.md", "c.md"], primary: "b.md" });
+  expect(layout.reopen()).toBe(false);
+});
+
+it("skips a closed file removed from disk and refuses tab history after disposal", async () => {
+  const { files, store, layout } = await setup(); layout.open("b.md"); layout.open("c.md"); layout.close("b.md"); layout.close("c.md");
+  await files.remove("c.md"); await store.refresh();
+  expect(layout.reopen()).toBe(true); expect(layout.getSnapshot().primary).toBe("b.md");
+  expect(layout.reopen()).toBe(false); layout.close("b.md"); const snapshot = layout.getSnapshot(); layout.dispose();
+  expect(layout.reopen()).toBe(false); expect(layout.cycle(1)).toBe(false); expect(layout.getSnapshot()).toBe(snapshot);
+});

@@ -11,6 +11,21 @@ test.beforeEach(async ({ page }) => {
   await expect(pane(page, "Primary")).toBeVisible(); await expect(page.getByRole("tab", { name: "alpha.md", exact: true })).toBeVisible();
 });
 
+test("native tab shortcuts use native chords and preserve focused-file IPC bytes", async ({ page }) => {
+  await pane(page, "Primary").press("ControlOrMeta+t"); const quick = page.getByRole("dialog", { name: "Quick open", exact: true });
+  await expect(quick.locator("input")).toBeFocused(); await quick.locator("input").fill("beta.md"); await quick.locator("input").press("Enter");
+  await expect(quick).toBeHidden(); await expect(page.getByRole("tab", { name: "beta.md", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Control+Tab"); await expect(page.getByRole("tab", { name: "alpha.md", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Control+Shift+Tab"); await expect(page.getByRole("tab", { name: "beta.md", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ControlOrMeta+w"); await expect(page.getByRole("tab", { name: "beta.md", exact: true })).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+Shift+t"); await expect(page.getByRole("tab", { name: "beta.md", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ControlOrMeta+Shift+Backslash"); await expect(pane(page, "Secondary")).toBeFocused();
+  await pane(page, "Secondary").press("ControlOrMeta+End"); await page.keyboard.insertText("Native keyboard");
+  await expect.poll(() => raw(page, "beta.md")).toEqual(Array.from(Buffer.from(beta + "Native keyboard")));
+  await pane(page, "Primary").press("ControlOrMeta+z"); await expect.poll(() => raw(page, "beta.md")).toEqual(Array.from(Buffer.from(beta)));
+  expect(await raw(page, "alpha.md")).toEqual(Array.from(Buffer.from(alpha)));
+});
+
 test("native split views save shared input and cross-pane Undo/Redo as exact IPC bytes", async ({ page }) => {
   await page.getByRole("button", { name: "Split editor", exact: true }).click(); const left = pane(page, "Primary"), right = pane(page, "Secondary");
   await expect(right).toBeVisible(); await left.click(); await left.press("ControlOrMeta+End"); await page.keyboard.insertText("Shared native words");

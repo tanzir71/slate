@@ -9,6 +9,19 @@ import {
 } from "../src/commands";
 
 describe("workspace keyboard adapter", () => {
+  it("labels actual native tab actions and keeps tab cycling on Control even on macOS", () => {
+    for (const os of ["windows", "linux", "mac"] as const) {
+      const native = readKeymap(undefined, os, "desktop"), mac = os === "mac";
+      expect(native.issues).toEqual([]);
+      expect(commandShortcut("view.newTab", native, os)).toBe(mac ? "⌘ T" : "Ctrl T");
+      expect(commandShortcut("view.closeTab", native, os)).toBe(mac ? "⌘ W" : "Ctrl W");
+      expect(commandShortcut("view.reopenTab", native, os)).toBe(mac ? "⌘ ⇧ T" : "Ctrl ⇧ T");
+      const next = native.bindings.find(binding => binding.command.id === "view.nextTab");
+      const previous = native.bindings.find(binding => binding.command.id === "view.previousTab");
+      expect(next?.chord).toMatchObject({ key: "tab", ctrl: true, meta: false, shift: false });
+      expect(previous?.chord).toMatchObject({ key: "tab", ctrl: true, meta: false, shift: true });
+    }
+  });
   it("uses native chords for the implemented disk workspace actions only", () => {
     const native = readKeymap(undefined, "mac", "desktop");
     expect(commandShortcut("sheet.new", native, "mac")).toBe("⌘ N");

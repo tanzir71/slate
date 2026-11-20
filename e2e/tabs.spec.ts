@@ -118,3 +118,43 @@ test("tab controls retain touch targets and split panes fit the available viewpo
   else expect(right!.x).toBeGreaterThanOrEqual(left!.x + left!.width - 1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
 });
+
+test("workspace tab shortcuts open, cycle, close and reopen notes with retained Undo", async ({ page }) => {
+  await seed(page); await page.keyboard.press("Alt+t");
+  const quick = page.getByRole("dialog", { name: "Quick open", exact: true });
+  await expect(quick.locator("input")).toBeFocused(); await quick.locator("input").fill("beta.md"); await quick.locator("input").press("Enter");
+  await expect(quick).toBeHidden(); await expect(tab(page, "beta.md")).toHaveAttribute("aria-selected", "true");
+  const editor = pane(page, "Primary").locator(".cm-content"); await expect(editor).toBeFocused();
+  await editor.press("ControlOrMeta+End"); await page.keyboard.insertText("Keyboard Beta"); await bytes(page, "beta.md", beta + "Keyboard Beta");
+  await page.keyboard.press("Alt+]"); await expect(tab(page, "alpha.md")).toHaveAttribute("aria-selected", "true"); await expect(editor).toBeFocused();
+  await page.keyboard.press("Alt+["); await expect(tab(page, "beta.md")).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Alt+w"); await expect(tab(page, "beta.md")).toHaveCount(0); await bytes(page, "beta.md", beta + "Keyboard Beta");
+  await page.keyboard.press("Alt+Shift+t"); await expect(tab(page, "beta.md")).toHaveAttribute("aria-selected", "true"); await expect(editor).toBeFocused();
+  await page.keyboard.press("ControlOrMeta+z"); await bytes(page, "beta.md", beta);
+  await page.keyboard.press("Alt+w"); await page.keyboard.press("Alt+w"); await expect(page.locator(".cm-content")).toHaveCount(0);
+  await page.keyboard.press("Alt+Shift+t"); await expect(tab(page, "alpha.md")).toHaveAttribute("aria-selected", "true");
+  await expect(pane(page, "Primary").locator(".cm-content")).toBeFocused(); await bytes(page, "alpha.md", alpha); await bytes(page, "beta.md", beta);
+});
+
+test("split and tab shortcuts target the focused pane and respect modal and composition scopes", async ({ page }) => {
+  await seed(page); await open(page, "beta.md"); await page.keyboard.press("ControlOrMeta+Shift+Backslash");
+  await expect(pane(page, "Secondary").locator(".cm-content")).toBeFocused(); await open(page, "alpha.md");
+  await page.keyboard.press("Alt+]"); await expect(pane(page, "Primary").locator(".cm-content")).toContainText("Beta words.");
+  await expect(pane(page, "Secondary").locator(".cm-content")).toContainText("Beta words.");
+  await page.keyboard.press("Alt+["); await expect(pane(page, "Secondary").locator(".cm-content")).toContainText("Original words.");
+  await page.keyboard.press("ControlOrMeta+k"); const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+  await expect(palette.locator("input")).toBeFocused();
+  await page.keyboard.press("Alt+w"); await page.keyboard.press("Alt+Shift+t"); await page.keyboard.press("ControlOrMeta+Shift+Backslash");
+  await expect(palette).toBeVisible(); await expect(page.getByRole("tablist", { name: "Open sheets", exact: true }).getByRole("tab")).toHaveCount(2);
+  await expect(pane(page, "Secondary")).toHaveCount(1); await page.keyboard.press("Escape");
+  await page.evaluate(() => {
+    const target = document.activeElement!;
+    target.dispatchEvent(new KeyboardEvent("keydown", { key: "w", code: "KeyW", altKey: true, isComposing: true, bubbles: true, cancelable: true }));
+    const altGr = new KeyboardEvent("keydown", { key: "w", code: "KeyW", altKey: true, bubbles: true, cancelable: true });
+    Object.defineProperty(altGr, "getModifierState", { value: (key: string) => key === "AltGraph" }); target.dispatchEvent(altGr);
+  });
+  await expect(tab(page, "alpha.md")).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ControlOrMeta+Shift+Backslash"); await expect(pane(page, "Secondary")).toHaveCount(0);
+  await expect(pane(page, "Primary").locator(".cm-content")).toBeFocused();
+  await expect(pane(page, "Primary").locator(".cm-content")).toContainText("Original words."); await bytes(page, "alpha.md", alpha); await bytes(page, "beta.md", beta);
+});

@@ -15,6 +15,7 @@ export function createWorkspaceEditorLayout(store: WorkspaceStore) {
   const current = store.api.getState().selectedPath, selected = exists(current) ? current : "";
   let snapshot: WorkspaceEditorLayout = Object.freeze({ tabs: Object.freeze(selected ? [selected] : []), primary: selected, secondary: undefined, active: "primary" });
   let disposed = false, projecting = false;
+  let closed: { path: string; index: number }[] = [];
   let connection: (() => void) | undefined;
   const listeners = new Set<() => void>();
   function publish(next: WorkspaceEditorLayout, project = false) {
@@ -22,6 +23,7 @@ export function createWorkspaceEditorLayout(store: WorkspaceStore) {
       next.tabs.length === snapshot.tabs.length && next.tabs.every((path, index) => path === snapshot.tabs[index])) return;
     const changedPane = next.active !== snapshot.active;
     snapshot = Object.freeze({ ...next, tabs: Object.freeze([...next.tabs]) });
+    closed = closed.filter((entry) => !snapshot.tabs.includes(entry.path));
     if (project) {
       projecting = true;
       try { store.activateSheet(snapshot[snapshot.active] ?? "", changedPane); }
@@ -31,6 +33,7 @@ export function createWorkspaceEditorLayout(store: WorkspaceStore) {
   }
   function synchronize() {
     if (projecting || disposed) return;
+    closed = closed.filter((entry) => exists(entry.path));
     const path = store.api.getState().selectedPath, tabs = snapshot.tabs.filter(exists);
     let primary = exists(snapshot.primary) ? snapshot.primary : "";
     let secondary = snapshot.secondary === undefined ? undefined : exists(snapshot.secondary) ? snapshot.secondary : "";
@@ -41,6 +44,13 @@ export function createWorkspaceEditorLayout(store: WorkspaceStore) {
     }
     if (!tabs.length) { primary = ""; secondary = undefined; active = "primary"; }
     publish({ tabs, primary, secondary, active });
+  }
+  function open(path: string, index = snapshot.tabs.length) {
+    if (disposed || !exists(path)) return false;
+    const tabs = [...snapshot.tabs];
+    if (!tabs.includes(path)) tabs.splice(Math.max(0, Math.min(index, tabs.length)), 0, path);
+    publish({ ...snapshot, tabs, [snapshot.active]: path }, true);
+    return true;
   }
   return {
     getSnapshot: () => snapshot,
@@ -54,10 +64,17 @@ export function createWorkspaceEditorLayout(store: WorkspaceStore) {
       const disconnect = () => { stop(); if (connection === disconnect) connection = undefined; };
       connection = disconnect; synchronize(); return disconnect;
     },
-    open(path: string) {
-      if (disposed || !exists(path)) return false;
-      publish({ ...snapshot, tabs: snapshot.tabs.includes(path) ? snapshot.tabs : [...snapshot.tabs, path], [snapshot.active]: path }, true);
-      return true;
+    open,
+    cycle(direction: -1 | 1) {
+      const tabs = snapshot.tabs, index = tabs.indexOf(snapshot[snapshot.active] ?? "");
+      if (disposed || tabs.length < 2) return false;
+      const next = index < 0 ? direction === 1 ? 0 : tabs.length - 1 : (index + direction + tabs.length) % tabs.length;
+      return open(tabs[next]!);
+    },
+    reopen() {
+      if (disposed) return false;
+      while (closed.length) { const entry = closed.pop()!; if (open(entry.path, entry.index)) return true; }
+      return false;
     },
     focus(pane: EditorPaneId) {
       if (disposed || snapshot[pane] === undefined) return false;
@@ -74,6 +91,7 @@ export function createWorkspaceEditorLayout(store: WorkspaceStore) {
     },
     close(path: string) {
       if (disposed || !snapshot.tabs.includes(path)) return false;
+      closed.push({ path, index: snapshot.tabs.indexOf(path) });
       const tabs = snapshot.tabs.filter((tab) => tab !== path), replacement = tabs[Math.min(snapshot.tabs.indexOf(path), tabs.length - 1)] ?? "";
       publish({ tabs, primary: snapshot.primary === path ? replacement : snapshot.primary,
         secondary: tabs.length && snapshot.secondary !== undefined ? snapshot.secondary === path ? replacement : snapshot.secondary : undefined,

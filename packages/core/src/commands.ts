@@ -74,8 +74,13 @@ export const slateCommands: readonly CommandDefinition[] = [
   { id: "search.undoReplace", label: "Undo replacements", group: "Edit", surfaces: ["web"] },
   { id: "navigation.back", label: "Go back", group: "Workspace", shortcut: "Alt+ArrowLeft", surfaces: ["web"] },
   { id: "navigation.forward", label: "Go forward", group: "Workspace", shortcut: "Alt+ArrowRight", surfaces: ["web"] },
-  { id: "view.split", label: "Toggle split editor", group: "View", surfaces: ["web"] },
-  { id: "view.closeTab", label: "Close current tab", group: "View", surfaces: ["web"] },
+  { id: "view.split", label: "Toggle split editor", group: "View", shortcut: "Mod+Shift+\\", surfaces: ["web"] },
+  { id: "view.newTab", label: "Open sheet in new tab", group: "View", shortcut: "Mod+t", webShortcut: "Alt+t", surfaces: ["web"] },
+  { id: "view.closeTab", label: "Close current tab", group: "View", shortcut: "Mod+w", webShortcut: "Alt+w", surfaces: ["web"] },
+  { id: "view.reopenTab", label: "Reopen closed tab", group: "View", shortcut: "Mod+Shift+t", webShortcut: "Alt+Shift+t", surfaces: ["web"] },
+  // Control-Tab also cycles native macOS tabs; Command-Tab belongs to the OS.
+  { id: "view.nextTab", label: "Next tab", group: "View", shortcut: "Ctrl+Tab", webShortcut: "Alt+]", surfaces: ["web"] },
+  { id: "view.previousTab", label: "Previous tab", group: "View", shortcut: "Ctrl+Shift+Tab", webShortcut: "Alt+[", surfaces: ["web"] },
   {
     id: "view.inspector",
     label: "Toggle inspector",

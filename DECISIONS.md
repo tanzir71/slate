@@ -1,5 +1,12 @@
 # Slate Decisions
 
+## 2026-11-20 - Tab navigation and close history
+
+- Closed-tab history belongs to the workspace layout for the current Space lifetime. Restore prior tab positions in reverse close order, forget entries opened through ordinary navigation, and prune deleted/private paths. Closing a tab never deletes source or releases its retained document Undo.
+- New tab opens Quick open to choose a sheet; it does not create an empty Markdown file. Cycling replaces only the focused pane and uses the shared selected-path projection.
+- Workspace navigation, tab and split commands use scoped capture priority before editor keymaps. Keep modal, IME, AltGr and default-prevented guards; unrelated editor commands retain their own key handling.
+- Use Appendix A browser Alt alternatives and native New/Close/Reopen/Split chords from the same command registry. Native cycling uses Control-Tab on every OS: Command-Tab on macOS switches apps, so this is an explicit exception to the handover general Ctrl-to-Command translation. Apple reference: https://support.apple.com/en-us/102650 .
+
 ## 2026-11-20 - Route tabs and split panes through retained file identities
 
 The workspace keeps one ordered tab list and two optional editor slots per Space. The active pane projects its already loaded file synchronously into selectedPath, without file IO or flushing other drafts. Each lazy view receives a captured path, retained document session, separate view-position key, image adapters, handle and cursor. Existing commands, inspector, source-checked navigation and status use the active projection. Closing tabs preserves files, drafts and session history until leaving the Space. An explicitly closed last tab remains empty across refreshes; later explicit navigation can reopen a file. Resource leases tolerate StrictMode effect reconnects while disposing retained sessions after a real Space exit.
