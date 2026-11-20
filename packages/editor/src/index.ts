@@ -25,6 +25,7 @@ export type { ClipboardImageReference, SaveClipboardImage } from "./clipboardIma
 export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEditorTable, editorTableColumns, runTableCommand } from "./smartTables.js";
 import { createSelectionPairs } from "./selectionPairs.js";
 export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
+export { createDocumentSession, type DocumentSession, type DocumentSessionSnapshot, type DocumentSessionUpdate } from "./documentSession.js";
 export { tidyEditorHistory, editorTidyLines, editorSource, editorSourceEffect, applyEditorTidy } from "./tidy.js";
 export { markdownCompletionQuery, type MarkdownCompletionQuery } from "./completionQuery.js";
 export { createMarkdownCompletions, type MarkdownCompletionOptions } from "./markdownCompletions.js";

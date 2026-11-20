@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-20 - Retain one history authority for each open document
+
+F-74 uses a DOM-independent CodeMirror state per open file for document history and exact physical source metadata. Mounted views keep their own selection and UI configuration, forward edits once, and delegate Undo/Redo to this authority. Publish source changes synchronously with actor/revision information so views can avoid echoing their acting edit and map independent cursors. Retain the session across tab view lifetimes. This follows the single-history split pattern documented at https://codemirror.net/examples/split/ .
+
+Accept only the current revision and exact raw source; honor current edit permission and a read-only producing state. Preserve transaction time, user event, history isolation and remote/addToHistory annotations. Forward only raw-source effects into the retained history, keeping view-local extensions, compartments and callbacks out of it. Preserve committed words and notify remaining subscribers if one callback fails; reject reentrant source mutations while delivering an update. A rejected proposal remains with its caller for explicit reconciliation or recovery.
+
+A genuinely new authoritative disk or batch source starts fresh document Undo, preventing obsolete history from erasing newer words. Identical source echoes preserve history and snapshot identity. Store draft overlays and checked file writes remain the authority for unsaved words and conflict copies; the history session itself performs no file IO. This is a tested editor API prerequisite. Actual view subscription, permission filters, stale-proposal recovery, active-pane routing and the tabs/split UI follow separately.
+
 ## 2026-11-20 - Publish only changed visible disk snapshots
 
 Workspace refresh continues listing and reading every file and updating its disk bases. After overlaying current drafts, reuse existing sheet objects only when path, exact source and encoding support are identical. Skip the store publication only when the entire ordered sheet list and selected path are unchanged. Preserve per-path references across insertions/removals; notify real source, encoding, membership and selection changes. Compare against the live store after asynchronous reads so intervening edits and selections remain authoritative.

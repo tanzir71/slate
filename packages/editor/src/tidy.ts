@@ -109,6 +109,10 @@ export function editorSourceEffect(
 ): StateEffect<LineEndings | undefined> {
   return rawSource.of(retained(source));
 }
+/** Only source metadata belongs in a shared history; view configuration stays local. */
+export function editorSourceEffects(transaction: Transaction): readonly StateEffect<unknown>[] {
+  return transaction.effects.filter((effect) => effect.is(rawSource));
+}
 const normalizedOffset = (source: string, offset: number) =>
   normalize(source.slice(0, offset)).length;
 
