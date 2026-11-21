@@ -120,7 +120,8 @@ export function previewTableRow(state: EditorState, row: MarkdownNode, table: Pr
       result.push(start === end ? Decoration.widget({ widget, side: 1 }).range(start) : Decoration.replace({ widget }).range(start, end));
     }
     else {
-      result.push(Decoration.mark({ class: className, attributes: { role: header ? "columnheader" : "cell", "aria-colindex": String(column + 1) } }).range(start, end));
+      // Include a replacement that occupies the entire unpadded cell.
+      result.push(Decoration.mark({ class: className, inclusive: true, attributes: { role: header ? "columnheader" : "cell", "aria-colindex": String(column + 1) } }).range(start, end));
       hide(start, row.from + cell.from); hide(row.from + cell.to, end);
     }
     position = end;

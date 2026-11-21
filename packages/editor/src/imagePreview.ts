@@ -1,9 +1,11 @@
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
-import { Facet, StateEffect, StateField, Transaction, type EditorState, type Extension, type Range, type Text } from "@codemirror/state";
+import { Facet, Prec, StateEffect, StateField, Transaction, type EditorState, type Extension, type Range, type Text } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { parseMarkdownPreview, type MarkdownPreviewNode } from "@slate/core";
 import { editorFrontmatter } from "./frontmatterPreview.js";
 import { livePreviewSettings } from "./livePreviewSettings.js";
+import { editorCallout } from "./calloutPreview.js";
+import { previewTable } from "./tablePreview.js";
 
 export type LoadPreviewImage = (destination: string, signal: AbortSignal) => Promise<Blob | undefined>;
 export const imagePreviewLoader = Facet.define<LoadPreviewImage, LoadPreviewImage | undefined>({ combine: values => values.at(-1) });
@@ -77,8 +79,18 @@ function enabled(state: EditorState) {
   const settings = state.facet(livePreviewSettings);
   return state.facet(imagePreviewLoader) !== undefined && settings.hideSyntax && !settings.sourceMode;
 }
+function sourceRange(state: EditorState, from: number, to: number) {
+  let start = from, end = to;
+  for (const position of [from, to]) for (let node: SyntaxNode | null = syntaxTree(state).resolveInner(position, 1); node; node = node.parent) {
+    if (node.name === "Table" || node.name === "Blockquote" && editorCallout(state, node)) {
+      start = Math.min(start, state.doc.lineAt(node.from).from); end = Math.max(end, node.to);
+    }
+  }
+  return { from: start, to: end };
+}
 function active(state: EditorState, from: number, to: number) {
-  return state.selection.ranges.some(range => from <= state.doc.lineAt(range.to).to && to >= state.doc.lineAt(range.from).from);
+  const scope = sourceRange(state, from, to);
+  return state.selection.ranges.some(range => scope.from <= state.doc.lineAt(range.to).to && scope.to >= state.doc.lineAt(range.from).from);
 }
 
 /** Direct decorations may change height or replace multiline Markdown safely. */
@@ -100,10 +112,14 @@ const imageDecorations = StateField.define<DecorationSet>({
         return widget instanceof ImageWidget && state.sliceDoc(start, end) === widget.image.source;
       } });
     });
-    for (const range of state.selection.ranges) decorations = decorations.update({ filterFrom: state.doc.lineAt(range.from).from, filterTo: state.doc.lineAt(range.to).to, filter: (from, to) => !active(state, from, to) });
+    for (const range of state.selection.ranges) {
+      const scope = sourceRange(state, state.doc.lineAt(range.from).from, state.doc.lineAt(range.to).to);
+      decorations = decorations.update({ filterFrom: scope.from, filterTo: scope.to, filter: (from, to) => !active(state, from, to) });
+    }
     return decorations;
   },
-  provide: field => EditorView.decorations.from(field),
+  // Cell and inline marks must surround replacement widgets even at equal boundaries.
+  provide: field => Prec.highest(EditorView.decorations.from(field)),
 });
 
 function previewNode(node: MarkdownPreviewNode, kind: "image" | "link"): MarkdownPreviewNode | undefined {
@@ -146,7 +162,7 @@ function imageSpec(state: EditorState, node: SyntaxNode, definitions: ReadonlyMa
   return image?.url !== undefined ? { from: node.from, to: node.to, source: state.sliceDoc(node.from, node.to), destination: image.url, alt: image.alt ?? "", ...(href ? { href } : {}) } : undefined;
 }
 
-const excluded = /^(?:FencedCode|CodeBlock|HTMLBlock|InlineHTML|Image|Table|SlateFootnoteDefinition)$/;
+const excluded = /^(?:FencedCode|CodeBlock|HTMLBlock|InlineHTML|Image|SlateFootnoteDefinition)$/;
 const delay = (milliseconds: number) => new Promise<void>(resolve => setTimeout(resolve, milliseconds));
 /** Reference indexing happens in cancellable slices, outside the input transaction. */
 async function imageDefinitions(state: EditorState, signal: AbortSignal): Promise<Map<string, string>> {
@@ -190,6 +206,7 @@ export function createImagePreviewExtension(): Extension {
       for (const range of view.visibleRanges) syntaxTree(state).iterate({ from: range.from, to: range.to, enter(reference) {
         const node = reference.node;
         if (node.to <= end) return false;
+        if (node.name === "Table" && !previewTable(state, node)) return false;
         if (node.name === "Image") {
           if (!visited.has(node.from) && !active(state, node.from, node.to)) { nodes.push(node); visited.add(node.from); }
           return false;

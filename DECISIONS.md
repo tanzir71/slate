@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## 2026-11-21 - Keep table cell marks around asynchronous image replacements
+
+Image replacement decorations have highest precedence so existing native cell and inline marks surround the widget. Cell marks include their boundaries so an image occupying an unpadded cell retains exactly one semantic cell, with the same grid and native text. No second cell renderer or DOM reparenting is introduced. Image source visibility follows the entire containing table and recognized callout: activating any row or callout title removes its image replacements synchronously, before deferred scanning can restore anything. Source navigation, document bytes, Undo and existing link navigation remain unchanged. Regression controls cover image-only/mixed/reference/linked/multiple images, escaped pipes, padded/unpadded cells, Read mode, nested callouts and source-position changes.
+
 ## ADR: Local image previews own disposable resources
 
 - Resolve image destinations relative to the note through the existing workspace file reader (OPFS, selected Folder or checked native IPC). Decode URI escapes once and reject absolute, network, control-character and workspace-escaping paths before any read. Keep current CSP and make no remote image requests. File bytes remain authoritative and are never re-encoded by preview.

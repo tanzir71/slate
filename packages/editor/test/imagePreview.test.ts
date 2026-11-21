@@ -120,3 +120,65 @@ it.each([
   expect(view.dom.querySelector(".cm-slate-image-preview")!.getAttribute("data-slate-href")).toBe(destination);
   expect(view.dom.querySelector(".cm-slate-image-preview")!.classList.contains("cm-slate-link")).toBe(destination !== null);
 });
+
+it.each([["", false], [" ", false], ["", true], [" ", true]] as const)("keeps image-only and mixed cells inside their table with padding %j, readOnly %s", async (padding, readOnly) => {
+  const raw = `|${padding}![Header](a.png)${padding}| Other |\n|---|---|\n|${padding}![Cover](a.png)${padding}| Before **bold** ![Second][cover] after |\n\n[cover]: a.png`;
+  const view = editor(raw, async () => png(), readOnly), original = view.state.doc;
+  await vi.waitFor(() => expect(view.dom.querySelectorAll(".cm-slate-image-preview img")).toHaveLength(3));
+  const grid = view.dom.querySelector('[role="table"]')!;
+  expect(grid.querySelectorAll('[role="row"]')).toHaveLength(2);
+  expect(grid.querySelectorAll('[role="columnheader"]')).toHaveLength(2);
+  expect(grid.querySelectorAll('[role="cell"]')).toHaveLength(2);
+  for (const button of grid.querySelectorAll(".cm-slate-image-preview"))
+    expect(button.closest('[role="cell"], [role="columnheader"]')?.parentElement?.getAttribute("role")).toBe("row");
+  const mixed = grid.querySelectorAll('[role="cell"]')[1]!;
+  expect(mixed.textContent).toContain("Before bold"); expect(mixed.textContent).toContain("after");
+  expect(mixed.querySelector(".cm-slate-strong")?.textContent).toBe("bold");
+  expect(view.state.doc).toBe(original); expect(undo(view)).toBe(false);
+});
+
+it("keeps multiple linked images and escaped pipes in one cell without splitting its semantics", async () => {
+  const raw = "| Images | Other |\n|---|---|\n|[![A\\|B](a.png)](https://link.invalid/target)![Second](b.png)|[site](https://example.test)|";
+  const load = vi.fn(async () => png()), view = editor(raw, load), original = view.state.doc;
+  await vi.waitFor(() => expect(view.dom.querySelectorAll(".cm-slate-image-preview img")).toHaveLength(2));
+  const cells = view.dom.querySelectorAll('[role="cell"]');
+  expect(cells).toHaveLength(2); expect(cells[0]!.querySelectorAll(".cm-slate-image-preview img")).toHaveLength(2);
+  expect(image(view)!.alt).toBe("A|B");
+  expect(cells[0]!.querySelector(".cm-slate-image-preview")!.getAttribute("data-slate-href")).toBe("https://link.invalid/target");
+  expect(cells[1]!.querySelector(".cm-slate-link")?.textContent).toBe("site");
+  view.dispatch({ changes: { from: 0, insert: "Before\n\n" } });
+  await new Promise(resolve => setTimeout(resolve, 50));
+  expect(load).toHaveBeenCalledTimes(2);
+  view.dom.querySelector<HTMLButtonElement>(".cm-slate-image-preview")!.click();
+  expect(view.state.selection.main.head).toBe(view.state.doc.toString().indexOf("![") + 2);
+  expect(undo(view)).toBe(true); expect(view.state.doc.toString()).toBe(original.toString());
+});
+
+it("reveals images in a nested callout table when the callout title is active", async () => {
+  const raw = "> [!NOTE] Card\n>\n> | Picture |\n> |---|\n> |![Cover](a.png)|";
+  const view = editor(raw, async () => png()), original = view.state.doc;
+  await vi.waitFor(() => expect(image(view)).not.toBeNull());
+  expect(image(view)!.closest('[role="cell"]')?.closest('[role="note"]')).not.toBeNull();
+  view.dispatch({ selection: { anchor: raw.indexOf("Card") } });
+  expect(image(view)).toBeNull(); expect(view.dom.querySelector('[role="table"]')).toBeNull();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  expect(image(view)).toBeNull(); expect(view.state.doc).toBe(original); expect(undo(view)).toBe(false);
+});
+
+it("reveals all table image source when any table row is active and restores previews without history", async () => {
+  const raw = "| Heading |\n|---|\n| ![Cover](a.png) |\n| ![Second](a.png) |";
+  const view = editor(raw, async () => png()), original = view.state.doc;
+  await vi.waitFor(() => expect(view.dom.querySelectorAll(".cm-slate-image-preview img")).toHaveLength(2));
+  view.dispatch({ selection: { anchor: raw.indexOf("Heading") } });
+  expect(view.dom.querySelector('[role="table"]')).toBeNull();
+  expect(view.dom.querySelector(".cm-slate-image-preview")).toBeNull();
+  expect(view.contentDOM.textContent).toContain("![Cover](a.png)");
+  await new Promise(resolve => setTimeout(resolve, 50));
+  expect(view.dom.querySelector(".cm-slate-image-preview")).toBeNull();
+  view.dispatch({ selection: { anchor: view.state.doc.length } });
+  await vi.waitFor(() => expect(view.dom.querySelectorAll(".cm-slate-image-preview img")).toHaveLength(2));
+  view.dom.querySelector<HTMLButtonElement>(".cm-slate-image-preview")!.click();
+  expect(view.state.selection.main.head).toBe(raw.indexOf("![") + 2);
+  expect(view.dom.querySelector(".cm-slate-image-preview")).toBeNull();
+  expect(view.state.doc).toBe(original); expect(undo(view)).toBe(false);
+});

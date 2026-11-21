@@ -112,3 +112,37 @@ test("a linked image retains normal modifier-click navigation without changing i
   const popup = page.waitForEvent("popup"); await button.click({ modifiers: ["ControlOrMeta"] });
   const target = await popup; await expect(target).toHaveURL("https://link.invalid/target"); await target.close(); await saved(page, raw);
 });
+
+test("table images retain cell geometry, links, source editing, modes and offline bytes", async ({ page }, testInfo) => {
+  const raw = "\uFEFF# Images\r\n\r\n|![Header](./cover.png)|Other|\r\n|---|---|\r\n|![Cover](./cover.png)|Before **bold** ![Ref][asset] after|\r\n|[![A\\|B](./cover.png)](https://link.invalid/target)![Second](./cover.png)|[site](https://example.test)|\r\n\r\n[asset]: ./cover.png\r\n\r\nActive.\r\n";
+  await page.context().route("https://link.invalid/**", route => route.fulfill({ status: 200, contentType: "text/html", body: "<title>Table image target</title>Target" }));
+  await imported(page, raw);
+  const grid = page.getByRole("table", { name: "Markdown table", exact: true }), editor = page.locator(".cm-content");
+  for (const alt of ["Header", "Cover", "Ref", "A|B", "Second"]) await loaded(page, alt);
+  await expect(grid.getByRole("row")).toHaveCount(3); await expect(grid.getByRole("columnheader")).toHaveCount(2); await expect(grid.getByRole("cell")).toHaveCount(4);
+  await expect(grid.getByRole("cell").nth(1)).toContainText("Before bold"); await expect(grid.getByRole("cell").nth(1)).toContainText("after");
+  await expect(grid.getByRole("cell").nth(2).locator(".cm-slate-image-preview")).toHaveCount(2);
+  expect((await new AxeBuilder({ page }).include(".editorHost").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze()).violations).toEqual([]);
+  for (const theme of ["light", "dark"] as const) {
+    await chooseAppearance(page, theme);
+    expect(await grid.locator(".cm-slate-image-preview img").evaluateAll(images => images.every(image => {
+      const cell = image.closest('[role="cell"], [role="columnheader"]');
+      return cell !== null && image.getBoundingClientRect().width <= cell.getBoundingClientRect().width;
+    }))).toBe(true);
+    const path = testInfo.outputPath(`table-image-${theme}.png`); await grid.screenshot({ path }); await testInfo.attach(`table-image-${theme}`, { path, contentType: "image/png" });
+  }
+  const linked = page.getByRole("button", { name: "Show image source: A|B", exact: true }), popup = page.waitForEvent("popup");
+  await linked.click({ modifiers: ["ControlOrMeta"] }); const target = await popup; await expect(target).toHaveURL("https://link.invalid/target"); await target.close(); await saved(page, raw);
+  const cover = await loaded(page, "Cover"); await cover.focus(); await cover.press("Enter");
+  await expect(grid).toHaveCount(0); await expect(page.locator(".cm-slate-image-preview")).toHaveCount(0); await expect(editor).toBeFocused();
+  await page.keyboard.insertText("Edited "); await saved(page, raw.replace("![Cover]", "![Edited Cover]"));
+  await editor.press("ControlOrMeta+z"); await saved(page, raw); await editor.press("ControlOrMeta+End"); await loaded(page, "Cover");
+  await chooseMode(page, "Source"); await expect(grid).toHaveCount(0); await expect(page.locator(".cm-slate-image-preview")).toHaveCount(0); await saved(page, raw);
+  await chooseMode(page, "Read"); await loaded(page, "Cover"); await expect(grid.getByRole("cell")).toHaveCount(4);
+  await editor.focus(); await page.keyboard.insertText("Blocked"); await saved(page, raw);
+  await chooseMode(page, "Live"); await editor.press("ControlOrMeta+End"); await loaded(page, "Cover");
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  // The popup assertion is complete; routing disables normal HTTP caching in Playwright.
+  await page.context().unroute("https://link.invalid/**");
+  await page.context().setOffline(true); await page.reload(); await loaded(page, "Cover"); await saved(page, raw); expect(await libraryFile(page, "cover.png")).toEqual(Array.from(png));
+});
