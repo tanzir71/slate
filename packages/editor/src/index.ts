@@ -30,6 +30,7 @@ export { createSmartTableBindings, navigateTableCell, enterEditorTable, formatEd
 import { createSelectionPairs } from "./selectionPairs.js";
 export { createSelectionPairs, planSelectionPair } from "./selectionPairs.js";
 export { createDocumentSession, type DocumentSession, type DocumentSessionSnapshot, type DocumentSessionUpdate } from "./documentSession.js";
+export { appendDocumentText } from "./launchAppend.js";
 export { applyDocumentSourceChanges } from "./documentSourceChanges.js";
 export { editorHistoryDelegate, type EditorHistoryDelegate, type EditorHistoryReplacement } from "./documentHistory.js";
 export { tidyEditorHistory, editorTidyLines, editorSource, editorSourceEffect, editorSourceEffects, editorSourceStateEffect, applyEditorTidy } from "./tidy.js";

@@ -26,6 +26,17 @@ Typing and block insertion preserve a UTF-8 BOM and existing line endings. Undo 
 
 The New sheet, Today and Capture app shortcuts request confirmation before creating or appending files. Opening Markdown through the installed-app file handler also asks before importing, preserving existing files.
 
+App links accept URL-encoded parameters after `/slate/app/?`:
+
+| Action | Parameters | Result |
+| --- | --- | --- |
+| `new` | `title`, `notebook`, `text`; optional `template` | Review a new sheet, or open its template preview and choose Create. |
+| `open` | `path` | Read the current Markdown file in this Space. |
+| `append` | `path`, `text` | Review the text, append without replacing existing words, and undo the append in one step. |
+| `search` | `query` | Open workspace search with this query. |
+
+For example, `/slate/app/?action=new&title=Review&notebook=Work&text=Agenda` opens a confirmation. Add `template=meeting-notes` to start from the built-in meeting template; additional text stays literal. A `space` parameter targets a specific Space ID and asks you to switch when another Space is open. File paths are relative to that Space and must end in `.md`. New sheets use a separate filename when the requested file already exists. Cancel or Escape keeps files unchanged. Incoming installed-app requests wait while you review another request; choose **Review next request** to continue.
+
 Updates show a **Reload** action. Slate flushes pending edits before activating the new worker. Updates do not rewrite existing Markdown files.
 
 Choose **About Slate** in the header or command palette to read the release notes and browser capability matrix. These notes work offline after the first visit. A waiting update also offers **What's new**, which shows the incoming release before you choose Reload.

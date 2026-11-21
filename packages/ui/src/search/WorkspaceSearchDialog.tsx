@@ -7,14 +7,15 @@ import { ReplacementPreview, replacementSelectable } from "./ReplacementPreview"
 import { useWorkspaceSearch } from "./useWorkspaceSearch";
 import "./search.css";
 
-export default function WorkspaceSearchDialog({ store, returnFocus, restoreFocus, onChoose, onClose }: {
+export default function WorkspaceSearchDialog({ store, returnFocus, restoreFocus, initialQuery, onChoose, onClose }: {
   store: WorkspaceStore; returnFocus?: HTMLElement | undefined;
   restoreFocus?: (() => void) | undefined;
+  initialQuery?: string | undefined;
   onChoose(path: string, target?: { source: string; position: number }): Promise<void>; onClose(): void;
 }) {
   const sheets = useStore(store.api, (state) => state.sheets), owned = useStore(store.api, (state) => state.owned);
   const canUndo = useStore(store.api, (state) => state.hasReplaceBatchUndo);
-  const [query, setQuery] = useState(""), [replacement, setReplacement] = useState(""), [matchCase, setMatchCase] = useState(false);
+  const [query, setQuery] = useState(initialQuery ?? ""), [replacement, setReplacement] = useState(""), [matchCase, setMatchCase] = useState(false);
   const [retry, setRetry] = useState(0), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false), [progress, setProgress] = useState(0);
   const [batch, setBatch] = useState<ReplaceBatchSession>(), [rows, setRows] = useState<readonly ReplaceBatchRow[]>([]);

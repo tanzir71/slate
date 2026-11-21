@@ -2,7 +2,7 @@ import { createStore } from "zustand/vanilla";
 import { createFileSpace, type FileSheet } from "@slate/storage/file-space";
 import { decodeText, safeWorkspacePath, type WorkspaceFiles } from "@slate/storage/file-io";
 import type { BrowserSpaceRecord } from "@slate/storage/browser-catalog";
-import type { WikiLink, TextChange, planTemplateFile } from "@slate/core";
+import type { WikiLink, TextChange } from "@slate/core";
 import { notebookTemplate, previousDailyNote, readWorkspacePreferences, starterKitRoot, withNotebookTemplate, type WorkspacePreferences } from "@slate/core";
 import { createRecoveryJournal, type RecoveryEdit } from "./recoveryJournal";
 import type { StarterKitInstallation } from "../templates/starterKits";
@@ -81,6 +81,14 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
   async function finishCreated(notice: string) {
     try { onSaved(); await refresh(); }
     catch { api.setState({ notice }); }
+  }
+
+  async function createPlanned(plan: { readonly path: string; readonly content: string; readonly cursor?: number | undefined }) {
+    await flush();
+    const sheet = await space.create(plan.path, plan.content);
+    rememberCreated(sheet, plan.cursor ?? 0);
+    await finishCreated("Your new sheet is saved. Refresh the workspace when available to update its lists.");
+    return sheet;
   }
 
   async function finishTidyBatch(batch: BatchTidySession) {
@@ -401,14 +409,8 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       linking = next.catch(() => undefined);
       return next;
     },
-    async createFromTemplate(plan: ReturnType<typeof planTemplateFile>) {
-      await flush();
-      const sheet = await space.create(plan.path, plan.content);
-      // Once written, select the actual collision-resolved path before fallible refresh work.
-      rememberCreated(sheet, plan.cursor ?? 0);
-      await finishCreated("Your new sheet is saved. Refresh the workspace when available to update its lists.");
-      return sheet;
-    },
+    createPlanned,
+    createFromTemplate: createPlanned,
     async create(notebook = "Inbox") {
       await flush();
       const sheet = await space.create(`${notebook}/Untitled.md`, "");

@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   analyzeMarkdownTemplate,
+  appendLaunchText,
   planTemplateFile,
   previewMarkdownTemplate,
   readMarkdownTemplate,
@@ -78,6 +79,8 @@ export default function TemplateGallery({
   returnFocus,
   initialTemplateId,
   initialDestination,
+  initialTitle,
+  initialBodyText,
   onClose,
   onStarterKits,
 }: {
@@ -87,6 +90,8 @@ export default function TemplateGallery({
   returnFocus: HTMLElement | undefined;
   initialTemplateId?: string | undefined;
   initialDestination?: string | undefined;
+  initialTitle?: string | undefined;
+  initialBodyText?: string | undefined;
   onClose(): void;
   onStarterKits(): void;
 }) {
@@ -112,7 +117,8 @@ export default function TemplateGallery({
   const [selectedId, setSelectedId] = useState(
     initialTemplateId ?? builtinTemplates[0]!.id,
   );
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle ?? "");
+  const [bodyText, setBodyText] = useState(initialBodyText ?? "");
   const [date, setDate] = useState(context.clock!.date);
   const [destination, setDestination] = useState<string | undefined>(
     initialDestination,
@@ -176,7 +182,7 @@ export default function TemplateGallery({
     if (!selected) return undefined;
     try {
       const output = renderMarkdownTemplate(selected.template, variables);
-      return { output, error: "" };
+      return { output: { ...output, content: appendLaunchText(output.content, bodyText) }, error: "" };
     } catch (error) {
       return { output: undefined, error: message(error) };
     }
@@ -189,6 +195,7 @@ export default function TemplateGallery({
     clipboard,
     prompts,
     date,
+    bodyText,
   ]);
   const visible = items
     .filter((item) => {
@@ -291,7 +298,7 @@ export default function TemplateGallery({
         variables,
         destination === undefined ? {} : { destination },
       );
-      await store.createFromTemplate(plan);
+      await store.createFromTemplate({ ...plan, content: appendLaunchText(plan.content, bodyText) });
       const next = [
         selected.id,
         ...recent.filter((id) => id !== selected.id),
@@ -644,6 +651,11 @@ export default function TemplateGallery({
                     />
                   </label>
                 ))}
+                {initialBodyText !== undefined && <label>
+                  Additional text
+                  <textarea aria-label="Additional text" rows={4} value={bodyText} disabled={busy}
+                    onChange={event => setBodyText(event.target.value)} />
+                </label>}
                 {definition?.variables.includes("clipboard") && (
                   <label>
                     Clipboard

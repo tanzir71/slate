@@ -457,3 +457,4 @@ function isGoalType(value: unknown): value is GoalType {
 
 export * from "./templateInsertion.js";
 export * from "./blockSnippet.js";
+export * from "./launchAction.js";
