@@ -9,6 +9,7 @@ export function WorkspaceDialog({
   busy = false,
   className = "",
   returnFocus,
+  restoreFocus,
   headerActions,
   initialFocus,
   closeIcon,
@@ -20,6 +21,7 @@ export function WorkspaceDialog({
   busy?: boolean;
   className?: string;
   returnFocus?: HTMLElement | undefined;
+  restoreFocus?: (() => void) | undefined;
   headerActions?: ReactNode;
   initialFocus?: { readonly current: HTMLElement | null };
   closeIcon?: ReactNode;
@@ -34,7 +36,10 @@ export function WorkspaceDialog({
     return () => {
       element?.close();
       const focus = returnFocus ?? invoker.current;
-      if (focus instanceof HTMLElement && focus.isConnected) focus.focus();
+      if (focus instanceof HTMLElement && focus.isConnected) {
+        if (restoreFocus) restoreFocus();
+        else focus.focus();
+      }
     };
   }, []);
   return (

@@ -131,7 +131,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     try { return localStorage.getItem(inspectorKey) === "true"; } catch { return false; }
   });
   const [palette, setPalette] = useState<PaletteRequest>();
-  const [workspaceSearch, setWorkspaceSearch] = useState<{ returnFocus: HTMLElement | undefined }>();
+  const [workspaceSearch, setWorkspaceSearch] = useState<{ returnFocus: HTMLElement | undefined; restoreFocus: (() => void) | undefined }>();
   const [shortcuts, setShortcuts] = useState(false);
   const [editorSettings, setEditorSettings] = useState(false);
   const [templateRequest, setTemplateRequest] = useState<TemplateRequest>();
@@ -261,7 +261,12 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }
   function openWorkspaceSearch() {
     const active = window.document.activeElement;
-    setWorkspaceSearch({ returnFocus: active instanceof HTMLElement ? active : undefined });
+    const returnFocus = active instanceof HTMLElement ? active : undefined, editor = editorHandle.current;
+    // Native dialog close may return DOM focus before the editor's selection.
+    const restoreFocus = editor && editor.hasFocus() && returnFocus?.classList.contains("cm-content")
+      ? () => { if (editorHandle.current === editor) editor.focus(); }
+      : undefined;
+    setWorkspaceSearch({ returnFocus, restoreFocus });
   }
   async function chooseSearchResult(path: string, target?: { source: string; position: number }) {
     const sheet = await store.openSheet(path, target);
@@ -763,7 +768,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const dropped = collectBrowserDrop(event.dataTransfer);
       run(async () => importPicked(await dropped));
     } }}>
-    {workspaceSearch && <Suspense fallback={<WorkspaceDialog title="Search everywhere" returnFocus={workspaceSearch.returnFocus} onClose={() => setWorkspaceSearch(undefined)}><p role="status">Opening search…</p></WorkspaceDialog>}><WorkspaceSearchDialog store={store} returnFocus={workspaceSearch.returnFocus} onChoose={chooseSearchResult} onClose={() => setWorkspaceSearch(undefined)} /></Suspense>}
+    {workspaceSearch && <Suspense fallback={<WorkspaceDialog title="Search everywhere" returnFocus={workspaceSearch.returnFocus} restoreFocus={workspaceSearch.restoreFocus} onClose={() => setWorkspaceSearch(undefined)}><p role="status">Opening search…</p></WorkspaceDialog>}><WorkspaceSearchDialog store={store} returnFocus={workspaceSearch.returnFocus} restoreFocus={workspaceSearch.restoreFocus} onChoose={chooseSearchResult} onClose={() => setWorkspaceSearch(undefined)} /></Suspense>}
     <WorkspaceTitleBar viewMode={viewMode} viewDisabled={viewDisabled} onViewMode={changeViewMode} windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
       writingControls={<WorkspaceWritingControls value={writing} disabled={viewDisabled} onFocus={writingModes.focus} onTypewriter={toggleTypewriter} onZen={toggleZen} />}
       onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={openWorkspaceSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}

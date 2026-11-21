@@ -7,8 +7,9 @@ import { ReplacementPreview, replacementSelectable } from "./ReplacementPreview"
 import { useWorkspaceSearch } from "./useWorkspaceSearch";
 import "./search.css";
 
-export default function WorkspaceSearchDialog({ store, returnFocus, onChoose, onClose }: {
+export default function WorkspaceSearchDialog({ store, returnFocus, restoreFocus, onChoose, onClose }: {
   store: WorkspaceStore; returnFocus?: HTMLElement | undefined;
+  restoreFocus?: (() => void) | undefined;
   onChoose(path: string, target?: { source: string; position: number }): Promise<void>; onClose(): void;
 }) {
   const sheets = useStore(store.api, (state) => state.sheets), owned = useStore(store.api, (state) => state.owned);
@@ -61,7 +62,7 @@ export default function WorkspaceSearchDialog({ store, returnFocus, onChoose, on
     }
   }
   const replacements = rows.filter((row) => chosen.has(row.path)).reduce((sum, row) => sum + row.replacements, 0);
-  return <WorkspaceDialog title="Search everywhere" returnFocus={returnFocus} initialFocus={input} busy={busy} className="workspaceSearchDialog" onClose={onClose}>
+  return <WorkspaceDialog title="Search everywhere" returnFocus={returnFocus} restoreFocus={restoreFocus} initialFocus={input} busy={busy} className="workspaceSearchDialog" onClose={onClose}>
     <form className="workspaceSearchFields" onSubmit={(event) => { event.preventDefault(); setRetry((value) => value + 1); }}>
       <fieldset disabled={busy}><label>Search in {store.api.getState().record.name}<input ref={input} aria-label={`Search in ${store.api.getState().record.name}`} value={query} onChange={(event) => { invalidatePreview(); setQuery(event.target.value); }} /></label>
         <button type="submit" disabled={!query}>Search</button><label className="searchCase"><input type="checkbox" checked={matchCase} onChange={(event) => { invalidatePreview(); setMatchCase(event.target.checked); }} />Match case</label>
