@@ -5,6 +5,7 @@ import {
   type MarkdownTemplate,
 } from "@slate/core";
 import { decodeText, safeBrowserPath } from "./browserFiles";
+import { listWorkspaceDirectory } from "./fileIO";
 import type { BrowserSpace, BrowserWriteResult } from "./browserSpace";
 
 const directory = ".slate/templates/";
@@ -25,7 +26,7 @@ const isTemplatePath = (path: string) =>
 export async function readSpaceTemplates(
   space: BrowserSpace,
 ): Promise<SpaceTemplateRecord[]> {
-  const paths = (await space.files.list(true)).filter(isTemplatePath).sort();
+  const paths = (await listWorkspaceDirectory(space.files, directory.slice(0, -1))).filter(isTemplatePath).sort();
   const records = await Promise.all(
     paths.map(async (path): Promise<SpaceTemplateRecord | undefined> => {
       let source: string | undefined;

@@ -1,6 +1,8 @@
 /** Platform-neutral file access. Indexes and UI state never replace these bytes. */
 export interface WorkspaceFileReader {
   list(includePrivate?: boolean): Promise<string[]>;
+  /** Read an existing subtree without creating it; results remain Space-relative. */
+  listDirectory?(path: string): Promise<string[]>;
   read(path: string): Promise<Uint8Array | undefined>;
 }
 
@@ -27,6 +29,13 @@ export function safeWorkspacePath(path: string): string {
     throw new Error(`Invalid workspace path: ${path}`);
   }
   return normalized;
+}
+
+/** Adapters with directory handles can avoid enumerating unrelated notes. */
+export async function listWorkspaceDirectory(files: WorkspaceFileReader, path: string): Promise<string[]> {
+  const directory = safeWorkspacePath(path), prefix = `${directory}/`;
+  const paths = await (files.listDirectory ? files.listDirectory(directory) : files.list(true));
+  return paths.filter(entry => entry.startsWith(prefix));
 }
 
 export const encodeText = (text: string): Uint8Array => new TextEncoder().encode(text);

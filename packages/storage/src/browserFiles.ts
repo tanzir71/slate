@@ -34,20 +34,32 @@ export function createDirectoryFiles(root: BrowserDirectoryHandle): BrowserFiles
     for (const part of parts) directory = await directory.getDirectoryHandle(part, { create });
     return { directory, name };
   }
+  async function listPaths(directory: BrowserDirectoryHandle, prefix: string, includePrivate: boolean) {
+    const paths: string[] = [];
+    async function walk(directory: BrowserDirectoryHandle, prefix: string) {
+      for await (const [name, entry] of directory.entries()) {
+        if (!includePrivate && name === ".slate") continue;
+        const path = safeBrowserPath(`${prefix}${name}`);
+        if (entry.kind === "directory") await walk(entry, `${path}/`);
+        else paths.push(path);
+      }
+    }
+    await walk(directory, prefix);
+    return paths.sort();
+  }
 
   return {
-    async list(includePrivate = false) {
-      const paths: string[] = [];
-      async function walk(directory: BrowserDirectoryHandle, prefix: string) {
-        for await (const [name, entry] of directory.entries()) {
-          if (!includePrivate && name === ".slate") continue;
-          const path = safeBrowserPath(`${prefix}${name}`);
-          if (entry.kind === "directory") await walk(entry, `${path}/`);
-          else paths.push(path);
-        }
+    list: (includePrivate = false) => listPaths(root, "", includePrivate),
+    async listDirectory(path) {
+      const target = safeBrowserPath(path);
+      let directory = root;
+      try {
+        for (const part of target.split("/")) directory = await directory.getDirectoryHandle(part, { create: false });
+      } catch (cause) {
+        if (isFileError(cause, "NotFoundError") || isFileError(cause, "TypeMismatchError")) return [];
+        throw cause;
       }
-      await walk(root, "");
-      return paths.sort();
+      return listPaths(directory, `${target}/`, true);
     },
     async read(path) {
       try {

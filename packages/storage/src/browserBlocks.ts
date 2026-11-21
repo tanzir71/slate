@@ -4,6 +4,7 @@ import {
   type CustomBlock,
 } from "@slate/core";
 import { safeBrowserPath } from "./browserFiles";
+import { listWorkspaceDirectory } from "./fileIO";
 import type { BrowserSpace, BrowserWriteResult } from "./browserSpace";
 
 const directory = ".slate/blocks/";
@@ -70,7 +71,7 @@ export async function readSpaceBlock(
 export async function readSpaceBlocks(
   space: BrowserSpace,
 ): Promise<SpaceBlockFile[]> {
-  const paths = (await space.files.list(true)).filter(isBlockPath).sort();
+  const paths = (await listWorkspaceDirectory(space.files, directory.slice(0, -1))).filter(isBlockPath).sort();
   const files = await Promise.all(
     paths.map((path) => readSpaceBlock(space, path)),
   );
