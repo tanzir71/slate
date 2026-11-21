@@ -43,6 +43,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 .visuallyHidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .notice, .errorNotice { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 7px 16px; background: var(--accent-soft); color: var(--text-accent); line-height: 1.5; }
 .notice button { background: var(--bg-canvas); font-weight: 600; }
+.browserUpdateNotice { position: fixed; z-index: 9; inset-inline-end: 16px; inset-block-end: 48px; inline-size: max-content; max-inline-size: calc(100vw - 32px); flex-wrap: wrap; border: 1px solid var(--border-default); border-radius: 8px; box-shadow: 0 8px 30px #0002; }
 .errorNotice { background: var(--bg-subtle); color: var(--status-danger); }
 .browserWorkspace { display: flex; flex-direction: column; block-size: 100dvh; overflow: hidden; }
 .browserSlate:has(.browserWorkspace) { display: flex; flex-direction: column; block-size: 100dvh; overflow: hidden; }

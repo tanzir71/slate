@@ -164,7 +164,7 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
   }
 
   return <div className="browserSlate">
-    {updateReady && <div className="notice" role="status">{updateVersion ? `Slate ${updateVersion} is ready` : "A Slate update is ready"} <button onClick={(event) => { event.currentTarget.focus(); setAboutOpen("update"); }}>What’s new</button><button onClick={() => {
+    {updateReady && <div className="notice browserUpdateNotice" role="status">{updateVersion ? `Slate ${updateVersion} is ready` : "A Slate update is ready"} <button onClick={(event) => { event.currentTarget.focus(); setAboutOpen("update"); }}>What’s new</button><button onClick={() => {
       void (async () => { await workspaceRef.current?.flush(); await onReload?.(); })().catch((failure: unknown) => setError(errorMessage(failure)));
     }}>Reload</button></div>}
     {error && <div className="errorNotice" role="alert">{error}</div>}
