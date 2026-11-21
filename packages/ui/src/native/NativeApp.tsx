@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AppearanceControl, useAppearance } from "../appearance";
 import { BrandMark } from "../BrandMark";
 import { shortcutOS } from "../commands";
@@ -8,8 +8,11 @@ import { createNativeWorkspace, nativeLifecycle } from "./nativeWorkspace";
 import { createTauriWorkspaceFiles } from "@slate/storage/tauri-files";
 import { createNativeSpaceCatalog, defaultNativeSpace, type NativeSpace, type NativeSpaceCatalog } from "./nativeSpaces";
 import { NativeSpacesDialog } from "./NativeSpacesDialog";
+import { useNativeWindowChrome } from "./useNativeWindowChrome";
+import { WindowDragRegion, WindowTitleBar } from "../browser/WindowTitleBar";
 import "./nativeSpaces.css";
 import "../browser/browser.css";
+import "./nativeWindow.css";
 
 const loadWorkspace = () => import("../browser/BrowserWorkspace");
 const Workspace = lazy(loadWorkspace);
@@ -31,6 +34,12 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
   const liveSession = useRef<Session | undefined>(undefined);
   const switching = useRef(false);
   const generation = useRef(0);
+  const windowFailure = useCallback((failure: unknown) => {
+    const message = failure instanceof Error ? failure.message : "The window action could not be completed.";
+    if (liveSession.current) liveSession.current.store.api.setState({ error: message });
+    else setError(message);
+  }, []);
+  const windowChrome = useNativeWindowChrome(windowFailure);
   useEffect(() => {
     let active = true;
     let current: Session | undefined;
@@ -60,7 +69,7 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
     };
   }, [openSession, attempt]);
 
-  if (!session) return <div className="browserSlate"><main className="onboarding"><div className="welcomeBrand"><BrandMark size={36} /><span>Slate</span></div><h1>Your words, on this device.</h1>
+  if (!session) return <div className="browserSlate"><WindowTitleBar windowControls={windowChrome}><span className="nativeStartupTitle">Welcome to Slate</span><WindowDragRegion windowControls={windowChrome} /></WindowTitleBar><main className="onboarding"><div className="welcomeBrand"><BrandMark size={36} /><span>Slate</span></div><h1>Your words, on this device.</h1>
     {error ? <><p role="alert">{error}</p><button className="primaryButton" onClick={() => setAttempt((value) => value + 1)}>Try again</button></> : <p role="status">Opening your Space…</p>}
   </main></div>;
   const reopen = async () => { await session.store.flush(); await session.store.refresh(); };
@@ -83,7 +92,7 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
     } finally { switching.current = false; }
   };
   return <div className="browserSlate">
-    <Suspense fallback={<p role="status">Opening workspace…</p>}><Workspace key={session.space.id} store={session.store} runtime={session.runtime} appearance={appearance} createIndex={session.createIndex}
+    <Suspense fallback={<WindowTitleBar windowControls={windowChrome}><span className="nativeStartupTitle">Opening workspace…</span><WindowDragRegion windowControls={windowChrome} /></WindowTitleBar>}><Workspace key={session.space.id} store={session.store} runtime={session.runtime} appearance={appearance} createIndex={session.createIndex} windowChrome={windowChrome}
       onKeepSample={reopen} onTakeover={reopen} onSwitchSpace={async () => { await session.store.flush(); setSpaces(true); }} onAbout={() => setAbout(true)} onInstall={undefined} /></Suspense>
     {spaces && <NativeSpacesDialog current={session.space} catalog={spaceCatalog} onOpen={switchSpace} onClose={() => setSpaces(false)} />}
     {about && <WorkspaceDialog title="About Slate" onClose={() => setAbout(false)}><p>A calm Markdown workspace. Your words stay in ordinary files, on your device.</p><AppearanceControl preference={appearance.preference} onChange={appearance.change} /></WorkspaceDialog>}

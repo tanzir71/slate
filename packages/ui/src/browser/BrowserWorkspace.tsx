@@ -21,6 +21,7 @@ import { CommandDialog } from "./CommandDialog";
 import { PaletteDialog } from "./PaletteDialog";
 import { paletteIdentity, workspacePalette, type WorkspacePalette } from "./workspacePalette";
 import { WorkspaceTitleBar } from "./WorkspaceTitleBar";
+import type { WindowChrome } from "./WindowTitleBar";
 import { WorkspaceStatusBar } from "./WorkspaceStatusBar";
 import { WorkspaceDialog } from "./WorkspaceDialog";
 import { NotebookTree } from "./NotebookTree";
@@ -80,6 +81,7 @@ const emptyBlocks = [] as const, emptyTemplates = [] as const, emptySnippets = [
 const editorViewCommands: ReadonlySet<string> = new Set(["view.mode", "view.focus", "view.typewriter", "view.zen"]);
 const priorityCommands: ReadonlySet<string> = new Set([...editorViewCommands, "view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
 interface WorkspaceProps {
+  windowChrome?: false | WindowChrome;
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
   store: WorkspaceStore;
@@ -91,7 +93,7 @@ interface WorkspaceProps {
   onInstall: (() => void) | undefined;
 }
 
-export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance, runtime }: WorkspaceProps) {
+export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance, runtime, windowChrome = false }: WorkspaceProps) {
   const state = useStore(store.api);
   const writingModes = useMemo(createWorkspaceWritingModes, [store]);
   const writing = useSyncExternalStore(writingModes.subscribe, writingModes.getSnapshot);
@@ -787,7 +789,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       run(async () => importPicked(await dropped));
     } }}>
     {workspaceSearch && <Suspense fallback={<WorkspaceDialog title="Search everywhere" returnFocus={workspaceSearch.returnFocus} restoreFocus={workspaceSearch.restoreFocus} onClose={() => setWorkspaceSearch(undefined)}><p role="status">Opening search…</p></WorkspaceDialog>}><WorkspaceSearchDialog store={store} returnFocus={workspaceSearch.returnFocus} restoreFocus={workspaceSearch.restoreFocus} initialQuery={workspaceSearch.query} onChoose={chooseSearchResult} onClose={() => setWorkspaceSearch(undefined)} /></Suspense>}
-    <WorkspaceTitleBar viewMode={viewMode} viewDisabled={viewDisabled} onViewMode={changeViewMode} windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
+    <WorkspaceTitleBar viewMode={viewMode} viewDisabled={viewDisabled} onViewMode={changeViewMode} windowControls={windowChrome} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
       writingControls={<WorkspaceWritingControls value={writing} disabled={viewDisabled} onFocus={writingModes.focus} onTypewriter={toggleTypewriter} onZen={toggleZen} />}
       onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={openWorkspaceSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
       controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); openEditorSettings(); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}

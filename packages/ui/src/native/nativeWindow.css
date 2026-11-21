@@ -1,0 +1,66 @@
+.nativeTitleBar {
+  padding-inline-end: 0;
+  border-block-end-color: var(--border-subtle);
+  user-select: none;
+}
+
+.nativeTitleBar[data-native-platform="mac"] {
+  padding-inline-start: 80px;
+  padding-inline-end: 8px;
+}
+
+.nativeTitleBar .headerBreadcrumb {
+  flex: 0 1 auto;
+}
+
+.nativeStartupTitle {
+  padding-inline: 6px;
+  font-weight: 500;
+}
+
+.nativeTitlebarDrag {
+  flex: 1;
+  align-self: stretch;
+  min-inline-size: 24px;
+}
+
+.nativeWindowControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: stretch;
+}
+
+.nativeWindowControls::before {
+  content: "";
+  inline-size: 1px;
+  block-size: 16px;
+  background: var(--border-default);
+}
+
+.nativeWindowControls button {
+  inline-size: 46px;
+  min-inline-size: 46px;
+  block-size: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-tertiary);
+}
+
+.nativeWindowControls button:last-child:hover {
+  background: var(--status-danger);
+  color: var(--text-on-accent);
+}
+
+.windowControlIcon {
+  display: inline-block;
+  inline-size: 16px;
+  block-size: 16px;
+  background: currentColor;
+  mask: var(--window-control-icon) center / 16px 16px no-repeat;
+}
+
+.windowMinimizeIcon { --window-control-icon: url("../assets/window/minimize.svg"); }
+.windowMaximizeIcon { --window-control-icon: url("../assets/window/maximize.svg"); }
+.windowCloseIcon { --window-control-icon: url("../assets/window/close.svg"); }

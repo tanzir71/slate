@@ -6,6 +6,9 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 
 ## [Unreleased]
 
+### Added
+- Custom desktop window controls and empty-space dragging, with macOS traffic-light spacing and draft-safe Close handling on workspace and startup screens.
+
 ## [0.3.0] - 2026-11-18
 
 ### Added

@@ -51,6 +51,7 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
       },
     });
     Reflect.set(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", { unregisterListener: (_event: string, id: number) => listeners.delete(id) });
+    Reflect.set(window, "isTauri", true);
     Reflect.set(window, "__TAURI_INTERNALS__", {
       metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main" } },
       transformCallback(callback: (value: unknown) => void) { const id = ++sequence; callbacks.set(id, callback); return id; },
@@ -62,6 +63,18 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
         if (command === "plugin:event|listen") { const id = ++sequence; listeners.set(id, { event: String(args.event), callback: Number(args.handler) }); return id; }
         if (command === "plugin:event|unlisten") { listeners.delete(Number(args.eventId)); return null; }
         if (command === "plugin:window|destroy") { localStorage.setItem("native-destroyed", "true"); return null; }
+        if (command === "plugin:window|is_maximized") return localStorage.getItem("native-maximized") === "true";
+        if (["plugin:window|minimize", "plugin:window|toggle_maximize", "plugin:window|start_dragging", "plugin:window|close"].includes(command)) {
+          const actions = JSON.parse(localStorage.getItem("native-window-actions") ?? "[]") as string[];
+          actions.push(command); localStorage.setItem("native-window-actions", JSON.stringify(actions));
+          if (localStorage.getItem("native-fail-window") === command) throw new Error("Window action unavailable");
+          if (command === "plugin:window|toggle_maximize") {
+            localStorage.setItem("native-maximized", String(localStorage.getItem("native-maximized") !== "true"));
+            emit("tauri://resize", { width: 1440, height: 900 });
+          }
+          if (command === "plugin:window|close") emit("tauri://close-requested", null);
+          return null;
+        }
         if (command === "workspace_watch_status") return [];
         if (command === "pending_native_launches") return launchSnapshot(readInbox());
         if (["bind_native_launch", "begin_native_launch", "apply_native_launch", "review_native_launch", "complete_native_launch", "next_native_launch"].includes(command)) {

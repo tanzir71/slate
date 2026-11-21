@@ -1,28 +1,19 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import {
   ArrowUpFromLine,
-  Maximize2,
-  Minimize2,
-  Minus,
   MoreHorizontal,
   PanelLeft,
   PanelRight,
   PanelsTopLeft,
   Plus,
   Search,
-  X,
 } from "lucide-react";
 import { SegmentedViewMode } from "./SegmentedViewMode";
 import type { WorkspaceViewMode } from "./workspaceViewModes";
+import { WindowDragRegion, WindowTitleBar, type WindowChrome } from "./WindowTitleBar";
 
-interface WindowActions {
-  minimize(): void;
-  maximize(): void;
-  close(): void;
-  maximized?: boolean;
-}
 interface TitleBarProps {
-  windowControls: false | WindowActions;
+  windowControls: false | WindowChrome;
   space: string;
   path: string;
   inspector: boolean;
@@ -84,9 +75,8 @@ export function WorkspaceTitleBar({
     return () => document.removeEventListener("pointerdown", close);
   }, []);
   return (
-    <header
-      className="workspaceHeader"
-      data-window-controls={windowControls !== false}
+    <WindowTitleBar
+      windowControls={windowControls}
       onKeyDown={(event) => {
         if (event.key === "Escape" && menu.current?.open) {
           menu.current.open = false;
@@ -134,6 +124,7 @@ export function WorkspaceTitleBar({
           </span>
         ))}
       </nav>
+      <WindowDragRegion windowControls={windowControls} />
       <div className="workspaceHeaderTools">
         <SegmentedViewMode className="headerViewMode" value={viewMode} disabled={viewDisabled} onChange={onViewMode} />
         <button
@@ -201,26 +192,6 @@ export function WorkspaceTitleBar({
           </div>
         </details>
       </div>
-      {windowControls && (
-        <div className="nativeWindowControls">
-          <button aria-label="Minimize" onClick={windowControls.minimize}>
-            <Minus size={16} />
-          </button>
-          <button
-            aria-label="Maximize or restore"
-            onClick={windowControls.maximize}
-          >
-            {windowControls.maximized ? (
-              <Minimize2 size={16} />
-            ) : (
-              <Maximize2 size={16} />
-            )}
-          </button>
-          <button aria-label="Close window" onClick={windowControls.close}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-    </header>
+    </WindowTitleBar>
   );
 }

@@ -72,7 +72,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 .sheetActionsMenu summary:hover, .sheetActionsMenu[open] summary { background: var(--bg-hover); }
 .sheetActionsItems { position: absolute; z-index: 15; inset-block-start: calc(100% + 5px); inset-inline-end: 0; inline-size: 190px; padding: 5px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-raised); box-shadow: 0 8px 30px #0002; }
 .sheetActionsItems button { justify-content: flex-start; inline-size: 100%; block-size: 32px; padding-inline: 10px; text-align: start; }
-.nativeWindowControls { display: flex; border-inline-start: 1px solid var(--border-default); margin-inline-start: 4px; padding-inline-start: 6px; }
 .browserPanes { position: relative; display: grid; --sidebar-size: 248px; --list-size: 300px; --inspector-size: 0px; grid-template-columns: var(--sidebar-size) var(--list-size) minmax(0, 1fr) var(--inspector-size); flex: 1; min-block-size: 0; }
 .browserPanes.withInspector { --inspector-size: 300px; }
 .browserPanes.withoutSidebar { --sidebar-size: 0px; }
