@@ -30,6 +30,8 @@ import {
   type WritingFocus,
   type SmartListOptions,
   type SaveClipboardImage,
+  imagePreviewLoader,
+  type LoadPreviewImage,
   type WikiLinkHit
 } from "@slate/editor";
 import type { DocumentSession } from "@slate/editor";
@@ -96,6 +98,7 @@ interface MarkdownEditorCommonProps {
   dateCompletion?: boolean;
   onCursorChange?: (cursor: EditorCursor) => void;
   onImportImage?: ImportBlockImage;
+  onLoadImage?: LoadPreviewImage;
   smartLists?: SmartListOptions;
   selectionPairs?: boolean;
   smartTables?: boolean;
@@ -120,7 +123,7 @@ type MarkdownEditorProps = MarkdownEditorCommonProps & (
   | { documentSession?: undefined; value: string; onChange: (value: string, changes: readonly TextChange[], origin: EditorChangeOrigin) => void }
 );
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, documentSession, viewKey, onDocumentError, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines, writingFocus = "none", typewriter = false, zen = false }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, documentSession, viewKey, onDocumentError, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, onLoadImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines, writingFocus = "none", typewriter = false, zen = false }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks, {
     templates: templateMenuLibrary, snippets: snippetMenuLibrary, note: blockNote, canInsert: canInsertBlock,
     onSnippet(view, request, definition, separate, context, onInserted) {
@@ -145,6 +148,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
   const onNavigateWikiLinkRef = useRef(onNavigateWikiLink);
   const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
+  const imageReader = useRef(new Compartment());
   const tidyView = useRef(new Compartment());
   const writingModes = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
@@ -235,6 +239,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
           editable.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           EditorView.contentAttributes.of({ "aria-label": "Markdown editor", tabindex: "0" }),
           ...createSlateMarkdownExtensions({ history: !documentSession, formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
+          imageReader.current.of(onLoadImage ? imagePreviewLoader.of(onLoadImage) : []),
           tidyEditorHistory(source),
           tidyView.current.of(sourceViewExtensions(sourceMode)),
           writingModes.current.of(createWritingModeExtensions({ focus: writingFocus, typewriter, zen })),
@@ -379,6 +384,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
   useEffect(() => {
     viewRef.current?.dispatch({ effects: editable.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) });
   }, [readOnly]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: imageReader.current.reconfigure(onLoadImage ? imagePreviewLoader.of(onLoadImage) : []) });
+  }, [onLoadImage]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: formattingKeys.current.reconfigure(createFormattingBindings(keymap)) });

@@ -1,6 +1,11 @@
 import { EditorView } from "@codemirror/view";
 
 export const livePreviewTheme = EditorView.baseTheme({
+  ".cm-slate-image-preview": { display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", maxWidth: "100%", minWidth: "24px", minHeight: "24px", boxSizing: "border-box", gap: "6px", padding: "4px", border: "0", borderRadius: "6px", background: "transparent", color: "var(--text-secondary)", font: "12px/16px var(--font-ui, Geist, sans-serif)", cursor: "pointer" },
+  ".cm-slate-image-preview img": { display: "block", maxWidth: "100%", maxHeight: "480px", width: "auto", height: "auto", objectFit: "contain", borderRadius: "4px" },
+  ".cm-slate-image-caption": { maxWidth: "100%", whiteSpace: "pre-wrap", overflowWrap: "anywhere", textAlign: "center" },
+  ".cm-slate-image-preview:hover": { background: "var(--bg-hover)" },
+  ".cm-slate-image-preview:focus-visible": { outline: "2px solid var(--border-focus)", outlineOffset: "2px" },
   ".cm-slate-footnote-reference": { display: "inline-flex", alignItems: "center", justifyContent: "center", verticalAlign: "super", minWidth: "24px", minHeight: "24px", maxWidth: "80px", overflow: "hidden", whiteSpace: "nowrap", padding: "0 3px", border: "0", borderRadius: "4px", background: "transparent", color: "var(--text-accent)", font: "12px/16px var(--font-ui, Geist, sans-serif)", cursor: "pointer" },
   ".cm-slate-footnote-reference:hover": { background: "var(--accent-soft)" },
   ".cm-slate-footnote-reference:focus-visible": { outline: "2px solid var(--border-focus)", outlineOffset: "2px" },
@@ -195,6 +200,7 @@ export const livePreviewTheme = EditorView.baseTheme({
     background: "var(--bg-app)",
   },
   "@media (pointer: coarse)": {
+    ".cm-slate-image-preview": { minWidth: "44px", minHeight: "44px" },
     ".cm-slate-footnote-reference": { minHeight: "44px", minWidth: "44px" },
     ".cm-slate-code-header button": { minHeight: "44px", minWidth: "44px" },
     ".cm-slate-property, .cm-slate-property-add": { minHeight: "44px" },

@@ -18,6 +18,8 @@ import { createSmartPaste, type SmartPasteOptions } from "./smartPaste.js";
 import { createFenceInput, type FenceInputOptions } from "./fenceInput.js";
 import { historyIsolation } from "./historyIsolation.js";
 import { lazyCodeLanguage } from "./codeLanguages.js";
+import { createImagePreviewExtension } from "./imagePreview.js";
+export { imagePreviewLoader, type LoadPreviewImage } from "./imagePreview.js";
 export { createFenceInput, enterEditorFence, chooseEditorFenceLanguage, type EditorFenceRequest, type FenceInputOptions } from "./fenceInput.js";
 export { requestEditorSnippet, insertEditorSnippet, moveEditorSnippetField, clearEditorSnippet, editorSnippetFields, type EditorSnippetRequest } from "./snippetInsertion.js";
 export { createSnippetTriggers, type SnippetTriggerOptions } from "./snippetTriggers.js";
@@ -88,6 +90,7 @@ export function createSlateMarkdownExtensions(
       highContrastMarkers: options.highContrastMarkers === true,
     }),
     createLivePreviewExtension(),
+    createImagePreviewExtension(),
     highlightActiveLine(),
     syntaxHighlighting(classHighlighter),
     syntaxHighlighting(

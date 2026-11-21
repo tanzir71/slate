@@ -1,5 +1,14 @@
 # Slate Decisions
 
+## ADR: Local image previews own disposable resources
+
+- Resolve image destinations relative to the note through the existing workspace file reader (OPFS, selected Folder or checked native IPC). Decode URI escapes once and reject absolute, network, control-character and workspace-escaping paths before any read. Keep current CSP and make no remote image requests. File bytes remain authoritative and are never re-encoded by preview.
+- Render a Blob in an img element with a plain-text alt caption, never inline user HTML/SVG. SVG image-context behavior is documented at https://developer.mozilla.org/en-US/docs/Web/SVG/Guides/SVG_as_an_image . Preserve a keyboard/tap source affordance for missing or unsupported images.
+- Use direct StateField decorations for variable height and multiline syntax; retain offscreen range metadata for scroll geometry while reading only visible images. Map/filter affected ranges, reveal active source synchronously, and leave document/history untouched. Reference lookup uses 5 ms parser budgets and yields during indexing; stale requests are cancelled.
+- Each widget owns its object URL and abort controller. Reuse its DOM/resource when only source positions move, release on source/settings/context changes or removal, and prevent late bytes from creating a detached URL. The shared React workspace supplies a stable loader bound to store/path; rendering stays behind the existing editor boundary.
+
+- Linked images carry their parsed safe enclosing URL and existing link styling on the replacement control itself, since direct widgets need not remain inside dynamic text spans. Modifier clicks use the existing editor navigation handler; no separate opener is introduced.
+
 ## Fully selected code remains direct editable source
 
 When a selection covers an entire fenced-code node, retain the source line decorations and omit its outer BlockWrapper until the selection changes. Chromium and WebKit otherwise add an unintended final newline during native whole-buffer replacement of an unfinished fence; an unchanged-runtime recording confirms that both buffer and saved file acquire it. Avoid intercepting native input, IME or history. Source assertions read the complete CodeMirror buffer through a guarded test-only adapter, including hidden syntax, virtualized text and drafts whose writer failed; they never change view mode, selection or the document, and retain existing exact expected text and deadlines.
