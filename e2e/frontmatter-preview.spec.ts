@@ -28,6 +28,7 @@ test("properties use their original themed icons and retain BOM, CRLF, comments,
       const keyStyle = getComputedStyle(key), valueStyle = getComputedStyle(value), chipStyle = getComputedStyle(chip);
       const icon = Array.from(element.querySelectorAll<HTMLImageElement>(".cm-slate-property-plus img")).find(image => getComputedStyle(image).display !== "none")!;
       return { coarse: matchMedia("(pointer: coarse)").matches, chipHeight: chip.getBoundingClientRect().height,
+        addHeight: element.querySelector(".cm-slate-property-add")!.getBoundingClientRect().height,
         edge: chipStyle.borderLeftWidth, radius: chipStyle.borderTopLeftRadius, padding: chipStyle.paddingInlineStart,
         key: { font: keyStyle.fontFamily, size: keyStyle.fontSize, lineHeight: keyStyle.lineHeight, weight: keyStyle.fontWeight, rendering: keyStyle.textRendering.toLowerCase() },
         value: { font: valueStyle.fontFamily, size: valueStyle.fontSize, lineHeight: valueStyle.lineHeight, weight: valueStyle.fontWeight, color: valueStyle.color },
@@ -37,6 +38,7 @@ test("properties use their original themed icons and retain BOM, CRLF, comments,
     expect(geometry.key.font).toContain("Geist Mono"); expect(geometry.value.font).toContain("Geist");
     expect(geometry.key.rendering).toBe("geometricprecision");
     expect(geometry.chipHeight).toBe(geometry.coarse ? 44 : 24);
+    expect(geometry.addHeight).toBe(geometry.coarse ? 44 : 24);
     await saved(page, frontmatterFileSource);
     const path = testInfo.outputPath(`properties-${theme}.png`);
     await row.screenshot({ path, animations: "disabled" });

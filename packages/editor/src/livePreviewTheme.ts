@@ -6,7 +6,7 @@ export const livePreviewTheme = EditorView.baseTheme({
   ".cm-slate-property-key": { font: '11px/16px var(--font-mono, "Geist Mono", monospace)', fontKerning: "normal", textRendering: "geometricPrecision", color: "var(--text-tertiary)", flexShrink: "0", whiteSpace: "pre" },
   ".cm-slate-property-value": { fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "pre" },
   '.cm-slate-property[data-tone="warning"] .cm-slate-property-value': { color: "var(--status-warning)" },
-  ".cm-slate-property-add": { gap: "4px", padding: "3px 6px", border: "0", borderRadius: "0", color: "var(--text-tertiary)", flexShrink: "0" },
+  ".cm-slate-property-add": { gap: "4px", padding: "3px 6px", border: "0", borderRadius: "0", minHeight: "24px", color: "var(--text-tertiary)", flexShrink: "0" },
   ".cm-slate-property-add:disabled": { cursor: "default", opacity: ".5" },
   ".cm-slate-property:focus-visible, .cm-slate-property-add:focus-visible": { outline: "2px solid var(--accent-default)", outlineOffset: "2px" },
   ".cm-slate-property-plus": { display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: "0", width: "16px", height: "16px" },
