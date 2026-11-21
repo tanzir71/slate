@@ -1,6 +1,25 @@
 import { EditorView } from "@codemirror/view";
 
 export const livePreviewTheme = EditorView.baseTheme({
+  ".cm-slate-code-block": { background: "var(--md-code-bg)", border: "1px solid var(--border-default)", borderRadius: "8px", marginBlock: "0", overflow: "hidden" },
+  ".cm-content .cm-slate-code-line": { font: "13px/22px var(--font-mono, Geist Mono, monospace)", paddingInline: "12px", color: "var(--text-primary)" },
+  ".cm-content .cm-slate-code-opening": { paddingBlock: "8px", borderBottom: "1px solid var(--border-default)" },
+  ".cm-content .cm-slate-code-closing": { paddingBottom: "8px" },
+  ".cm-content .cm-slate-code-hidden-fence": { height: "8px", minHeight: "8px", fontSize: "0", lineHeight: "0", padding: "0" },
+  ".cm-slate-code-header": { display: "inline-flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: "12px", verticalAlign: "middle" },
+  ".cm-slate-code-language, .cm-slate-code-copy": { font: "12px/16px var(--font-ui, Geist, sans-serif)", color: "var(--text-secondary)", background: "transparent", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "3px 8px", minHeight: "24px", cursor: "pointer" },
+  ".cm-slate-code-language": { fontFamily: "var(--font-mono, Geist Mono, monospace)", maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  ".cm-slate-code-copy": { flexShrink: "0" },
+  ".cm-slate-code-header button:hover": { background: "var(--bg-hover)" },
+  ".cm-slate-code-header button:focus-visible": { outline: "2px solid var(--border-focus)", outlineOffset: "2px" },
+  ".cm-slate-code-status": { position: "absolute", width: "1px", height: "1px", padding: "0", overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" },
+  ".cm-slate-code-line .tok-keyword, .cm-slate-code-line .tok-typeName": { color: "var(--text-accent)" },
+  ".cm-slate-code-line .tok-string, .cm-slate-code-line .tok-string2": { color: "var(--status-success)" },
+  ".cm-slate-code-line .tok-number, .cm-slate-code-line .tok-bool": { color: "var(--status-warning)" },
+  ".cm-slate-code-line .tok-comment": { color: "var(--text-secondary)", fontStyle: "italic" },
+  ".cm-slate-callout-container > .cm-slate-code-block": { marginInline: "44px 16px" },
+  ".cm-slate-callout-container > .cm-slate-code-block .cm-slate-code-line": { font: "13px/22px var(--font-mono, Geist Mono, monospace)", paddingInline: "12px", color: "var(--text-primary)", background: "transparent", borderLeft: "0" },
+  ".cm-slate-callout-container > .cm-slate-code-block .cm-slate-code-hidden-fence": { padding: "0", fontSize: "0", lineHeight: "0" },
   ".cm-slate-properties": { display: "flex", width: "fit-content", flexWrap: "wrap", alignItems: "center", gap: "6px", minHeight: "24px", padding: "0", maxWidth: "100%", boxSizing: "border-box", textRendering: "geometricPrecision" },
   ".cm-slate-property, .cm-slate-property-add": { display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", border: "1px solid var(--border-default)", borderRadius: "6px", background: "transparent", font: "12px/16px var(--font-ui, Geist, sans-serif)", fontKerning: "normal", textRendering: "geometricPrecision", color: "var(--text-secondary)", cursor: "pointer", maxWidth: "100%", boxSizing: "border-box", textAlign: "start", overflow: "hidden" },
   ".cm-slate-property-key": { font: '11px/16px var(--font-mono, "Geist Mono", monospace)', fontKerning: "normal", textRendering: "geometricPrecision", color: "var(--text-tertiary)", flexShrink: "0", whiteSpace: "pre" },
@@ -33,8 +52,8 @@ export const livePreviewTheme = EditorView.baseTheme({
   ".cm-slate-table-align-right": { textAlign: "right" },
   ".cm-content .cm-slate-table-source": { fontFamily: "var(--font-mono, Geist Mono, monospace)" },
   ".cm-slate-callout-container > .cm-slate-table-grid, .cm-slate-callout-container > .cm-slate-table-container": { marginInline: "44px 16px" },
-  ".cm-slate-callout-container:has(> .cm-slate-table-grid, > .cm-slate-table-container)": { borderLeft: "3px solid var(--accent-default)", borderRadius: "8px", background: "var(--accent-soft)" },
-  ".cm-slate-callout-container:has(> .cm-slate-table-grid, > .cm-slate-table-container) > .cm-slate-callout": { borderLeft: "0" },
+  ".cm-slate-callout-container:has(> .cm-slate-table-grid, > .cm-slate-table-container, > .cm-slate-code-block)": { borderLeft: "3px solid var(--accent-default)", borderRadius: "8px", background: "var(--accent-soft)" },
+  ".cm-slate-callout-container:has(> .cm-slate-table-grid, > .cm-slate-table-container, > .cm-slate-code-block) > .cm-slate-callout": { borderLeft: "0" },
   ".cm-slate-callout-container > .cm-slate-table-grid:last-child, .cm-slate-callout-container > .cm-slate-table-container:last-child": { marginBottom: "14px" },
   ".cm-content .cm-slate-callout": {
     position: "relative",
@@ -171,6 +190,7 @@ export const livePreviewTheme = EditorView.baseTheme({
     background: "var(--bg-app)",
   },
   "@media (pointer: coarse)": {
+    ".cm-slate-code-header button": { minHeight: "44px", minWidth: "44px" },
     ".cm-slate-property, .cm-slate-property-add": { minHeight: "44px" },
     ".cm-content .cm-slate-checkbox": {
       width: "44px",

@@ -1,7 +1,7 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { tags } from "@lezer/highlight";
+import { classHighlighter, tags } from "@lezer/highlight";
 import { search } from "@codemirror/search";
 import type { Extension } from "@codemirror/state";
 import { EditorView, highlightActiveLine, keymap } from "@codemirror/view";
@@ -17,6 +17,7 @@ import { createSmartTableBindings } from "./smartTables.js";
 import { createSmartPaste, type SmartPasteOptions } from "./smartPaste.js";
 import { createFenceInput, type FenceInputOptions } from "./fenceInput.js";
 import { historyIsolation } from "./historyIsolation.js";
+import { lazyCodeLanguage } from "./codeLanguages.js";
 export { createFenceInput, enterEditorFence, chooseEditorFenceLanguage, type EditorFenceRequest, type FenceInputOptions } from "./fenceInput.js";
 export { requestEditorSnippet, insertEditorSnippet, moveEditorSnippetField, clearEditorSnippet, editorSnippetFields, type EditorSnippetRequest } from "./snippetInsertion.js";
 export { createSnippetTriggers, type SnippetTriggerOptions } from "./snippetTriggers.js";
@@ -80,7 +81,7 @@ export function createSlateMarkdownExtensions(
   return [
     options.history === false ? [] : history(),
     historyIsolation,
-    markdown({ extensions: slateMarkdownSyntax, addKeymap: false, pasteURLAsLink: false }),
+    markdown({ extensions: slateMarkdownSyntax, codeLanguages: lazyCodeLanguage, addKeymap: false, pasteURLAsLink: false }),
     search(),
     livePreviewSettings.of({
       hideSyntax: options.hideSyntax !== false,
@@ -88,6 +89,7 @@ export function createSlateMarkdownExtensions(
     }),
     createLivePreviewExtension(),
     highlightActiveLine(),
+    syntaxHighlighting(classHighlighter),
     syntaxHighlighting(
       HighlightStyle.define([
         {

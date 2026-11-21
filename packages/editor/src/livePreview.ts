@@ -15,6 +15,7 @@ import { CalloutLabel, editorCallout, type EditorCallout } from "./calloutPrevie
 import { previewTable, tablePreviewKeyboard, previewTableRow, previewTableWrappers, type PreviewTable } from "./tablePreview.js";
 import { editorFrontmatter, frontmatterPreviewState } from "./frontmatterPreview.js";
 import { livePreviewSettings } from "./livePreviewSettings.js";
+import { previewCodeFence } from "./codePreview.js";
 export { livePreviewSettings, type LivePreviewSettings } from "./livePreviewSettings.js";
 import { findWikiLinkAtPosition } from "./wikiLinks.js";
 import {
@@ -260,7 +261,7 @@ export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<Bl
         const node = reference.node;
         if (
           node.to <= metadataEnd ||
-          /^(?:FencedCode|CodeBlock|HTMLBlock|InlineHTML|Image|LinkReference)$/.test(
+          /^(?:CodeBlock|HTMLBlock|InlineHTML|Image|LinkReference)$/.test(
             node.name,
           )
         )
@@ -268,6 +269,11 @@ export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<Bl
         const key = `${node.name}:${node.from}:${node.to}`;
         if (visited.has(key)) return undefined;
         visited.add(key);
+        if (node.name === "FencedCode") {
+          if (settings.hideSyntax && !sourceCallouts.some(card => node.from > card.from && node.to <= card.to))
+            ranges.push(...previewCodeFence(view, node, active, wrappers));
+          return false;
+        }
         if (settings.hideSyntax && /^(?:QuoteMark|ListMark)$/.test(node.name)) {
           let owner: MarkdownNode | null = tree.resolveInner(state.doc.lineAt(node.from).to, -1);
           while (owner && owner.name !== "Table") owner = owner.parent;

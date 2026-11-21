@@ -66,3 +66,21 @@ export async function libraryFile(
     { path, content },
   );
 }
+
+/** Compare complete file bytes without transporting a large numeric array through Playwright. */
+export async function libraryFileMatches(page: Page, path: string, expected: string): Promise<boolean> {
+  return page.evaluate(async ({ path, expected }) => {
+    try {
+      let directory = await (await (await navigator.storage.getDirectory()).getDirectoryHandle("spaces"))
+        .getDirectoryHandle(decodeURIComponent(location.hash.split("/")[2]!));
+      const parts = path.split("/"), name = parts.pop()!;
+      for (const part of parts) directory = await directory.getDirectoryHandle(part);
+      const handle = await directory.getFileHandle(name);
+      const actual = new Uint8Array(await (await handle.getFile()).arrayBuffer()), wanted = new TextEncoder().encode(expected);
+      return actual.length === wanted.length && actual.every((byte, index) => byte === wanted[index]);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError") return false;
+      throw error;
+    }
+  }, { path, expected });
+}

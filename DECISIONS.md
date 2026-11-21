@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-21: Fenced code stays editable and loads grammars on demand (F-10b)
+
+Live preview wraps existing virtualized CodeMirror lines. Only inactive fence lines are replaced; code text, selections, shared Undo and physical file bytes stay unchanged. The language control navigates to the real fence source. Copy reads parser CodeText ranges only on demand, omits enclosing quote/list markers, and reports unavailable clipboard access without editing. Detached controls do nothing. Source mode and visible-syntax settings retain literal Markdown.
+
+A lazy CodeMirror LanguageDescription loads the pinned language-data catalog and the matching grammar only when a language-tagged fence is parsed. Unknown labels and failed chunk loads fall back to plain code, never Markdown or HTML execution. The bounded descriptor cache and visible-line decorations avoid copying or re-rendering entire code bodies on each keystroke. Syntax colors reuse the existing theme tokens. A1 supplies the surrounding typography and control geometry; the handover defines the code block behavior and has no separate code-block artwork. Desktop grammar imports are local chunks under the existing CSP.
+
+The four-profile 50k-word regression caught End moving from the last code line into its closing fence. Same-runtime diagnostics isolate the wrapper vertical margins: removing only those margins restores the correct source line in every engine. Code wrappers therefore add no vertical margins; normal document blank lines provide spacing, while measured code lines retain their padding and border. The unchanged End command, exact last-line edit and single Undo are covered in all four browser profiles.
+
 ## 2026-11-21: Writing focus, typewriter and Zen remain view state
 
 Paragraph and sentence focus use parsed Markdown blocks, Unicode sentence segmentation and visible-line CodeMirror decorations. Disabled writing modes install no plugin; typewriter measures the live caret and its scroll viewport, centres at 45 percent and never changes selection or document history. Resize and composition handling stay inside the enabled editor extension.

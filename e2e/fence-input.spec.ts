@@ -147,6 +147,9 @@ test("fence and front-matter settings disable independently and persist", async 
     page.getByRole("dialog", { name: "Code language", exact: true }),
   ).toHaveCount(0);
   await page.reload();
+  // Live preview hides an inactive opening fence; navigate to its actual source.
+  await saved(page, fence + "\n");
+  await editor.press("ControlOrMeta+Home");
   await expect(editor).toContainText(fence);
   await workspaceAction(page, "Editor settings");
   await expect(
