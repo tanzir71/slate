@@ -1,3 +1,4 @@
+import { nativeCaretDistance } from "./nativeCaret";
 import { expect, test } from "./fixtures";
 import { openLibrary, workspaceAction, chooseAppearance } from "./helpers";
 import { libraryFile } from "./libraryFiles";
@@ -40,31 +41,7 @@ async function caret(page: Page, word: string) {
 }
 async function bytes(page: Page, source: string) { await expect.poll(() => libraryFile(page, "zen.md")).toEqual(Array.from(Buffer.from(source))); }
 async function caretDistance(page: Page) {
-  return page.locator(".cm-content:visible").evaluate(element => {
-    const selection = getSelection(); if (!selection?.rangeCount || !element.contains(selection.anchorNode)) throw Error("Caret is outside the editor");
-    const range = selection.getRangeAt(0).cloneRange(); let rect = range.getBoundingClientRect();
-    if (!rect.height && range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset) {
-      range.setStart(range.startContainer, range.startOffset - 1); rect = range.getBoundingClientRect();
-    }
-    if (!rect.height && range.startContainer.nodeType === Node.ELEMENT_NODE) {
-      // Firefox/WebKit can place the native caret after a text child on its parent.
-      const before = range.startOffset > 0;
-      let adjacent = range.startContainer.childNodes[before ? range.startOffset - 1 : 0];
-      while (adjacent && adjacent.nodeType !== Node.TEXT_NODE) adjacent = (before ? adjacent.lastChild : adjacent.firstChild) ?? undefined;
-      const length = adjacent?.textContent?.length ?? 0;
-      if (adjacent && length) {
-        range.setStart(adjacent, before ? length - 1 : 0); range.setEnd(adjacent, before ? length : 1);
-        rect = range.getBoundingClientRect();
-      }
-    }
-    if (!rect.height) {
-      const node = range.startContainer, line = (node instanceof Element ? node : node.parentElement)?.closest(".cm-line");
-      if (line?.textContent === "") rect = line.getBoundingClientRect();
-    }
-    if (!rect.height) throw Error("The native caret has no measurable line rectangle");
-    const scroller = element.closest(".cm-scroller")!;
-    return Math.abs((rect.top + rect.bottom) / 2 - scroller.getBoundingClientRect().top - scroller.clientHeight * .45);
-  });
+  return page.locator(".cm-content:visible").evaluate(nativeCaretDistance);
 }
 
 test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem("slate.shortcuts.v2", "seen")); });
