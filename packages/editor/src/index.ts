@@ -54,6 +54,7 @@ export { editorBlockQuery, insertEditorBlock, type BlockQuery } from "./blockIns
 export { requestEditorCustomBlock, insertEditorCustomBlock, type EditorCustomBlockRequest } from "./customBlockInsertion.js";
 export { editorBlockTarget, currentEditorBlock, moveEditorBlock, insertEditorBlockAt, type EditorBlockTarget } from "./editorBlocks.js";
 export { editorSectionTarget } from "./editorSections.js";
+export { createWritingModeExtensions, typewriterScrollTop, type WritingFocus } from "./writingMode.js";
 
 export { convertClipboardHtml } from "./clipboardHtml.js";
 

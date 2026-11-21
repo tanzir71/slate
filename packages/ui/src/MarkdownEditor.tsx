@@ -26,6 +26,8 @@ import {
   editorTidyLines,
   applyEditorTidy,
   livePreviewSettings,
+  createWritingModeExtensions,
+  type WritingFocus,
   type SmartListOptions,
   type SaveClipboardImage,
   type WikiLinkHit
@@ -72,6 +74,9 @@ function documentChange(previous: string, next: string) {
 }
 
 interface MarkdownEditorCommonProps {
+  writingFocus?: WritingFocus;
+  typewriter?: boolean;
+  zen?: boolean;
   sourceMode?: boolean;
   tidyLines?: readonly number[];
   onNavigateWikiLink?: (link: WikiLinkHit) => void;
@@ -115,7 +120,7 @@ type MarkdownEditorProps = MarkdownEditorCommonProps & (
   | { documentSession?: undefined; value: string; onChange: (value: string, changes: readonly TextChange[], origin: EditorChangeOrigin) => void }
 );
 
-export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, documentSession, viewKey, onDocumentError, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines }: MarkdownEditorProps) {
+export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, documentSession, viewKey, onDocumentError, onNavigateWikiLink, readOnly = false, documentKey, onReady, initialCursor, keymap, onHandle, knownWikiTargets, completionSheets, completionTags, wikiCompletion = true, tagCompletion = true, dateCompletion = true, onCursorChange, onImportImage, smartLists, selectionPairs = true, smartTables = true, pasteRichText = true, pasteLinks = true, pasteImages = true, pasteTables = true, onImportClipboardImage, fences = true, frontmatter = true, snippetIndex, onSnippet, customBlockLibrary, onManageBlocks, templateMenuLibrary, snippetMenuLibrary, blockNote, canInsertBlock, sourceMode = false, tidyLines, writingFocus = "none", typewriter = false, zen = false }: MarkdownEditorProps) {
   const blocks = useBlockMenu(onImportImage, customBlockLibrary, onManageBlocks, {
     templates: templateMenuLibrary, snippets: snippetMenuLibrary, note: blockNote, canInsert: canInsertBlock,
     onSnippet(view, request, definition, separate, context, onInserted) {
@@ -141,6 +146,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
   const onReadyRef = useRef(onReady);
   const editable = useRef(new Compartment());
   const tidyView = useRef(new Compartment());
+  const writingModes = useRef(new Compartment());
   const formattingKeys = useRef(new Compartment());
   const smartListKeys = useRef(new Compartment());
   const tableKeys = useRef(new Compartment());
@@ -231,6 +237,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
           ...createSlateMarkdownExtensions({ history: !documentSession, formattingKeys: false, smartLists: false, selectionPairs: false, smartTables: false, smartPaste: false, fenceInput: false }),
           tidyEditorHistory(source),
           tidyView.current.of(sourceViewExtensions(sourceMode)),
+          writingModes.current.of(createWritingModeExtensions({ focus: writingFocus, typewriter, zen })),
           fenceRules.current.of(fenceInput.extension),
           pasteRules.current.of(paste.extension),
           tableKeys.current.of(createSmartTableBindings(smartTables)),
@@ -312,7 +319,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
       runTable(id) { const applied = runTableCommand(view, id); if (applied) view.focus(); return applied; },
       tableColumns() { return editorTableColumns(view.state); },
       runFormat(id) { const applied = runFormattingCommand(view, id); if (applied) view.focus(); return applied; },
-      focus() { view.focus(); },
+      focus(reveal = false) { view.focus(); if (reveal) view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main, { y: "center" }), annotations: Transaction.addToHistory.of(false) }); },
       hasFocus() { return view.hasFocus; },
       hasSelection() { return !view.state.selection.main.empty; },
       selectedText() { const { from, to } = view.state.selection.main; return view.state.sliceDoc(from, to); },
@@ -364,6 +371,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({ value, onChange, do
       editorTidyLines(sourceMode ? tidyLines ?? [] : []),
     ], annotations: Transaction.addToHistory.of(false) });
   }, [sourceMode, tidyLines]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: writingModes.current.reconfigure(createWritingModeExtensions({ focus: writingFocus, typewriter, zen })), annotations: Transaction.addToHistory.of(false) });
+  }, [writingFocus, typewriter, zen]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: editable.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) });

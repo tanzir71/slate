@@ -36,6 +36,7 @@ interface TitleBarProps {
   onInspector(): void;
   shortcut(id: string): string;
   controls: ReactNode;
+  writingControls?: ReactNode;
   menuControls?: ReactNode;
   actions: { label: string; disabled?: boolean; run(): void }[];
   canWrite: boolean;
@@ -59,6 +60,7 @@ export function WorkspaceTitleBar({
   onInspector,
   shortcut,
   controls,
+  writingControls,
   menuControls,
   actions,
   canWrite,
@@ -176,6 +178,12 @@ export function WorkspaceTitleBar({
           </summary>
           <div className="sheetActionsItems">
             <SegmentedViewMode className="menuViewMode" value={viewMode} disabled={viewDisabled} onChange={onViewMode} />
+            {writingControls && <div onClick={event => {
+              if (event.target instanceof Element && event.target.closest("button")) {
+                if (menu.current) menu.current.open = false;
+                menuButton.current?.focus();
+              }
+            }}>{writingControls}</div>}
             {actions.map((action) => (
               <button
                 key={action.label}

@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { SheetDocument, GoalProgress } from "@slate/core";
 import { sheetPreview } from "./sheetPreview";
 
-export function GoalRing({ goal }: { goal: GoalProgress }) {
+export function GoalRing({ goal, size = 16 }: { goal: GoalProgress; size?: number }) {
   const progress = Math.max(0, Math.min(1, goal.current / goal.target));
   const units = goal.type === "readingTimeMinutes" ? "min" : goal.type;
   return (
@@ -12,7 +12,7 @@ export function GoalRing({ goal }: { goal: GoalProgress }) {
       role="img"
       aria-label={`${goal.current.toLocaleString()} of ${goal.target.toLocaleString()} ${units}`}
     >
-      <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true">
+      <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true">
         <circle className="goalRingTrack" cx="10" cy="10" r="7" />
         <circle
           className="goalRingProgress"

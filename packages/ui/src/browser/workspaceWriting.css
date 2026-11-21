@@ -1,0 +1,45 @@
+.workspaceWritingControls { padding-block: 5px; border-block-end: 1px solid var(--border-subtle); margin-block-end: 5px; }
+.workspaceWritingControls label { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 10px; }
+.workspaceWritingControls select { min-inline-size: 0; max-inline-size: 94px; padding: 3px 5px; border: 1px solid var(--border-default); border-radius: 5px; color: var(--text-primary); background: var(--bg-subtle); font: inherit; }
+.workspaceWritingControls button[aria-pressed="true"] { color: var(--text-accent); background: var(--accent-soft); }
+.browserWorkspace[data-writing-focus]:not([data-writing-focus="none"]) .workspaceEditorPane[data-active="false"] { opacity: .3; }
+.browserWorkspace[data-zen="true"] { position: relative; background: var(--bg-canvas); }
+.browserWorkspace[data-zen="true"] > .workspaceHeader,
+.browserWorkspace[data-zen="true"] > .workspaceStatus,
+.browserWorkspace[data-zen="true"] .editorTabsBar,
+.browserWorkspace[data-zen="true"] .documentToolbar,
+.browserWorkspace[data-zen="true"] .browserSidebar,
+.browserWorkspace[data-zen="true"] .browserSheetList,
+.browserWorkspace[data-zen="true"] .browserInspector,
+.browserWorkspace[data-zen="true"] .tidyPanel,
+.browserWorkspace[data-zen="true"] .cm-slate-properties,
+.browserWorkspace[data-zen="true"] .slateBlockGutter,
+.browserWorkspace[data-zen="true"] .slateBlockAccess,
+.browserWorkspace[data-zen="true"] > input[type="file"] { display: none; }
+.browserWorkspace[data-zen="true"] .browserPanes { grid-template-columns: minmax(0, 1fr); }
+.browserWorkspace[data-zen="true"] .browserEditor { display: flex; grid-column: 1; }
+.browserWorkspace[data-zen="true"] .workspaceEditorGrid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.browserWorkspace[data-zen="true"] .workspaceEditorPane[data-active="false"] { display: none; }
+.browserWorkspace[data-zen="true"] .workspaceEditorPane[data-active="true"] { grid-column: 1; }
+.browserWorkspace[data-zen="true"] .cm-content { padding-inline: max(24px, calc((100% - 640px) / 2)); }
+.browserWorkspace[data-zen="true"] .cm-editor:not(.cm-writing-typewriter) .cm-content { padding-block-start: 188px; }
+.browserWorkspace[data-zen="true"] .editorHost:not(.tidySourceEditor) .cm-editor { font: 400 21px/36px var(--font-editor); }
+.browserWorkspace[data-zen="true"] .editorHost:not(.tidySourceEditor) .cm-scroller { line-height: 36px; }
+.browserWorkspace[data-zen="true"] .cm-cursor { border-inline-start-width: 2px; }
+.workspaceZenHud, .workspaceZenHints { position: absolute; z-index: 4; inset-inline: 0; inline-size: max-content; max-inline-size: calc(100% - 32px); margin-inline: auto; display: flex; align-items: center; white-space: nowrap; color: var(--text-primary); font: 400 12px/16px var(--font-ui); transition: opacity 180ms ease; }
+.workspaceZenHud { inset-block-start: 22px; gap: 10px; opacity: .7; }
+.zenSheetTitle { overflow: hidden; max-inline-size: min(40vw, 360px); text-overflow: ellipsis; font-weight: 500; color: inherit; }
+.workspaceZenHud .zenGoal { padding: 0; border: 0; min-block-size: 0; font: inherit; color: inherit; }
+.workspaceZenHud .goalRing { gap: 10px; color: inherit; font: inherit; }
+.workspaceZenHud .goalRing > span { color: inherit; font: inherit; }
+.workspaceZenHints { inset-block-end: 22px; gap: 26px; opacity: .65; }
+.workspaceZenHints button { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; font: inherit; color: inherit; }
+.workspaceZenHints kbd { padding: 2px 6px; border: 1px solid var(--border-default); border-block-end-width: 2px; border-radius: 4px; color: inherit; background: var(--bg-subtle); font: 500 12px/16px var(--font-mono); }
+.browserWorkspace[data-zen-hud="idle"] .workspaceZenHud:not(:focus-within), .browserWorkspace[data-zen-hud="idle"] .workspaceZenHints:not(:focus-within) { opacity: 0; }
+.workspaceSessionProgress { position: absolute; z-index: 5; inset-inline: 0; inset-block-end: 0; block-size: 2px; background: var(--border-subtle); }
+.workspaceSessionProgress > span { display: block; block-size: 100%; background: var(--accent-default); }
+.workspaceSessionProgress.complete > span { background: var(--status-success); }
+@media (pointer: coarse) {
+  .workspaceZenHud .zenGoal, .workspaceZenHints button { min-block-size: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .workspaceZenHud, .workspaceZenHints { transition: none; } }

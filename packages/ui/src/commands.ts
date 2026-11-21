@@ -84,7 +84,7 @@ export interface MarkdownEditorHandle {
   runFormat(id: string): boolean;
   runTable(id: string): boolean;
   tableColumns(): number;
-  focus(): void;
+  focus(reveal?: boolean): void;
   hasFocus(): boolean;
   hasSelection(): boolean;
   selectedText(): string;

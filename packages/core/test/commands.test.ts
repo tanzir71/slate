@@ -25,6 +25,15 @@ const profile = { os: "windows", surface: "web" } as const;
 const editor = { editor: true, selection: false };
 
 describe("shared command registry", () => {
+  it("offers writing focus and Zen on the actual workspace without replacing native legacy fullscreen", () => {
+    for (const os of ["windows", "linux", "mac"] as const) {
+      const { bindings, issues } = resolveCommandKeymap({ os, surface: "web" }); expect(issues).toEqual([]);
+      expect(matchCommand(bindings, input(".", { ctrlKey: os !== "mac", metaKey: os === "mac" }), { editor: false, selection: false })).toBe("view.focus");
+      expect(matchCommand(bindings, input("F11", { ctrlKey: false }), editor)).toBe("view.zen");
+    }
+    expect(commandsForSurface("desktop").some(command => command.id === "view.fullscreen")).toBe(true);
+    expect(commandsForSurface("web").some(command => command.id === "view.typewriter")).toBe(true);
+  });
   it("cycles view modes with the specified Mod E chord on every workspace platform", () => {
     for (const os of ["windows", "linux", "mac"] as const) {
       const { bindings, issues } = resolveCommandKeymap({ os, surface: "web" }); expect(issues).toEqual([]);
@@ -81,12 +90,12 @@ describe("shared command registry", () => {
     expect(commandsForSurface("desktop").some((command) => command.id.startsWith("snippet."))).toBe(false);
   });
   it("keeps desktop-only actions and their custom bindings out of browser profiles", () => {
-    expect(commandsForSurface("web").some((command) => command.id === "view.focus")).toBe(false);
+    expect(commandsForSurface("web").some((command) => command.id === "view.fullscreen")).toBe(false);
     const desktop = resolveCommandKeymap({ os: "windows", surface: "desktop" });
     expect(matchCommand(desktop.bindings, input("."), editor)).toBe("view.focus");
     expect(matchCommand(desktop.bindings, input("F11", { ctrlKey: false }), editor)).toBe("view.fullscreen");
     expect(matchCommand(desktop.bindings, input("2", { altKey: true }), editor)).toBe("space.activate2");
-    const custom = resolveCommandKeymap(profile, { version: 1, bindings: { "view.focus": "Mod+j" } });
+    const custom = resolveCommandKeymap(profile, { version: 1, bindings: { "view.fullscreen": "Mod+j" } });
     expect(custom.issues).toHaveLength(1);
     expect(matchCommand(custom.bindings, input("j"), editor)).toBeUndefined();
   });

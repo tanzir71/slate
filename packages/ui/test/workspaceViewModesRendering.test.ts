@@ -13,8 +13,9 @@ vi.mock("../src/blocks/useTemplateLibrary", () => ({ useTemplateLibrary: () => (
 vi.mock("../src/snippets/useSnippetLibrary", () => ({ useSnippetLibrary: () => ({ library: undefined, snapshot: undefined, session: undefined }) }));
 vi.mock("../src/browser/WorkspaceDocumentEditor", async () => {
   const { createElement } = await import("react");
-  return { default: (props: { path: string; sourceMode: boolean; readOnly: boolean }) => createElement("div", {
+  return { default: (props: { path: string; sourceMode: boolean; readOnly: boolean; writingFocus?: string; typewriter?: boolean }) => createElement("div", {
     "data-mode-editor": props.path, "data-source": String(props.sourceMode), "data-readonly": String(props.readOnly),
+    "data-writing-focus": props.writingFocus ?? "none", "data-typewriter": String(props.typewriter ?? false),
   }) };
 });
 
@@ -28,7 +29,7 @@ beforeAll(() => {
 });
 afterEach(async () => {
   for (const { root, host } of mounted.splice(0)) { await act(async () => root.unmount()); host.remove(); }
-  summaries.documents = []; localStorage.clear(); history.replaceState(null, "", "/"); vi.restoreAllMocks();
+  summaries.documents = []; localStorage.clear(); history.replaceState(null, "", "/"); vi.restoreAllMocks(); vi.useRealTimers();
 });
 afterAll(() => {
   vi.unstubAllGlobals();
@@ -101,4 +102,48 @@ it("leaves composing input and open dialogs alone", async () => {
   expect((await cycle(input)).defaultPrevented).toBe(false);
   const dialog = host.appendChild(document.createElement("dialog")); dialog.setAttribute("open", "");
   expect((await cycle()).defaultPrevented).toBe(false); expect(selectedMode(host)).toBe("Live");
+});
+
+async function writingKey(key: string, extra: KeyboardEventInit = {}, target: EventTarget = window) {
+  const event = new KeyboardEvent("keydown", { key, code: key === "." ? "Period" : key, bubbles: true, cancelable: true, ...extra });
+  await act(async () => target.dispatchEvent(event)); return event;
+}
+const modifier = () => /Mac|iPhone|iPad/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true };
+
+it("toggles the preferred paragraph or sentence focus and typewriter mode in the actual file workspace", async () => {
+  const { store, files, write } = await fixture(), host = await mount(store);
+  expect((await writingKey(".", modifier())).defaultPrevented).toBe(true);
+  expect(editor(host).getAttribute("data-writing-focus")).toBe("paragraph");
+  const control = host.querySelector<HTMLSelectElement>('[aria-label="Writing focus"]')!;
+  await act(async () => { control.value = "sentence"; control.dispatchEvent(new Event("change", { bubbles: true })); });
+  expect(editor(host).getAttribute("data-writing-focus")).toBe("sentence");
+  await writingKey(".", modifier()); expect(editor(host).getAttribute("data-writing-focus")).toBe("none");
+  await writingKey(".", modifier()); expect(editor(host).getAttribute("data-writing-focus")).toBe("sentence");
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Typewriter mode"]')!.click());
+  expect(editor(host).getAttribute("data-typewriter")).toBe("true");
+  expect(await files.read("a.md")).toEqual(encodeText(original)); expect(write).not.toHaveBeenCalled();
+});
+
+it("enters Zen with F11, fades after two idle seconds, wakes on activity and exits without changing source", async () => {
+  const { store, write } = await fixture(false), host = await mount(store);
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  expect((await writingKey("F11")).defaultPrevented).toBe(true);
+  const workspace = host.querySelector(".browserWorkspace")!;
+  expect(workspace.getAttribute("data-zen")).toBe("true"); expect(workspace.getAttribute("data-zen-hud")).toBe("visible");
+  expect(host.querySelector(".workspaceZenHud")?.textContent).toContain("Alpha");
+  await act(async () => vi.advanceTimersByTimeAsync(2001)); expect(workspace.getAttribute("data-zen-hud")).toBe("idle");
+  await act(async () => workspace.dispatchEvent(new Event("pointermove", { bubbles: true })));
+  expect(workspace.getAttribute("data-zen-hud")).toBe("visible");
+  const dialog = host.appendChild(document.createElement("dialog")); dialog.setAttribute("open", "");
+  await writingKey("Escape"); expect(workspace.getAttribute("data-zen")).toBe("true"); dialog.remove();
+  await writingKey("Escape"); expect(workspace.getAttribute("data-zen")).toBe("false");
+  expect(editor(host).getAttribute("data-readonly")).toBe("true"); expect(write).not.toHaveBeenCalled();
+});
+
+it("keeps writing shortcuts out of plain inputs, modal dialogs and composition", async () => {
+  const { store } = await fixture(), host = await mount(store), input = host.appendChild(document.createElement("input"));
+  expect((await writingKey(".", modifier(), input)).defaultPrevented).toBe(false);
+  expect((await writingKey("F11", { isComposing: true })).defaultPrevented).toBe(false);
+  const dialog = host.appendChild(document.createElement("dialog")); dialog.setAttribute("open", "");
+  expect((await writingKey("F11")).defaultPrevented).toBe(false); expect(host.querySelector(".workspaceZenHud")).toBeNull();
 });

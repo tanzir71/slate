@@ -37,6 +37,10 @@ import { createEditorDocumentPool } from "./editorDocumentPool";
 import { createWorkspaceEditorLayout, type EditorPaneId } from "./workspaceEditorLayout";
 import { EditorTabs } from "./EditorTabs";
 import { createWorkspaceViewModes, nextWorkspaceViewMode, type WorkspaceViewMode } from "./workspaceViewModes";
+import { createWorkspaceWritingModes } from "./workspaceWritingModes";
+import { WorkspaceWritingControls } from "./WorkspaceWritingControls";
+import { WorkspaceZenHud } from "./WorkspaceZenHud";
+import "./workspaceWriting.css";
 
 const Editor = lazy(() => import("./WorkspaceDocumentEditor"));
 const Inspector = lazy(() => import("./WorkspaceInspector"));
@@ -71,7 +75,8 @@ interface PaletteRequest {
 const subscribeEmpty = () => () => undefined;
 const getEmpty = () => undefined;
 const emptyBlocks = [] as const, emptyTemplates = [] as const, emptySnippets = [] as const;
-const priorityCommands: ReadonlySet<string> = new Set(["view.mode", "view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
+const editorViewCommands: ReadonlySet<string> = new Set(["view.mode", "view.focus", "view.typewriter", "view.zen"]);
+const priorityCommands: ReadonlySet<string> = new Set([...editorViewCommands, "view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
 interface WorkspaceProps {
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
@@ -86,6 +91,9 @@ interface WorkspaceProps {
 
 export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance, runtime }: WorkspaceProps) {
   const state = useStore(store.api);
+  const writingModes = useMemo(createWorkspaceWritingModes, [store]);
+  const writing = useSyncExternalStore(writingModes.subscribe, writingModes.getSnapshot);
+  useEffect(() => () => writingModes.dispose(), [writingModes]);
   const viewModes = useMemo(() => createWorkspaceViewModes(store), [store]);
   useSyncExternalStore(viewModes.subscribe, viewModes.getSnapshot);
   useEffect(() => viewModes.connect(), [viewModes]);
@@ -187,6 +195,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   useLayoutEffect(() => { refreshTidy.current = tidy.refresh; }, [tidy.refresh]);
   function openTidy() {
     if (!selected || selected.unsupportedEncoding) return;
+    writingModes.zen(false);
     if (!tidy.open) tidyLayout.current = { sheets: sheetsVisible, inspector };
     setSheetsVisible(false);
     setInspector(false);
@@ -204,6 +213,16 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (tidy.open) closeTidy();
     viewModes.set(state.selectedPath, mode);
   }
+  function focusWriting() { requestAnimationFrame(() => editorHandle.current?.focus(true)); }
+  function exitZen() { writingModes.zen(false); focusWriting(); }
+  function toggleZen() {
+    if (writingModes.getSnapshot().zen) { exitZen(); return; }
+    if (viewDisabled) return;
+    if (tidy.open) closeTidy();
+    writingModes.zen(true); focusWriting();
+  }
+  function toggleWritingFocus() { if (!viewDisabled) { writingModes.toggleFocus(); focusWriting(); } }
+  function toggleTypewriter() { if (!viewDisabled) { writingModes.toggleTypewriter(); focusWriting(); } }
   const documents = useSheetSummaries(state.sheets);
   const fileIdentities = useMemo(() => JSON.stringify(state.sheets.map(({ path, unsupportedEncoding }) => ({ path, ...(unsupportedEncoding ? { unsupportedEncoding: true } : {}) }))), [state.sheets]);
   const paletteFiles = useMemo(() => JSON.parse(fileIdentities) as { path: string; unsupportedEncoding?: boolean }[], [fileIdentities]);
@@ -394,7 +413,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (action.kind === "blocks" || action.kind === "snippets")
       return owned && (palette.target?.matches() ?? false) && (action.kind !== "snippets" || !!snippets.library && !!snippets.session);
     if (action.kind !== "commands") return true;
-    if (action.command.id === "view.mode") return !viewDisabled;
+    if (editorViewCommands.has(action.command.id)) return !viewDisabled || action.command.id === "view.zen" && writing.zen;
     if (/^(format|table)\./.test(action.command.id) && !palette.target?.matches()) return false;
     if (["sheet.new", "sheet.fromTemplate", "sheet.save", "sheet.pin", "view.density", "tidy.undoBatch", "search.undoReplace", "snippet.picker"].includes(action.command.id) && !owned) return false;
     if (action.command.id === "search.undoReplace" && !store.api.getState().hasReplaceBatchUndo) return false;
@@ -468,6 +487,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "sheet.pin": () => { if (state.selectedPath && state.owned) run(() => store.togglePinned(state.selectedPath)); },
       "view.sidebar": toggleNavigation,
       "view.mode": () => changeViewMode(nextWorkspaceViewMode(viewMode)),
+      "view.focus": toggleWritingFocus,
+      "view.typewriter": toggleTypewriter,
+      "view.zen": toggleZen,
       "view.sheets": toggleSheets,
       "view.density": () => { if (state.owned) run(() => store.setDensity(state.preferences.density === "compact" ? "comfortable" : "compact")); },
       "sheet.save": () => run(store.save),
@@ -637,25 +659,32 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }, [state.record.id, state.selectedPath]);
 
   useEffect(() => {
+    const modalOpen = palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings;
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      if (event.key === "Escape") { if (!window.document.querySelector("dialog[open]")) { setPalette(undefined); setShortcuts(false); if (!actionBusy) setAction(undefined); } return; }
+      if (event.key === "Escape") {
+        if (!window.document.querySelector("dialog[open]")) {
+          if (writing.zen && !modalOpen) { event.preventDefault(); exitZen(); return; }
+          setPalette(undefined); setShortcuts(false); if (!actionBusy) setAction(undefined);
+        }
+        return;
+      }
       if (palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
-      if (id) { if (window.document.querySelector("dialog[open]") || id === "view.mode" && !canCycleView(event)) return; event.preventDefault(); dispatchCommand(id); }
+      if (id) { if (window.document.querySelector("dialog[open]") || editorViewCommands.has(id) && !canUseViewCommand(event, id)) return; event.preventDefault(); dispatchCommand(id); }
     };
     const priorityBindings = keymap.bindings.filter((binding) => binding.command.id.startsWith("navigation.") || priorityCommands.has(binding.command.id));
     const dispatchPriority = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const id = matchCommand(priorityBindings, keyboardInput(event), { editor: false, selection: false });
-      if (id === "view.mode" && !canCycleView(event)) return;
+      if (id && editorViewCommands.has(id) && !canUseViewCommand(event, id)) return;
       if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
       // Workspace navigation and view commands take priority over editor keymaps.
       event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
     };
-    function canCycleView(event: KeyboardEvent) {
-      return !viewDisabled && !(event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]:not(.cm-content)'));
+    function canUseViewCommand(event: KeyboardEvent, id: string) {
+      return (!viewDisabled || id === "view.zen" && writing.zen) && !(event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]:not(.cm-content)'));
     }
     window.addEventListener("keydown", dispatchPriority, true);
     window.addEventListener("keydown", listener);
@@ -726,7 +755,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }
   const pinned = state.preferences.pinned.includes(state.selectedPath);
 
-  return <main className="browserWorkspace" data-editor-ready={editorReady} onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
+  return <main className="browserWorkspace" data-editor-ready={editorReady} data-zen={writing.zen} data-zen-hud={writing.hud ? "visible" : "idle"} data-writing-focus={writing.focus}
+    onPointerMove={writingModes.activity} onFocusCapture={writingModes.activity} onKeyDownCapture={writingModes.activity}
+    onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
     onDrop={(event) => { if (event.dataTransfer.files.length || event.dataTransfer.items.length) {
       event.preventDefault();
       const dropped = collectBrowserDrop(event.dataTransfer);
@@ -734,6 +765,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     } }}>
     {workspaceSearch && <Suspense fallback={<WorkspaceDialog title="Search everywhere" returnFocus={workspaceSearch.returnFocus} onClose={() => setWorkspaceSearch(undefined)}><p role="status">Opening search…</p></WorkspaceDialog>}><WorkspaceSearchDialog store={store} returnFocus={workspaceSearch.returnFocus} onChoose={chooseSearchResult} onClose={() => setWorkspaceSearch(undefined)} /></Suspense>}
     <WorkspaceTitleBar viewMode={viewMode} viewDisabled={viewDisabled} onViewMode={changeViewMode} windowControls={false} space={state.record.name} path={selected?.path ?? ""} inspector={inspector} canWrite={state.owned} shortcut={shortcut}
+      writingControls={<WorkspaceWritingControls value={writing} disabled={viewDisabled} onFocus={writingModes.focus} onTypewriter={toggleTypewriter} onZen={toggleZen} />}
       onSwitchSpace={() => run(onSwitchSpace)} onNotebook={selectFilter} onNavigation={toggleNavigation} onSheets={toggleSheets} onSearch={openWorkspaceSearch} onNew={() => dispatchCommand("sheet.new")} onExport={() => dispatchCommand("space.export")} onInspector={() => dispatchCommand("view.inspector")}
       controls={<><button title={`Editor settings (${shortcut("app.editorSettings")})`} aria-label="Editor settings" onClick={(event) => { event.currentTarget.focus(); openEditorSettings(); }}><Settings size={16} /></button><AppearanceControl preference={appearance.preference} onChange={appearance.change} />{onInstall && <button title="Install Slate" aria-label="Install Slate" onClick={onInstall}><Download size={16} /></button>}<button title={`Keyboard shortcuts (${shortcut("app.shortcuts")})`} aria-label="Keyboard shortcuts" onClick={(event) => { event.currentTarget.focus(); setShortcuts(true); }}><Keyboard size={16} /></button><button ref={aboutButton} title="About Slate" aria-label="About Slate" onClick={(event) => { event.currentTarget.focus(); onAbout(); }}><Info size={16} /></button></>}
       menuControls={<AppearanceControl preference={appearance.preference} onChange={appearance.change} />}
@@ -807,6 +839,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
                 : sheet ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={documentKey} pool={editors.pool} store={store} path={path} title={summary?.title ?? "Untitled"}
                   documentKey={documentKey} viewKey={id === "primary" ? documentKey : documentKey + "/split"} onDocumentError={documentError}
                   sourceMode={active && tidy.open || viewModes.mode(path) === "source"} tidyLines={active ? tidyLines : []} initialCursor={active && state.initialCursor?.path === path ? state.initialCursor.position : undefined}
+                  writingFocus={active ? writing.focus : "none"} typewriter={active && writing.typewriter} zen={writing.zen}
                   smartTables={editorPreferences.preferences.smartTables} fences={editorPreferences.preferences.fences} frontmatter={editorPreferences.preferences.frontmatter}
                   smartLists={editorPreferences.preferences.smartLists} selectionPairs={editorPreferences.preferences.selectionPairs} readOnly={!state.owned || viewModes.mode(path) === "read"}
                   onCursorChange={id === "primary" ? cursorPrimary : cursorSecondary} keymap={keymap} completionSheets={completionSheets} completionTags={tags}
@@ -832,6 +865,9 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     <input ref={input} type="file" aria-label="Import files" multiple accept=".md,.zip" className="visuallyHidden" onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <input ref={folderInput} type="file" aria-label="Import folder" multiple className="visuallyHidden" {...{ webkitdirectory: "" }} onChange={(event) => { const files = event.currentTarget.files; if (files) run(() => importPicked(files)); event.currentTarget.value = ""; }} />
     <WorkspaceStatusBar tidy={{ count: tidy.report?.issues.length, pending: tidy.pending, error: !!tidy.error, open: tidy.open, available: !!selected && !selected.unsupportedEncoding, onOpen: openTidy }} saveState={state.saveState} path={selected?.path ?? ""} content={selected?.content ?? ""} unsupported={!!selected?.unsupportedEncoding} stats={selected?.unsupportedEncoding ? undefined : document?.stats} goal={document?.goal} cursor={cursor} onSave={() => run(store.save)} onGoal={() => setInspector(true)} onJump={(line) => { setPane("editor"); editorHandle.current?.goToLine(line); }} />
+    {writing.zen && <WorkspaceZenHud title={document?.title || selected?.path.split("/").at(-1)?.replace(/\.md$/i, "") || "Writing session"}
+      goal={document?.goal} writable={state.owned && !!selected && !selected.unsupportedEncoding} writing={writing} focusShortcut={shortcut("view.focus")}
+      onGoal={() => { writingModes.zen(false); setInspector(true); }} onExit={exitZen} onFocus={toggleWritingFocus} />}
     {!runtime && <LaunchActions key={state.record.id} store={store} />}
     {tidyBatch && <Suspense fallback={<WorkspaceDialog title="Batch Tidy" returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)}><p role="status">Opening batch review…</p></WorkspaceDialog>}><BatchTidyDialog store={store} paths={tidyBatch.paths} returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)} /></Suspense>}
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}

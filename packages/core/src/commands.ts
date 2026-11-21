@@ -131,8 +131,9 @@ export const slateCommands: readonly CommandDefinition[] = [
   format("quote", "Blockquote", "Mod+Shift+."),
   format("codeblock", "Code block", "Mod+Shift+`"),
   format("toggleTask", "Toggle task", "Mod+Enter"),
-  { id: "view.focus", label: "Toggle focus mode", group: "View", shortcut: "Mod+.", surfaces: ["desktop"] },
-  { id: "view.typewriter", label: "Toggle typewriter mode", group: "View", surfaces: ["desktop"] },
+  { id: "view.focus", label: "Toggle focus mode", group: "View", shortcut: "Mod+.", surfaces: ["web", "desktop"] },
+  { id: "view.typewriter", label: "Toggle typewriter mode", group: "View", surfaces: ["web", "desktop"] },
+  { id: "view.zen", label: "Toggle Zen mode", group: "View", shortcut: "F11", surfaces: ["web"] },
   { id: "view.fullscreen", label: "Toggle full-screen mode", group: "View", shortcut: "F11", surfaces: ["desktop"] },
   ...Array.from({ length: 9 }, (_, index): CommandDefinition => ({
     id: `space.activate${index + 1}`,

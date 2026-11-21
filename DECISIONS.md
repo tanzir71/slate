@@ -1,5 +1,13 @@
 # Slate Decisions
 
+## 2026-11-21: Writing focus, typewriter and Zen remain view state
+
+Paragraph and sentence focus use parsed Markdown blocks, Unicode sentence segmentation and visible-line CodeMirror decorations. Disabled writing modes install no plugin; typewriter measures the live caret and its scroll viewport, centres at 45 percent and never changes selection or document history. Resize and composition handling stay inside the enabled editor extension.
+
+Each Space owns transient writing controls independently of document bytes and the editing lease. Zen hides layout chrome without replacing editor views, tabs or shared Undo; F11 toggles it, Escape respects inner editor/dialog handling, and activity shows the HUD for two seconds. Existing goal data drives the ring and session bar. HUD activity while already visible changes no React snapshot; reduced motion removes fading transitions. Source keeps its monospace treatment and Read remains protected. The actual A8 Figma component supplies typography, spacing and colors, while the goal ring reuses the existing data-driven component.
+
+Zen keeps the A8 layout, 21px/36px prose, 640px column and 70-percent HUD fade. First browser axe checks show the supplied faded secondary text below AA contrast, so controls use primary text before fading and hints use 65-percent opacity. Light and Dark are both checked without axe exclusions. Zen also removes block-gutter chrome and the unused mobile split row. Empty EOF caret measurements use the native empty-line box when a collapsed DOM Range has no rectangle; the 45-percent target and 2px tolerance remain unchanged.
+
 ## 2026-11-21: Per-sheet editor view modes
 
 Live, Source and Read are local UI preferences keyed by Space identity and exact sheet path, following the existing last-sheet/cursor device preferences. Readable sheets can change mode without the editing lease. Only the mounted/requested paths read optional localStorage; malformed or unavailable storage falls back to Live and in-memory choices remain usable. Storage events invalidate cached choices. A successful internal file move transfers the preference; a failed move does not. External rename identity and cross-device view preference sync are not inferred from Markdown. No mode change writes document bytes or workspace metadata.
