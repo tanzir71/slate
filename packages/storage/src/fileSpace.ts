@@ -1,6 +1,6 @@
-import { decodeText, encodeText, safeWorkspacePath as safeBrowserPath, type WorkspaceFiles } from "./fileIO";
+import { decodeText, encodeText, readMarkdownSnapshot, safeWorkspacePath as safeBrowserPath, type MarkdownFileSnapshot, type WorkspaceFiles } from "./fileIO";
 
-export interface FileSheet { path: string; content: string; unsupportedEncoding?: boolean }
+export type FileSheet = MarkdownFileSnapshot;
 export interface FileWriteResult extends FileSheet { conflict: boolean }
 
 const decodeFile = (path: string, bytes: Uint8Array): string => decodeText(bytes, /\.md$/i.test(path));
@@ -46,14 +46,7 @@ export function createFileSpace(files: WorkspaceFiles, canWrite: () => boolean =
     read,
     flush: () => pending,
     async sheets(): Promise<FileSheet[]> {
-      const paths = (await files.list()).filter((path) => /\.md$/i.test(path));
-      const rows = await Promise.all(paths.map(async (path): Promise<FileSheet | undefined> => {
-        const bytes = await files.read(path);
-        if (bytes === undefined) return undefined;
-        try { return { path, content: decodeFile(path, bytes) }; }
-        catch { return { path, content: "", unsupportedEncoding: true }; }
-      }));
-      return rows.filter((row): row is FileSheet => row !== undefined);
+      return files.snapshotMarkdown ? files.snapshotMarkdown() : readMarkdownSnapshot(files);
     },
     create(path: string, content: string): Promise<FileSheet> {
       return mutate(async () => ({ path: await writeNew(path, encodeText(content)), content }));

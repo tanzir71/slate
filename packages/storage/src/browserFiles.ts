@@ -1,4 +1,6 @@
-import { decodeText, encodeText, safeWorkspacePath as safeBrowserPath, type MutableWorkspaceFiles } from "./fileIO";
+import { decodeText, encodeText, readMarkdownSnapshot, safeWorkspacePath as safeBrowserPath, type MutableWorkspaceFiles } from "./fileIO";
+import { isFileError, listDirectoryPaths, locateDirectoryFile, readDirectoryFile } from "./browserDirectoryReads";
+import { createDirectorySnapshotReader } from "./browserSnapshotClient";
 export { decodeText, encodeText, safeBrowserPath };
 
 /** File operations shared by user-selected directories and OPFS libraries. */
@@ -27,29 +29,12 @@ export interface BrowserDirectoryHandle {
 export type BrowserFiles = MutableWorkspaceFiles;
 
 export function createDirectoryFiles(root: BrowserDirectoryHandle): BrowserFiles {
-  async function locate(path: string, create: boolean) {
-    const parts = safeBrowserPath(path).split("/");
-    const name = parts.pop()!;
-    let directory = root;
-    for (const part of parts) directory = await directory.getDirectoryHandle(part, { create });
-    return { directory, name };
-  }
-  async function listPaths(directory: BrowserDirectoryHandle, prefix: string, includePrivate: boolean) {
-    const paths: string[] = [];
-    async function walk(directory: BrowserDirectoryHandle, prefix: string) {
-      for await (const [name, entry] of directory.entries()) {
-        if (!includePrivate && name === ".slate") continue;
-        const path = safeBrowserPath(`${prefix}${name}`);
-        if (entry.kind === "directory") await walk(entry, `${path}/`);
-        else paths.push(path);
-      }
-    }
-    await walk(directory, prefix);
-    return paths.sort();
-  }
-
+  const locate = (path: string, create: boolean) => locateDirectoryFile(root, path, create);
+  const list = (includePrivate = false) => listDirectoryPaths(root, "", includePrivate);
+  const read = (path: string) => readDirectoryFile(root, path);
   return {
-    list: (includePrivate = false) => listPaths(root, "", includePrivate),
+    list, read,
+    snapshotMarkdown: createDirectorySnapshotReader(root, () => readMarkdownSnapshot({ list, read })),
     async listDirectory(path) {
       const target = safeBrowserPath(path);
       let directory = root;
@@ -59,23 +44,7 @@ export function createDirectoryFiles(root: BrowserDirectoryHandle): BrowserFiles
         if (isFileError(cause, "NotFoundError") || isFileError(cause, "TypeMismatchError")) return [];
         throw cause;
       }
-      return listPaths(directory, `${target}/`, true);
-    },
-    async read(path) {
-      try {
-        const { directory, name } = await locate(path, false);
-        const handle = await directory.getFileHandle(name);
-        const snapshot = async () => new Uint8Array(await (await handle.getFile()).arrayBuffer());
-        try { return await snapshot(); }
-        catch (error) {
-          // A concurrent save can invalidate a File object. Obtain a fresh object once.
-          if (!isFileError(error, "NotReadableError")) throw error;
-          return await snapshot();
-        }
-      } catch (error) {
-        if (isFileError(error, "NotFoundError")) return undefined;
-        throw error;
-      }
+      return listDirectoryPaths(directory, `${target}/`, true);
     },
     async write(path, bytes) {
       const { directory, name } = await locate(path, true);
@@ -108,8 +77,4 @@ export function createMemoryFiles(initial: Record<string, string> = {}): Browser
       if (!files.delete(safeBrowserPath(path))) throw new DOMException("File not found", "NotFoundError");
     }
   };
-}
-
-function isFileError(error: unknown, name: string): boolean {
-  return typeof error === "object" && error !== null && "name" in error && error.name === name;
 }
