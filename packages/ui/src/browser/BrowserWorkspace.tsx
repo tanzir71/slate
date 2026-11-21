@@ -44,6 +44,7 @@ import "./workspaceWriting.css";
 
 const Editor = lazy(() => import("./WorkspaceDocumentEditor"));
 const Inspector = lazy(() => import("./WorkspaceInspector"));
+const NativeLaunchActions = lazy(() => import("../native/NativeLaunchActions"));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
 const NotebookTemplateDialog = lazy(() => import("../templates/NotebookTemplateDialog"));
 const StarterKitDialog = lazy(() => import("../templates/StarterKitDialog"));
@@ -891,6 +892,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       goal={document?.goal} writable={state.owned && !!selected && !selected.unsupportedEncoding} writing={writing} focusShortcut={shortcut("view.focus")}
       onGoal={() => { writingModes.zen(false); setInspector(true); }} onExit={exitZen} onFocus={toggleWritingFocus} />}
     {!runtime && <LaunchActions key={state.record.id} store={store} pool={editors.pool} onSearch={openSearchWithQuery} onTemplate={openLinkedTemplate} templatesReady={!!templates.library} onSwitchSpace={onSwitchSpace} onTakeover={onTakeover} onDialogChange={setLaunchDialogOpen} onNavigate={() => focusSelected()} />}
+    {runtime?.launches && <Suspense fallback={null}><NativeLaunchActions source={runtime.launches} store={store} pool={editors.pool} onSearch={openSearchWithQuery} onTemplate={openLinkedTemplate} templatesReady={!!templates.library} onSwitchSpace={onSwitchSpace} onTakeover={onTakeover} onDialogChange={setLaunchDialogOpen} onNavigate={() => focusSelected()} /></Suspense>}
     {tidyBatch && <Suspense fallback={<WorkspaceDialog title="Batch Tidy" returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)}><p role="status">Opening batch review…</p></WorkspaceDialog>}><BatchTidyDialog store={store} paths={tidyBatch.paths} returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)} /></Suspense>}
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
     {snippetPicker && snippets.library && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPicker.target.element} onClose={() => setSnippetPicker(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetPicker library={snippets.library} invocation={snippetPicker} spaceName={state.record.name} onClose={() => setSnippetPicker(undefined)} onChoose={(definition) => { applySnippet(snippetPicker, definition); setSnippetPicker(undefined); }} onManage={() => { openSnippetSettings(snippetPicker.target.element); setSnippetPicker(undefined); }} /></Suspense>}

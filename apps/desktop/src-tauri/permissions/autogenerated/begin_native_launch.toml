@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-begin-native-launch"
+description = "Enables the begin_native_launch command without any pre-configured scope."
+commands.allow = ["begin_native_launch"]
+
+[[permission]]
+identifier = "deny-begin-native-launch"
+description = "Denies the begin_native_launch command without any pre-configured scope."
+commands.deny = ["begin_native_launch"]

@@ -7,11 +7,13 @@ import { createNativeFileActions } from "./nativeFileActions";
 import { createTauriWorkspaceIndex } from "@slate/storage/tauri-workspace-index";
 import { defaultNativeSpace, type NativeSpace } from "./nativeSpaces";
 import type { WorkspaceFiles } from "@slate/storage/file-io";
+import { createNativeLaunchSource, type NativeLaunchSource } from "./nativeLaunchSource";
 
 export interface NativeChange { scope: "space" | "global"; spaceId?: string | null; error: string | null }
 interface CloseRequest { preventDefault(): void }
 export interface NativeLifecycle {
   fileActions?: WorkspaceFileActions;
+  launches?: NativeLaunchSource;
   listen(change: (event: NativeChange) => void): Promise<() => void>;
   watchStatus(): Promise<string[]>;
   onClose(request: (event: CloseRequest) => void): Promise<() => void>;
@@ -25,6 +27,7 @@ export async function nativeLifecycle(spaceId = defaultNativeSpace.id): Promise<
   const window = getCurrentWindow();
   return {
     fileActions: createNativeFileActions(invoke, spaceId),
+    launches: createNativeLaunchSource(invoke, receive => listen<unknown>("slate://launch-changed", event => receive(event.payload))),
     listen: (change) => listen<NativeChange>("slate://workspace-changed", (event) => change(event.payload)),
     watchStatus: () => invoke<string[]>("workspace_watch_status", { spaceId }),
     onClose: (request) => window.onCloseRequested(request),
@@ -38,6 +41,7 @@ export function createNativeWorkspace(lifecycle: NativeLifecycle, files: Workspa
   const runtime: WorkspaceRuntime = {
     surface: "desktop",
     ...(lifecycle.fileActions ? { fileActions: lifecycle.fileActions } : {}),
+    ...(lifecycle.launches ? { launches: lifecycle.launches } : {}),
     async openGlobalSnippets() {
       // Native saves compare exact disk bytes under the process-wide filesystem
       // lock; conflicts from another process are retained by the backend, too.
@@ -70,9 +74,13 @@ export function createNativeWorkspace(lifecycle: NativeLifecycle, files: Workspa
         event.preventDefault();
         if (closing) return;
         closing = true;
-        void store.flush().then(() => lifecycle.destroy()).catch((error: unknown) => {
+        let resume: (() => void) | undefined;
+        void (async () => {
+          resume = await lifecycle.launches?.quiesce();
+          await store.flush(); await lifecycle.destroy();
+        })().catch((error: unknown) => {
           store.api.setState({ error: error instanceof Error ? error.message : "Saving failed. Keep Slate open until your words are saved." });
-        }).finally(() => { closing = false; });
+        }).finally(() => { resume?.(); closing = false; });
       });
     },
   };

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-bind-native-launch"
+description = "Enables the bind_native_launch command without any pre-configured scope."
+commands.allow = ["bind_native_launch"]
+
+[[permission]]
+identifier = "deny-bind-native-launch"
+description = "Denies the bind_native_launch command without any pre-configured scope."
+commands.deny = ["bind_native_launch"]

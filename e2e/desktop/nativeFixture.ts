@@ -34,9 +34,21 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
     let sequence = 0;
     type Row = { entry: { id: string; path: string; title: string; tags: string[]; links: string[]; words: number; updatedAt?: string }; body: string; contentHash: string };
     const indexes = new Map<string, Row[]>();
+    type Ticket = { id: string; url: string; phase: "pending" | "started" | "applied"; spaceId?: string; claim?: string };
+    type Inbox = { revision: number; current: Ticket | null; queued: Ticket[]; completed?: string };
+    const readInbox = (): Inbox => JSON.parse(localStorage.getItem("native-launch-inbox") ?? '{"revision":0,"current":null,"queued":[]}') as Inbox;
+    const launchSnapshot = (inbox: Inbox) => ({ revision: inbox.revision, current: inbox.current ? { id: inbox.current.id, url: inbox.current.url, phase: inbox.current.phase, spaceId: inbox.current.spaceId ?? null } : null, waiting: inbox.queued.length, error: null });
+    const emit = (event: string, payload: unknown) => { for (const [id, listener] of listeners) if (listener.event === event) callbacks.get(listener.callback)?.({ event, id, payload }); };
+    const publish = (inbox: Inbox) => { localStorage.setItem("native-launch-inbox", JSON.stringify(inbox)); const snapshot = launchSnapshot(inbox); emit("slate://launch-changed", snapshot); return snapshot; };
     Reflect.set(window, "__NATIVE_FIXTURE__", {
       indexBodies: (spaceId = "native-default") => (indexes.get(spaceId) ?? []).map((row) => row.body),
-      emit(event: string, payload: unknown) { for (const [id, listener] of listeners) if (listener.event === event) callbacks.get(listener.callback)?.({ event, id, payload }); },
+      emit,
+      launch(url: string) {
+        if (new URL(url).protocol !== "slate:") return;
+        const inbox = readInbox(), ticket: Ticket = { id: crypto.randomUUID(), url, phase: "pending" };
+        if (!inbox.current && !inbox.queued.length) inbox.current = ticket; else inbox.queued.push(ticket);
+        inbox.revision += 1; publish(inbox);
+      },
     });
     Reflect.set(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", { unregisterListener: (_event: string, id: number) => listeners.delete(id) });
     Reflect.set(window, "__TAURI_INTERNALS__", {
@@ -51,6 +63,42 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
         if (command === "plugin:event|unlisten") { listeners.delete(Number(args.eventId)); return null; }
         if (command === "plugin:window|destroy") { localStorage.setItem("native-destroyed", "true"); return null; }
         if (command === "workspace_watch_status") return [];
+        if (command === "pending_native_launches") return launchSnapshot(readInbox());
+        if (["bind_native_launch", "begin_native_launch", "apply_native_launch", "review_native_launch", "complete_native_launch", "next_native_launch"].includes(command)) {
+          const inbox = readInbox(), current = inbox.current, id = String(args.id), claim = String(args.claim);
+          if (command === "next_native_launch") {
+            if (current) throw { kind: "io", message: "Finish the current request first" };
+            inbox.current = inbox.queued.shift() ?? null; inbox.revision += 1; return publish(inbox);
+          }
+          if (command === "complete_native_launch" && inbox.completed === id) return launchSnapshot(inbox);
+          if (!current || current.id !== id) throw { kind: "io", message: "Request is no longer active" };
+          if (command === "bind_native_launch") {
+            const target = String(args.spaceId);
+            if (current.spaceId === target) return launchSnapshot(inbox);
+            if (current.spaceId || current.phase !== "pending") throw { kind: "io", message: "Request belongs to its original Space" };
+            current.spaceId = target;
+          } else if (command === "complete_native_launch") {
+            if (localStorage.getItem("native-fail-complete")) throw { kind: "io", message: "Finishing unavailable" };
+            inbox.completed = id; inbox.current = null;
+          } else if (command === "begin_native_launch") {
+            if (current.phase === "started" && current.claim === claim) return launchSnapshot(inbox);
+            if (current.phase !== "pending") throw { kind: "io", message: "Review the interrupted request" };
+            current.phase = "started"; current.claim = claim;
+          } else if (command === "apply_native_launch") {
+            if (localStorage.getItem("native-fail-applied")) throw { kind: "io", message: "Finishing unavailable" };
+            if (current.claim !== claim || !["started", "applied"].includes(current.phase)) throw { kind: "io", message: "Request belongs to another review" };
+            if (current.phase === "applied") return launchSnapshot(inbox);
+            current.phase = "applied";
+          } else {
+            if (current.phase !== "started") throw { kind: "io", message: "Only an interrupted request can be reviewed again" };
+            current.phase = "pending"; delete current.claim;
+          }
+          inbox.revision += 1; const result = publish(inbox);
+          if (command === "begin_native_launch" && localStorage.getItem("native-fail-begin-after-claim")) {
+            localStorage.removeItem("native-fail-begin-after-claim"); throw { kind: "io", message: "Review reply unavailable" };
+          }
+          return result;
+        }
         if (command === "list_native_spaces") {
           if (localStorage.getItem("native-fail-catalog")) throw { kind: "io", message: "Spaces list is invalid. Your folders were kept." };
           return JSON.parse(localStorage.getItem("native-spaces") ?? '[{"id":"native-default","name":"Slate","path":null}]') as unknown;

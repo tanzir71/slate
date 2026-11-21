@@ -1,4 +1,5 @@
 import type { createSnippetLibrary } from "../snippets/snippetLibrary";
+import type { NativeLaunchSource } from "../native/nativeLaunchSource";
 
 export interface WorkspaceFileInfo {
   readonly absolutePath: string;
@@ -15,6 +16,7 @@ export interface WorkspaceFileActions {
 export interface WorkspaceRuntime {
   surface: "desktop";
   fileActions?: WorkspaceFileActions;
+  launches?: NativeLaunchSource;
   openGlobalSnippets: Parameters<typeof createSnippetLibrary>[1];
   observe(refresh: () => void, failed: (error: unknown) => void): Promise<() => void>;
 }

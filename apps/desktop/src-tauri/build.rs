@@ -1,6 +1,13 @@
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "pending_native_launches",
+            "bind_native_launch",
+            "begin_native_launch",
+            "apply_native_launch",
+            "review_native_launch",
+            "complete_native_launch",
+            "next_native_launch",
             "list_native_spaces",
             "pick_native_space",
             "write_sheet",

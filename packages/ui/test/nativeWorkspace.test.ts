@@ -3,6 +3,7 @@ import { createNativeWorkspace, type NativeChange, type NativeLifecycle } from "
 import { createTauriWorkspaceFiles } from "@slate/storage/tauri-files";
 import type { TauriInvoke } from "../src/tauriAutosave";
 import { defaultNativeSpace } from "../src/native/nativeSpaces";
+import { createNativeLaunchSource } from "../src/native/nativeLaunchSource";
 
 function setup(initial: Record<string, string> = {}) {
   const disk = new Map(Object.entries(initial).map(([path, value]) => [path, new TextEncoder().encode(value)]));
@@ -136,6 +137,29 @@ it("waits for pending disk writes before closing and coalesces duplicate close r
   await vi.advanceTimersByTimeAsync(0);
   expect(new TextDecoder().decode(disk.get("note.md"))).toBe("Saved before closing");
   expect(lifecycle.destroy).toHaveBeenCalledOnce();
+});
+it("waits for a confirmed URL operation even before that operation has produced a store draft", async () => {
+  const fixture = setup({ "note.md": "Before" });
+  const source = createNativeLaunchSource(vi.fn(), vi.fn());
+  const session = createNativeWorkspace({ ...fixture.lifecycle, launches: source }, createTauriWorkspaceFiles({ invoke: fixture.invoke as TauriInvoke }));
+  await session.open(); await session.protectClose();
+  let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
+  const active = source.run(async () => { await held; session.store.edit("Confirmed URL words"); await session.store.flush(); });
+  expect(fixture.close()).toHaveBeenCalledOnce(); await vi.advanceTimersByTimeAsync(0);
+  expect(fixture.lifecycle.destroy).not.toHaveBeenCalled();
+  release(); await active; await vi.advanceTimersByTimeAsync(0);
+  expect(new TextDecoder().decode(fixture.disk.get("note.md"))).toBe("Confirmed URL words");
+  expect(fixture.lifecycle.destroy).toHaveBeenCalledOnce();
+});
+it("keeps the native window open after a failed URL close barrier and allows a later close", async () => {
+  const fixture = setup({ "note.md": "Before" });
+  const source = createNativeLaunchSource(vi.fn(), vi.fn());
+  const session = createNativeWorkspace({ ...fixture.lifecycle, launches: source }, createTauriWorkspaceFiles({ invoke: fixture.invoke as TauriInvoke }));
+  await session.open(); await session.protectClose();
+  const active = source.run(async () => { throw Error("URL write failed"); });
+  fixture.close(); await expect(active).rejects.toThrow("URL write failed"); await vi.advanceTimersByTimeAsync(0);
+  expect(fixture.lifecycle.destroy).not.toHaveBeenCalled(); expect(session.store.api.getState().error).toBe("URL write failed");
+  fixture.close(); await vi.advanceTimersByTimeAsync(0); expect(fixture.lifecycle.destroy).toHaveBeenCalledOnce();
 });
 
 it("keeps the window and draft open after a failed close flush, allowing retry", async () => {

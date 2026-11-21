@@ -7,6 +7,13 @@
   "permissions": [
     "core:default",
     "core:window:allow-destroy",
+    "allow-pending-native-launches",
+    "allow-bind-native-launch",
+    "allow-begin-native-launch",
+    "allow-apply-native-launch",
+    "allow-review-native-launch",
+    "allow-complete-native-launch",
+    "allow-next-native-launch",
     "allow-list-native-spaces",
     "allow-pick-native-space",
     "allow-write-sheet",

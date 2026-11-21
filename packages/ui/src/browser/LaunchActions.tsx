@@ -26,8 +26,9 @@ function parseRequest(url: URL, files: File[] = []) {
     return { action: parseLaunchActionParameters(params), error: "", params, files };
   } catch (error) { return { action: undefined, error: message(error), params, files: [] }; }
 }
-type Request = ReturnType<typeof parseRequest> & { id: number };
-interface LaunchProps {
+export type LaunchRequestData = ReturnType<typeof parseRequest> & { id: number };
+type Request = LaunchRequestData;
+export interface LaunchProps {
   store: WorkspaceStore; pool: EditorDocumentPool;
   onSearch(query: string): void;
   onTemplate(request: LaunchTemplateRequest): Promise<void>;
@@ -36,6 +37,9 @@ interface LaunchProps {
   onTakeover(): Promise<void>;
   onDialogChange(open: boolean): void;
   onNavigate(): void;
+  beforeApply?(): Promise<void>;
+  afterApply?(): Promise<void>;
+  runApply?(work: () => Promise<void>): Promise<void>;
 }
 function actionText(action: LaunchAction | undefined) { return action && "text" in action ? action.text : ""; }
 
@@ -99,12 +103,12 @@ export function LaunchActions(props: LaunchProps) {
   return <>
     {waiting > 0 && <div className="notice" role="status">{waiting} incoming {waiting === 1 ? "request" : "requests"} waiting.
       <button type="button" disabled={!!current} onClick={next}>Review next request</button></div>}
-    {current && <LaunchRequest key={current.id} {...props} request={current} onDone={() => finish(current.id)} />}
+    {current && <WorkspaceLaunchRequest key={current.id} {...props} request={current} onDone={() => finish(current.id)} />}
   </>;
 }
 
-function LaunchRequest({ store, pool, onSearch, onTemplate, templatesReady, onSwitchSpace, onTakeover, onDialogChange, onNavigate, request: initial, onDone }: LaunchProps & {
-  request: Request; onDone(): void;
+export function WorkspaceLaunchRequest({ store, pool, onSearch, onTemplate, templatesReady, onSwitchSpace, onTakeover, onDialogChange, onNavigate, beforeApply, afterApply, runApply, request: initial, onDone }: LaunchProps & {
+  request: Request; onDone(): void | Promise<void>;
 }) {
   const [action] = useState(initial.action);
   const [text, setText] = useState(() => actionText(initial.action));
@@ -113,6 +117,7 @@ function LaunchRequest({ store, pool, onSearch, onTemplate, templatesReady, onSw
   const [files, setFiles] = useState<File[]>(initial.files), [busy, setBusy] = useState(false), [error, setError] = useState(initial.error);
   const owned = useStore(store.api, state => state.owned);
   const locked = useRef(false), autoStarted = useRef(false);
+  const begun = useRef(false), applied = useRef(false);
   const append = useRef<ReturnType<typeof createLaunchAppendSession> | undefined>(undefined);
   const capturePath = useRef<string | undefined>(undefined);
   const wrongSpace = !!action?.space && action.space !== store.api.getState().record.id;
@@ -120,14 +125,28 @@ function LaunchRequest({ store, pool, onSearch, onTemplate, templatesReady, onSw
   const readAction = action?.kind === "open" || action?.kind === "search" || !!template;
   const writing = files.length > 0 || action?.kind === "new" && !template || action?.kind === "append" || action?.kind === "capture" || action?.kind === "today";
 
-  function dismiss() {
-    onDone();
+  async function dismiss() { await onDone(); }
+  async function cancel() {
+    if (locked.current) return;
+    locked.current = true; setBusy(true);
+    try { await dismiss(); } catch (failure) { setError(message(failure)); }
+    finally { locked.current = false; setBusy(false); }
+  }
+  async function finishApplied() {
+    await afterApply?.(); await dismiss();
   }
   async function confirm() {
+    try { if (runApply) await runApply(execute); else await execute(); }
+    catch (failure) { setError(message(failure)); }
+  }
+  async function execute() {
     if (locked.current || wrongSpace || (!action && !files.length)) return;
     locked.current = true; setBusy(true); setError("");
     try {
+      // A failed native acknowledgement retries completion, never the already-applied action.
+      if (applied.current) { await finishApplied(); return; }
       if (writing && !store.api.getState().owned) throw new Error("This Space is read-only. Choose Use here to edit.");
+      if (!begun.current) { await beforeApply?.(); begun.current = true; }
       if (files.length) {
         const entries: Record<string, Uint8Array> = Object.create(null) as Record<string, Uint8Array>;
         for (const file of files) addBrowserImportEntry(entries, file.name, new Uint8Array(await file.arrayBuffer()));
@@ -145,7 +164,7 @@ function LaunchRequest({ store, pool, onSearch, onTemplate, templatesReady, onSw
         }
       } else if (action?.kind === "today") await store.openToday();
       else if (action?.kind === "open") { await store.openSheet(action.path); onNavigate(); }
-      else if (action?.kind === "search") { dismiss(); onSearch(action.query); return; }
+      else if (action?.kind === "search") onSearch(action.query);
       else if (action?.kind === "append" || action?.kind === "capture") {
         if (!text) throw new Error("Enter text before saving.");
         if (!append.current) {
@@ -159,7 +178,8 @@ function LaunchRequest({ store, pool, onSearch, onTemplate, templatesReady, onSw
         await append.current.apply();
         onNavigate();
       } else return;
-      dismiss();
+      applied.current = true;
+      await finishApplied();
     } catch (failure) { setError(message(failure)); }
     finally { locked.current = false; setBusy(false); }
   }
@@ -186,29 +206,29 @@ function LaunchRequest({ store, pool, onSearch, onTemplate, templatesReady, onSw
   const heading = files.length ? "Import opened Markdown files?" : action?.kind === "capture" ? "Capture a thought"
     : action?.kind === "today" ? "Open today’s note?" : action?.kind === "append" ? "Append to this sheet?"
     : action?.kind === "new" && !template ? "Create a new sheet?" : action?.kind === "open-files" ? "Open Markdown files" : "Open in Slate";
-  const retained = append.current?.hasApplied() ?? false;
-  return <WorkspaceDialog title="Open in Slate" busy={busy} onClose={dismiss} headerContent={<header><h2>{heading}</h2></header>}>
+  const retained = applied.current || (append.current?.hasApplied() ?? false);
+  return <WorkspaceDialog title="Open in Slate" busy={busy} onClose={() => { void cancel(); }} headerContent={<header><h2>{heading}</h2></header>}>
     <form onSubmit={event => { event.preventDefault(); void confirm(); }}>
       {wrongSpace && <p role="alert">This link targets another Space. Switch Spaces to continue.</p>}
       {wrongSpace && <button type="button" disabled={busy} onClick={() => void onSwitchSpace().catch(failure => setError(message(failure)))}>Switch Space</button>}
       {files.length > 0 && <p>{files.map(file => file.name).join(", ")}. Existing files will be kept.</p>}
-      {action?.kind === "open-files" && !files.length && <label>Choose Markdown files<input type="file" accept=".md" multiple disabled={busy} onChange={event => setFiles(Array.from(event.target.files ?? []))} /></label>}
+      {action?.kind === "open-files" && !files.length && <label>Choose Markdown files<input type="file" accept=".md" multiple disabled={busy || applied.current} onChange={event => setFiles(Array.from(event.target.files ?? []))} /></label>}
       {action?.kind === "new" && !template && <>
-        <label>Title<input aria-label="Title" value={title} disabled={busy} onChange={event => setTitle(event.target.value)} required /></label>
-        <label>Notebook<input aria-label="Notebook" value={notebook} disabled={busy} onChange={event => setNotebook(event.target.value)} /></label>
-        <label>Text<textarea aria-label="New sheet text" rows={6} value={text} disabled={busy} onChange={event => setText(event.target.value)} /></label>
+        <label>Title<input aria-label="Title" value={title} disabled={busy || applied.current || wrongSpace} onChange={event => setTitle(event.target.value)} required /></label>
+        <label>Notebook<input aria-label="Notebook" value={notebook} disabled={busy || applied.current || wrongSpace} onChange={event => setNotebook(event.target.value)} /></label>
+        <label>Text<textarea aria-label="New sheet text" rows={6} value={text} disabled={busy || applied.current || wrongSpace} onChange={event => setText(event.target.value)} /></label>
       </>}
       {(action?.kind === "capture" || action?.kind === "append") && <>
         {action.kind === "append" && <p>Append to {action.path}. Existing words will be kept.</p>}
         <label>{action.kind === "capture" ? "Save to Inbox" : "Text to append"}<textarea autoFocus aria-label={action.kind === "capture" ? "Capture text" : "Text to append"}
-          rows={6} value={text} disabled={busy || retained} onChange={event => { setText(event.target.value); append.current = undefined; }} required /></label>
+          rows={6} value={text} disabled={busy || retained || wrongSpace} onChange={event => { setText(event.target.value); append.current = undefined; }} required /></label>
       </>}
       {template && !templatesReady && <p role="status">Loading templates…</p>}
       {writing && !owned && <p>This Space is read-only. <button type="button" disabled={busy} onClick={() => void takeOver()}>Use here</button></p>}
       {error && <p role="alert">{error}</p>}
-      <div className="dialogActions"><button type="button" onClick={dismiss} disabled={busy}>Cancel</button>
-        <button type="submit" className="primaryButton" disabled={busy || wrongSpace || writing && !owned || (!action && !files.length) || action?.kind === "open-files" && !files.length || !!template && !templatesReady}>
-          {busy ? "Saving…" : retained ? "Retry saving" : files.length ? "Import" : action?.kind === "capture" ? "Save to Inbox" : "Continue"}
+      <div className="dialogActions"><button type="button" onClick={() => { void cancel(); }} disabled={busy}>Cancel</button>
+        <button type="submit" className="primaryButton" disabled={busy || wrongSpace || writing && !owned && !applied.current || (!action && !files.length) || action?.kind === "open-files" && !files.length || !!template && !templatesReady}>
+          {busy ? "Saving…" : applied.current && afterApply ? "Finish request" : retained ? "Retry saving" : files.length ? "Import" : action?.kind === "capture" ? "Save to Inbox" : "Continue"}
         </button>
       </div>
     </form>
