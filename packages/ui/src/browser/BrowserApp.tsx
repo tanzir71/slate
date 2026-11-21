@@ -45,7 +45,7 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
   const workspaceRef = useRef<WorkspaceStore | undefined>(undefined);
   const generation = useRef(0);
 
-  async function open(record: BrowserSpaceRecord) {
+  async function open(record: BrowserSpaceRecord, catalog: "new" | "saved" = "new") {
     const currentGeneration = ++generation.current;
     const mark = (stage: string) => performance.mark("slate.open." + currentGeneration + "." + stage);
     mark("start");
@@ -82,9 +82,12 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
         mark("ownership.start");
         await owner.acquire();
         mark("ownership.ready");
-        mark("catalog.start");
-        await rememberBrowserSpace(record);
-        mark("catalog.ready");
+        // A record read from the catalog is already durable; persist only new Spaces.
+        if (catalog === "new") {
+          mark("catalog.start");
+          await rememberBrowserSpace(record);
+          mark("catalog.ready");
+        }
         localStorage.setItem("slate.last-space", record.id);
       }
       workspaceRef.current = store;
@@ -115,7 +118,7 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
         await open({ id: "sample", name: "Sample", tier: "library" });
       } else {
         const last = saved.find((record) => record.id === localStorage.getItem("slate.last-space"));
-        if (last?.tier === "library") await open(last);
+        if (last?.tier === "library") await open(last, "saved");
         else setBusy(false);
       }
     })().catch((failure: unknown) => { if (active) { setError(errorMessage(failure)); setBusy(false); } });
@@ -139,7 +142,7 @@ export function BrowserApp({ version, createIndex, updateReady, updateVersion, o
       if (record.handle?.requestPermission && await record.handle.requestPermission({ mode: "readwrite" }) !== "granted") {
         throw new Error("Folder permission was not granted. Reconnect to keep writing.");
       }
-      await open(record);
+      await open(record, "saved");
     } catch (failure) { setError(errorMessage(failure)); }
   }
 
