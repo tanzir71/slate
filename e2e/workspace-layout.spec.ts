@@ -1,5 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "./fixtures";
+import { writeSheetListCorpusFiles } from "./sheetListCorpusWorker";
 import {
   chooseAppearance,
   createSheet,
@@ -258,26 +259,7 @@ test("large sheet lists render a bounded window and allow keyboard access to the
   // Seed before loading the list, so workspace polling/indexing does not compete
   // with this fixture's real OPFS writers. The landing page shares its origin.
   await page.goto(new URL("../", appUrl).href);
-  await page.evaluate(async (id) => {
-    const root = await navigator.storage.getDirectory();
-    const space = await (
-      await root.getDirectoryHandle("spaces")
-    ).getDirectoryHandle(id);
-    // Keep all 100 real files while bounding setup IO to eight independent writers.
-    await Promise.all(
-      Array.from({ length: 8 }, async (_unused, worker) => {
-        for (let index = worker; index < 100; index += 8) {
-          const writer = await (
-            await space.getFileHandle(`Note${String(index).padStart(3, "0")}.md`, {
-              create: true,
-            })
-          ).createWritable();
-          await writer.write(`# Note ${index}\n\nExact writing ${index}.`);
-          await writer.close();
-        }
-      }),
-    );
-  }, id);
+  expect(await writeSheetListCorpusFiles(page, id)).toBe(100);
   await page.goto(appUrl);
   await showSheets(page);
   await expect(page.locator(".listFoot")).toHaveText("101 sheets");

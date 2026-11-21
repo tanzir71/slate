@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
 import { openLibrary, workspaceAction } from "./helpers";
 import { libraryFile } from "./libraryFiles";
+import { editorSource } from "./editorSource";
 import type { Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -11,6 +12,14 @@ async function open(page: Page, path: string) {
   await page.keyboard.press("ControlOrMeta+p"); const dialog = page.getByRole("dialog", { name: "Quick open", exact: true });
   await dialog.locator("input").fill(path); await dialog.getByRole("button").filter({ hasText: path }).click();
   await expect(dialog).toBeHidden(); await expect(page).toHaveURL(new RegExp(`/sheet/${path.replace(".", "\\.")}$`));
+  const bytes = await libraryFile(page, path);
+  expect(bytes).toBeDefined();
+  const source = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(new Uint8Array(bytes!)).replace(/\r\n?/g, "\n");
+  const editor = page.locator('.workspaceEditorPane[data-active="true"] .cm-content');
+  await expect.poll(() => editorSource(editor)).toBe(source);
+  // Creation delivers its ready/focus callback on the next frame, after mounting the buffer.
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(editor).toBeFocused();
 }
 async function seed(page: Page) {
   await openLibrary(page); await page.getByLabel("Import files", { exact: true }).setInputFiles([
