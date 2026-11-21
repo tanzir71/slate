@@ -59,7 +59,9 @@ export const livePreviewTheme = EditorView.baseTheme({
   ".cm-content .cm-slate-table-row": { display: "flex", padding: "0", borderBottom: "1px solid var(--border-default)", borderLeft: "0", background: "transparent", fontSize: "0", lineHeight: "0" },
   ".cm-content .cm-slate-table-header": { background: "var(--bg-subtle)" },
   ".cm-content .cm-slate-table-row-last": { borderBottom: "0" },
-  ".cm-slate-table-row > .cm-widgetBuffer": { display: "none" },
+  // Replaced cell padding also nests caret buffers inside marks. Their 1em,
+  // text-top metrics must not enlarge header lines on different platforms.
+  ".cm-slate-table-row .cm-widgetBuffer": { display: "none" },
   ".cm-content .cm-slate-table-delimiter": { display: "none" },
   ".cm-slate-table-cell": { display: "block", flex: "1 1 0", minWidth: "0", minHeight: "38px", padding: "9px 14px", borderRight: "1px solid var(--border-subtle)", boxSizing: "border-box", whiteSpace: "pre-wrap", overflowWrap: "anywhere", font: "13px/20px var(--font-ui, Geist, sans-serif)", color: "var(--text-primary)" },
   ".cm-slate-table-cell-last": { borderRight: "0" },
