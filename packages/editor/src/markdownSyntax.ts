@@ -1,4 +1,5 @@
 import { GFM, type MarkdownConfig } from "@lezer/markdown";
+import { footnoteSyntax } from "./footnoteSyntax.js";
 
 const highlight = { resolve: "SlateHighlight", mark: "SlateHighlightMark" };
 export const slateInlineSyntax: MarkdownConfig = {
@@ -88,4 +89,4 @@ export const slateInlineSyntax: MarkdownConfig = {
     },
   ],
 };
-export const slateMarkdownSyntax = [GFM, slateInlineSyntax];
+export const slateMarkdownSyntax = [GFM, slateInlineSyntax, footnoteSyntax];

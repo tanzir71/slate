@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## F-10b footnote previews
+
+Recognize footnote references and composite definitions in the incremental Markdown syntax tree. Preserve literal source, selection and shared Undo; definitions remain editable source and references reveal source on selected lines. Resolve note bodies only on explicit hover/focus/tap, using cancellable 5ms parse slices for offscreen definitions. Flatten note Markdown to text with the existing parser; never mount note HTML, links or remote media. Keep superscript controls keyboard/touch accessible and hover text dismissible with Escape, outside interaction or scrolling. Opening/closing a preview never enters document history. No shell dependency or release budget change.
+
 ## 2026-11-21: Fenced code stays editable and loads grammars on demand (F-10b)
 
 Live preview wraps existing virtualized CodeMirror lines. Only inactive fence lines are replaced; code text, selections, shared Undo and physical file bytes stay unchanged. The language control navigates to the real fence source. Copy reads parser CodeText ranges only on demand, omits enclosing quote/list markers, and reports unavailable clipboard access without editing. Detached controls do nothing. Source mode and visible-syntax settings retain literal Markdown.

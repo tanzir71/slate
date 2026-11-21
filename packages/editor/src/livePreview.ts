@@ -16,6 +16,7 @@ import { previewTable, tablePreviewKeyboard, previewTableRow, previewTableWrappe
 import { editorFrontmatter, frontmatterPreviewState } from "./frontmatterPreview.js";
 import { livePreviewSettings } from "./livePreviewSettings.js";
 import { previewCodeFence } from "./codePreview.js";
+import { FootnoteReference, closeFootnotePreviews } from "./footnotePreview.js";
 export { livePreviewSettings, type LivePreviewSettings } from "./livePreviewSettings.js";
 import { findWikiLinkAtPosition } from "./wikiLinks.js";
 import {
@@ -261,7 +262,7 @@ export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<Bl
         const node = reference.node;
         if (
           node.to <= metadataEnd ||
-          /^(?:CodeBlock|HTMLBlock|InlineHTML|Image|LinkReference)$/.test(
+          /^(?:CodeBlock|HTMLBlock|InlineHTML|Image|LinkReference|SlateFootnoteDefinition)$/.test(
             node.name,
           )
         )
@@ -269,6 +270,11 @@ export function buildLivePreviewDecorations(view: EditorView, wrappers: Range<Bl
         const key = `${node.name}:${node.from}:${node.to}`;
         if (visited.has(key)) return undefined;
         visited.add(key);
+        if (node.name === "SlateFootnote") {
+          if (settings.hideSyntax && !editing(node.from, node.to))
+            ranges.push(Decoration.replace({ widget: new FootnoteReference(node.from, state.sliceDoc(node.from, node.to)) }).range(node.from, node.to));
+          return false;
+        }
         if (node.name === "FencedCode") {
           if (settings.hideSyntax && !sourceCallouts.some(card => node.from > card.from && node.to <= card.to))
             ranges.push(...previewCodeFence(view, node, active, wrappers));
@@ -506,14 +512,10 @@ export function createLivePreviewExtension(): Extension {
           this.wrappers = BlockWrapper.set(wrappers, true);
         }
         update(update: ViewUpdate) {
-          if (
-            update.docChanged ||
-            update.selectionSet ||
-            update.viewportChanged ||
-            syntaxTree(update.startState) !== syntaxTree(update.state) ||
-            update.transactions.some((transaction) => transaction.reconfigured)
-          )
-            this.build(update.view);
+          const changed = update.docChanged || update.selectionSet || update.viewportChanged ||
+            update.transactions.some((transaction) => transaction.reconfigured);
+          if (update.docChanged || update.selectionSet || update.viewportChanged) closeFootnotePreviews(update.view);
+          if (changed || syntaxTree(update.startState) !== syntaxTree(update.state)) this.build(update.view);
         }
       },
       { decorations: (plugin) => plugin.decorations,

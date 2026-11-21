@@ -1,6 +1,11 @@
 import { EditorView } from "@codemirror/view";
 
 export const livePreviewTheme = EditorView.baseTheme({
+  ".cm-slate-footnote-reference": { display: "inline-flex", alignItems: "center", justifyContent: "center", verticalAlign: "super", minWidth: "24px", minHeight: "24px", maxWidth: "80px", overflow: "hidden", whiteSpace: "nowrap", padding: "0 3px", border: "0", borderRadius: "4px", background: "transparent", color: "var(--text-accent)", font: "12px/16px var(--font-ui, Geist, sans-serif)", cursor: "pointer" },
+  ".cm-slate-footnote-reference:hover": { background: "var(--accent-soft)" },
+  ".cm-slate-footnote-reference:focus-visible": { outline: "2px solid var(--border-focus)", outlineOffset: "2px" },
+  ".cm-slate-footnote-tooltip": { position: "fixed", zIndex: "80", boxSizing: "border-box", maxWidth: "min(320px, calc(100vw - 16px))", maxHeight: "min(240px, calc(100vh - 16px))", overflow: "auto", padding: "12px 16px", border: "1px solid var(--border-default)", borderRadius: "8px", background: "var(--bg-elevated, var(--bg-app))", color: "var(--text-primary)", font: "13px/20px var(--font-ui, Geist, sans-serif)", whiteSpace: "pre-wrap", overflowWrap: "anywhere", textAlign: "start", boxShadow: "0 8px 24px #0002" },
+  ".cm-slate-footnote-tooltip[hidden]": { display: "none" },
   ".cm-slate-code-block": { background: "var(--md-code-bg)", border: "1px solid var(--border-default)", borderRadius: "8px", marginBlock: "0", overflow: "hidden" },
   ".cm-content .cm-slate-code-line": { font: "13px/22px var(--font-mono, Geist Mono, monospace)", paddingInline: "12px", color: "var(--text-primary)" },
   ".cm-content .cm-slate-code-opening": { paddingBlock: "8px", borderBottom: "1px solid var(--border-default)" },
@@ -190,6 +195,7 @@ export const livePreviewTheme = EditorView.baseTheme({
     background: "var(--bg-app)",
   },
   "@media (pointer: coarse)": {
+    ".cm-slate-footnote-reference": { minHeight: "44px", minWidth: "44px" },
     ".cm-slate-code-header button": { minHeight: "44px", minWidth: "44px" },
     ".cm-slate-property, .cm-slate-property-add": { minHeight: "44px" },
     ".cm-content .cm-slate-checkbox": {
