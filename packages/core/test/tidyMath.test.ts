@@ -20,6 +20,17 @@ it("keeps prices ordinary while protecting a later actual formula", () => {
   expect(isProtected(doc, source.indexOf("$x+y$"), source.indexOf("$x+y$") + 5)).toBe(true);
 });
 
+it.each([1, 2, 3, 4])("uses escape parity for dollar openers after %i backslashes", count => {
+  const source = "\uFEFF---\r\ntitle: Literal\r\n---\r\n\r\nBefore " + "\\".repeat(count) + "$__word__$ after.\r\n";
+  const doc = parseTidyDocument(source), escaped = count % 2 === 1;
+  expect(doc.mathRanges.map(range => source.slice(range.from, range.to))).toEqual(escaped ? [] : ["$__word__$"]);
+  const config = readTidyConfiguration(JSON.stringify({ version: 1,
+    rules: Object.fromEntries(tidyRuleIds.map(id => [id, id === "strong-style"])) }));
+  const result = fix(source, config);
+  expect(result.output).toBe(escaped ? source.replace("__word__", "**word**") : source);
+  expect(preservesContent(source, result.output)).toBe(true);
+});
+
 it("formats ordinary list markers while leaving formula punctuation unchanged", () => {
   const source = "* outside\n\n$$\n* alpha\n* beta\n$$\n";
   const config = readTidyConfiguration(JSON.stringify({ version: 1,

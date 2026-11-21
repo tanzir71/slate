@@ -8,6 +8,9 @@ export interface InlineMathSpan { readonly from: number; readonly to: number; re
 /** Shared TeX bounds with escaped dollars and currency-safe opening/closing rules. */
 export function inlineMathSpan(text: MathTextSource, position: number): InlineMathSpan | undefined {
   if (text.char(position) !== 36) return;
+  let openingSlashes = 0;
+  for (let cursor = position - 1; cursor >= 0 && text.char(cursor) === 92; cursor--) openingSlashes++;
+  if (openingSlashes % 2) return;
   let width = 1; while (text.char(position + width) === 36) width++;
   const start = position + width;
   if (start >= text.end || width === 1 && /\s/.test(text.slice(start, start + 1))) return;

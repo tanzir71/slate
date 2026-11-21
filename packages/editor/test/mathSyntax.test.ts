@@ -30,6 +30,11 @@ it.each(["$", "$unfinished", String.raw`\$literal$`, "$ spaced $", "$two dollars
   expect(mathNodes(source)).toHaveLength(0);
 });
 
+it.each([1, 2, 3, 4])("retains editor math escape parity after %i backslashes", count => {
+  const source = "Before " + "\\".repeat(count) + "$__word__$ after.";
+  expect(mathNodes(source)).toHaveLength(count % 2 === 1 ? 0 : 1);
+});
+
 it.each([
   "$$\nx^2\n+y^2\n$$",
   "$$\nx\n\ny\n$$",

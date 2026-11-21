@@ -15,6 +15,32 @@ const clean = "# Draft\n\n- *One*\n- **Two**\n";
 const panel = (page: import("@playwright/test").Page) =>
   page.getByRole("complementary", { name: "Tidy review", exact: true });
 
+test("escaped dollar openers remain ordinary formatting through Tidy and Undo", async ({ page }) => {
+  await openLibrary(page);
+  const source = "\uFEFF---\r\ntitle: Dollars\r\n---\r\n\r\nEscaped " + "\\" + "$__one__$ and " + "\\".repeat(3) + "$__three__$.\r\n\r\nMath " + "\\".repeat(2) + "$__two__$ remains source.\r\n";
+  const expected = source.replace("__one__", "**one**").replace("__three__", "**three**");
+  await page.getByLabel("Import files", { exact: true }).setInputFiles({
+    name: "Dollars.md", mimeType: "text/markdown", buffer: Buffer.from(source),
+  });
+  await expect(page.locator(".cm-content")).toBeVisible();
+  await showSheets(page);
+  await page.locator('.browserSheetRow[data-path="Dollars.md"]').click();
+  await expect(page).toHaveURL(/Dollars\.md$/);
+  const raw = async (target: import("@playwright/test").Page) =>
+    new TextDecoder("utf-8", { ignoreBOM: true }).decode(new Uint8Array((await libraryFile(target, "Dollars.md"))!));
+  expect(await raw(page)).toBe(source);
+  await page.getByRole("button", { name: "Tidy review", exact: true }).click();
+  const review = panel(page);
+  await expect(review.locator(".tidyApplyAll")).toBeEnabled({ timeout: 15_000 });
+  await review.locator(".tidyApplyAll").click();
+  await expectSavedSheet(page, expected, raw);
+  await page.locator(".cm-content").press("ControlOrMeta+z");
+  await expectSavedSheet(page, source, raw);
+  await page.reload();
+  await expect(page.locator(".cm-content")).toBeVisible();
+  expect(await raw(page)).toBe(source);
+});
+
 test("Tidy is searchable in shortcuts and the palette opens review without editing the note", async ({
   page,
 }) => {
