@@ -1,9 +1,15 @@
 import { EditorState, Compartment, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { forceParsing } from "@codemirror/language";
+import * as language from "@codemirror/language";
 import { undo } from "@codemirror/commands";
 import { afterEach, expect, it, vi } from "vitest";
 import { createSlateMarkdownExtensions, knownWikiTargets, livePreviewSettings } from "../src/index";
+
+vi.mock("@codemirror/language", async importOriginal => {
+  const actual = await importOriginal<typeof import("@codemirror/language")>();
+  return { ...actual, ensureSyntaxTree: vi.fn(actual.ensureSyntaxTree) };
+});
 
 const mounted: EditorView[] = [];
 function editor(source: string, readOnly = false) {
@@ -53,10 +59,13 @@ it("resolves definitions nested in blockquotes and lists", () => {
   expect(preview(buttons[1]!).textContent).toBe("Listed note.\nNext line.");
 });
 
-it("keeps escaped syntax, code, HTML, image alt and YAML out of footnote widgets and definitions", () => {
+it("keeps escaped syntax, code, HTML, image alt and YAML out of footnote widgets and definitions", async () => {
   const { view } = editor("---\ntitle: '[^meta]'\n---\n\n\\[^escaped] `[^inline]`\n\n```md\n[^fence]\n[^a]: Wrong code note.\n```\n\n    [^indent]\n\n<div>\n[^html]\n</div>\n\n![alt[^image]](x.png)\n\nClaim[^a].\n\n[^a]: Correct note.");
   const buttons = references(view); expect(buttons).toHaveLength(1);
-  expect(preview(buttons[0]!).textContent).toBe("Correct note.");
+  vi.mocked(language.ensureSyntaxTree).mockReturnValueOnce(null);
+  const tooltip = preview(buttons[0]!);
+  expect(tooltip.textContent).toBe("Loading footnote…");
+  await vi.waitFor(() => expect(tooltip.textContent).toBe("Correct note."));
 });
 
 it("does not execute HTML, fetch remote images or create links in previews", () => {
