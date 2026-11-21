@@ -2,6 +2,7 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { markdownBodyFrom } from "../markdownBody.js";
 import { parseTidyAst, type TidyDocument } from "./source.js";
 import { mathSourceRanges } from "./math.js";
+import { comparePlainTidyAst } from "./structuralProof.js";
 
 type Projection =
   | null
@@ -156,6 +157,24 @@ export function contentProjection(source: string): string {
     body,
     root: parseTidyAst(body),
   });
+}
+
+/** The parser trees are immutable during the synchronous formatting operation. */
+export function createTidyContentGuard(original: TidyDocument): (candidate: TidyDocument) => boolean {
+  const emptyRoot = { type: "root", children: [] };
+  let completeProof: string | undefined, literalProof: string | undefined;
+  return candidate => {
+    const equal = comparePlainTidyAst(original.root, candidate.root);
+    if (equal === undefined) {
+      completeProof ??= projectTidyDocument(original);
+      return projectTidyDocument(candidate) === completeProof;
+    }
+    if (!equal) return false;
+    // Reuse the authoritative metadata/BOM/wiki/math proof, changing only the
+    // Markdown tree that was just compared in full without clone/sort/stringify.
+    literalProof ??= projectTidyDocument({ ...original, root: emptyRoot });
+    return projectTidyDocument({ ...candidate, root: emptyRoot }) === literalProof;
+  };
 }
 
 export function preservesContent(before: string, after: string): boolean {

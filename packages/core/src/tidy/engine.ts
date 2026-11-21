@@ -6,7 +6,7 @@ import {
   type TidyRuleId,
 } from "./configuration.js";
 import { inlineRules } from "./inlineRules.js";
-import { projectTidyDocument } from "./projection.js";
+import { createTidyContentGuard } from "./projection.js";
 import { ruleContext } from "./ruleContext.js";
 import { parseTidyDocument, type TidyDocument } from "./source.js";
 import { tableYamlRules } from "./tableYamlRules.js";
@@ -156,7 +156,7 @@ export function fix(
   const original = current,
     applied: TidyIssue[] = [],
     rejected: TidyResult["rejected"][number][] = [];
-  let originalProjection: string | undefined;
+  let contentGuard: ReturnType<typeof createTidyContentGuard> | undefined;
   function attempt(
     changes: readonly TextChange[],
   ): "applied" | "unchanged" | "content-change" | "invalid-changes" {
@@ -168,8 +168,8 @@ export function fix(
     }
     if (candidate === current.source) return "unchanged";
     const next = parseTidyDocument(candidate);
-    originalProjection ??= projectTidyDocument(original);
-    if (projectTidyDocument(next) !== originalProjection)
+    contentGuard ??= createTidyContentGuard(original);
+    if (!contentGuard(next))
       return "content-change";
     current = next;
     return "applied";
