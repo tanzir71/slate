@@ -1,0 +1,59 @@
+name: Observe original browser failures
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Immutable application commit to observe
+        required: true
+        default: 333f4fe143d6db44ca8116ea44a9a4d6a16b2822
+        type: string
+
+permissions: { contents: read }
+
+jobs:
+  observe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      SLATE_DIAGNOSTIC_TARGET: ${{ inputs.target_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: driver }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Validate immutable application reference
+        run: node -e "if(!/^[0-9a-f]{40}$/.test(process.env.SLATE_DIAGNOSTIC_TARGET))throw Error('Use a full immutable SHA')"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha }}
+          path: target
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.14.0, run_install: false }
+      - name: Install exact application dependencies
+        working-directory: target
+        run: pnpm install --frozen-lockfile
+      - name: Install original desktop browser profiles
+        working-directory: target
+        run: pnpm exec playwright install chromium firefox
+      - name: Build original application
+        working-directory: target
+        run: pnpm build:site
+      - name: Add observation without changing application or cases
+        working-directory: target
+        run: node ../driver/scripts/prepare-platform-diagnostics.mjs .
+      - name: Replay original assertions and gestures
+        working-directory: target
+        run: pnpm exec playwright test --config=playwright.platform-diagnostics.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: platform-observations-${{ matrix.os }}
+          retention-days: 7
+          path: |
+            target/platform-diagnostics/identity.json
+            target/test-results/platform-diagnostics/
+            target/playwright-report/platform-diagnostics/
