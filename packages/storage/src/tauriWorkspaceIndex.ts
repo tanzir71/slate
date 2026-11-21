@@ -9,7 +9,8 @@ async function nativeInvoke<Result>(command: string, args?: Record<string, unkno
 }
 
 /** A disposable cache: rebuild always starts from the current disk-backed sheets. */
-export function createTauriWorkspaceIndex({ invoke = nativeInvoke }: { invoke?: TauriInvoke } = {}) {
+export function createTauriWorkspaceIndex({ invoke = nativeInvoke, spaceId }: { invoke?: TauriInvoke; spaceId?: string } = {}) {
+  const space = spaceId === undefined ? {} : { spaceId };
   let closed = false;
   let pending: Promise<unknown> = Promise.resolve();
   function enqueue<T>(work: () => Promise<T>) {
@@ -25,10 +26,10 @@ export function createTauriWorkspaceIndex({ invoke = nativeInvoke }: { invoke?: 
       const rows = sheets.map((sheet) => markdownFileToSqliteIndexRow(sheet.path, sheet.unsupportedEncoding ? "" : sheet.content));
       // Only the backend chooses a cache file or SQL statement. Replacements
       // remain one native transaction; failures never write source files.
-      return enqueue(() => invoke<void>("replace_workspace_index", { rows }));
+      return enqueue(() => invoke<void>("replace_workspace_index", { ...space, rows }));
     },
     search(query: string) { return enqueue(async () => {
-      const reply = await invoke<unknown>("search_workspace_index", { query });
+      const reply = await invoke<unknown>("search_workspace_index", { ...space, query });
       if (!Array.isArray(reply) || !reply.every((path: unknown) => {
         if (typeof path !== "string") return false;
         try { return safeWorkspacePath(path) === path; } catch { return false; }

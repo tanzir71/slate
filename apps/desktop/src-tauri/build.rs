@@ -1,6 +1,8 @@
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "list_native_spaces",
+            "pick_native_space",
             "write_sheet",
             "write_numbered_asset",
             "list_markdown_files",

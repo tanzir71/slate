@@ -1,0 +1,95 @@
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createMemoryFiles } from "@slate/storage/browser-files";
+import { createNativeWorkspace, type NativeLifecycle } from "../src/native/nativeWorkspace";
+import { NativeApp } from "../src/native/NativeApp";
+import { defaultNativeSpace, type NativeSpace } from "../src/native/nativeSpaces";
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+vi.mock("../src/browser/BrowserWorkspace", () => ({ default: ({ store, onSwitchSpace }: { store: ReturnType<typeof createNativeWorkspace>["store"]; onSwitchSpace(): Promise<void> }) =>
+  createElement("main", null, createElement("p", { "data-space": store.api.getState().record.id }, store.api.getState().sheets[0]?.content), createElement("button", { onClick: () => { void onSwitchSpace(); } }, "Switch Space")),
+}));
+const folder: NativeSpace = { id: "12345678-1234-4321-9876-123456789abc", name: "Chosen", path: "/Chosen" };
+const modal = new Map(["showModal", "close"].map(name => [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)]));
+beforeEach(() => {
+  localStorage.clear();
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value(this: HTMLDialogElement) { this.setAttribute("open", ""); } });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", { configurable: true, value(this: HTMLDialogElement) { this.removeAttribute("open"); } });
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+  for (const [name, descriptor] of modal) {
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+  }
+});
+function makeSession(space: NativeSpace, content: string) {
+  const stop = vi.fn();
+  const lifecycle: NativeLifecycle = { listen: vi.fn(async () => stop), watchStatus: vi.fn(async () => []), onClose: vi.fn(async () => stop), destroy: vi.fn(async () => {}) };
+  const files = createMemoryFiles({ "same.md": content });
+  return { ...createNativeWorkspace(lifecycle, files, createMemoryFiles(), space), files, lifecycle, stop };
+}
+async function setup() {
+  const first = makeSession(defaultNativeSpace, "First words"), second = makeSession(folder, "Second words");
+  const createSession = vi.fn(async (space = defaultNativeSpace) => space.id === folder.id ? second : first);
+  const catalog = { list: vi.fn(async () => [defaultNativeSpace, folder]), pick: vi.fn(async (): Promise<NativeSpace | null> => folder) };
+  const host = document.body.appendChild(document.createElement("div")), root = createRoot(host);
+  await act(async () => root.render(createElement(NativeApp, { createSession, catalog })));
+  const click = async (label: string) => {
+    const button = [...host.querySelectorAll("button")].find(item => item.textContent === label || item.querySelector("strong")?.textContent === label);
+    expect(button, label).toBeDefined(); await act(async () => button!.click());
+  };
+  await vi.waitFor(() => expect(host.querySelector("[data-space]")).not.toBeNull());
+  return { first, second, createSession, catalog, host, click, dispose: async () => { await act(async () => root.unmount()); host.remove(); } };
+}
+it("flushes the old Space and loads the chosen folder before swapping close protection", async () => {
+  const app = await setup();
+  try {
+    app.first.store.edit("Pending first draft");
+    await app.click("Switch Space"); await app.click("Chosen");
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(folder.id);
+    expect(app.host.querySelector("main")?.textContent).toContain("Second words");
+    expect(new TextDecoder().decode(await app.first.files.read("same.md"))).toBe("Pending first draft");
+    expect(new TextDecoder().decode(await app.second.files.read("same.md"))).toBe("Second words");
+    expect(app.first.stop).toHaveBeenCalledOnce(); expect(app.second.stop).not.toHaveBeenCalled();
+    expect(app.host.querySelector("dialog")).toBeNull();
+  } finally { await app.dispose(); }
+  expect(app.second.stop).toHaveBeenCalledOnce(); expect(app.first.stop).toHaveBeenCalledOnce();
+});
+it("keeps the current session and close guard after a folder fails to load, then allows retry", async () => {
+  const app = await setup();
+  try {
+    const open = vi.spyOn(app.second, "open").mockRejectedValueOnce(new Error("Folder disconnected"));
+    await app.click("Switch Space"); await app.click("Open a folder");
+    expect(app.host.querySelector('[role="alert"]')?.textContent).toBe("Folder disconnected");
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(defaultNativeSpace.id);
+    expect(app.first.stop).not.toHaveBeenCalled(); expect(app.second.lifecycle.onClose).not.toHaveBeenCalled();
+    await app.click("Open a folder");
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(folder.id);
+  } finally { await app.dispose(); }
+});
+it("does not open another folder after a failed current-Space flush", async () => {
+  const app = await setup();
+  try {
+    await app.click("Switch Space");
+    vi.spyOn(app.first.store, "flush").mockRejectedValueOnce(new Error("Disk is read-only"));
+    await app.click("Chosen");
+    expect(app.host.querySelector('[role="alert"]')?.textContent).toBe("Disk is read-only");
+    expect(app.createSession).toHaveBeenCalledTimes(1); expect(app.first.stop).not.toHaveBeenCalled();
+  } finally { await app.dispose(); }
+});
+it("cancels a native picker without changing sessions and shows catalog failures", async () => {
+  const app = await setup();
+  try {
+    app.catalog.pick.mockResolvedValueOnce(null);
+    await app.click("Switch Space"); await app.click("Open a folder");
+    expect(app.createSession).toHaveBeenCalledTimes(1); expect(app.host.querySelector("dialog")).not.toBeNull();
+    await app.click("Slate");
+    app.catalog.list.mockRejectedValueOnce(new Error("Catalog invalid; files kept"));
+    await app.click("Switch Space");
+    expect(app.host.querySelector('[role="alert"]')?.textContent).toBe("Catalog invalid; files kept");
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(defaultNativeSpace.id);
+  } finally { await app.dispose(); }
+});

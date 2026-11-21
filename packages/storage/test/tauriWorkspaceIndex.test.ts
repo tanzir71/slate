@@ -2,6 +2,20 @@ import { expect, it, vi } from "vitest";
 import { createTauriWorkspaceIndex } from "../src/tauriWorkspaceIndex";
 import type { TauriInvoke } from "../src/tauriFileSource";
 
+it("captures separate Space IDs across queued rebuilds and searches", async () => {
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const calls = vi.fn(async (command: string): Promise<unknown> => command === "replace_workspace_index" ? held : []);
+  const options = { invoke: calls as TauriInvoke, spaceId: "first" };
+  const first = createTauriWorkspaceIndex(options); options.spaceId = "second";
+  const second = createTauriWorkspaceIndex(options);
+  const rebuilding = first.rebuild([]); const searching = first.search("one");
+  await second.search("two"); release(); await rebuilding; await searching;
+  expect(calls).toHaveBeenCalledWith("replace_workspace_index", { spaceId: "first", rows: [] });
+  expect(calls).toHaveBeenCalledWith("search_workspace_index", { spaceId: "first", query: "one" });
+  expect(calls).toHaveBeenCalledWith("search_workspace_index", { spaceId: "second", query: "two" });
+});
+
 it("uses fixed cache commands without exposing a database path or raw SQL", async () => {
   const invoke = vi.fn(async (command: string): Promise<unknown> => command === "search_workspace_index" ? ["real.md"] : null);
   const index = createTauriWorkspaceIndex({ invoke: invoke as TauriInvoke });

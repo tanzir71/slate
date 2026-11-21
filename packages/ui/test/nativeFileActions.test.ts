@@ -3,6 +3,13 @@ import { createNativeFileActions } from "../src/native/nativeFileActions";
 import type { TauriInvoke } from "../src/tauriAutosave";
 
 const info = { absolutePath: "C:\\Notes\\বাংলা note.md", bytes: 17, modifiedAt: 1795161600000, revealLabel: "Show in Explorer" };
+it("binds Inspector and reveal calls to the captured Space", async () => {
+  const invoke = vi.fn(async (command: string) => command === "read_workspace_file_info" ? info : undefined);
+  const actions = createNativeFileActions(invoke as TauriInvoke, "first");
+  await actions.info("same.md"); await actions.reveal("same.md");
+  expect(invoke).toHaveBeenCalledWith("read_workspace_file_info", { spaceId: "first", path: "same.md" });
+  expect(invoke).toHaveBeenCalledWith("reveal_workspace_file", { spaceId: "first", path: "same.md" });
+});
 it("reads real file information and reveals only its captured ordinary Markdown path", async () => {
   const invoke = vi.fn(async (command: string) => command === "read_workspace_file_info" ? info : undefined);
   const actions = createNativeFileActions(invoke as TauriInvoke);

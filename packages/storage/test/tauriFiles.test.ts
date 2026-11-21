@@ -8,6 +8,22 @@ function fixture(reply: unknown, scope: "space" | "global" = "space") {
   return { calls, files: createTauriWorkspaceFiles({ invoke, scope }) };
 }
 
+it("captures a Space ID in every file operation while global files remain shared", async () => {
+  const replies: Record<string, unknown> = { list_workspace_files: [], read_workspace_file: null, create_workspace_file: true, save_workspace_file: { status: "written", path: "a.md" }, move_workspace_file: null, trash_workspace_file: ".slate/trash/a.md" };
+  const calls = vi.fn(async (command: string, _args?: Record<string, unknown>) => replies[command]);
+  const options = { invoke: calls as TauriInvoke, spaceId: "first" };
+  const first = createTauriWorkspaceFiles(options);
+  options.spaceId = "second";
+  await first.list(); await first.read("a.md"); await first.operations.createNew("a.md", new Uint8Array());
+  await first.operations.save("a.md", new Uint8Array(), undefined);
+  await first.operations.move("a.md", "b.md", new Uint8Array()); await first.operations.trash("a.md", new Uint8Array());
+  expect(calls.mock.calls).toHaveLength(6);
+  for (const call of calls.mock.calls) expect(call[1]).toMatchObject({ scope: "space", spaceId: "first" });
+  calls.mockClear();
+  await createTauriWorkspaceFiles({ ...options, scope: "global" }).read("global/snippets.json");
+  expect(calls).toHaveBeenCalledExactlyOnceWith("read_workspace_file", { scope: "global", path: "global/snippets.json" });
+});
+
 it("lists only valid relative paths and preserves the selected root scope", async () => {
   const { files, calls } = fixture(["Inbox/a.md", ".slate/snippets.json"], "global");
   expect(await files.list(true)).toEqual(["Inbox/a.md", ".slate/snippets.json"]);

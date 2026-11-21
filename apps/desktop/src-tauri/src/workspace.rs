@@ -66,10 +66,14 @@ fn check_scope(scope: Scope, path: &str) -> Result<(), FileError> {
 pub(crate) async fn blocking<T: Send + 'static>(
     app: tauri::AppHandle,
     scope: Scope,
+    space_id: Option<String>,
     work: impl FnOnce(PathBuf) -> Result<T, FileError> + Send + 'static,
 ) -> Result<T, FileError> {
-    let data = app.path().app_data_dir().map_err(FileError::io)?;
-    tauri::async_runtime::spawn_blocking(move || work(scoped_root(&data, scope)))
+    let root = match scope {
+        Scope::Space => crate::spaces::resolve(&app, space_id.as_deref())?,
+        Scope::Global => app.path().app_data_dir().map_err(FileError::io)?,
+    };
+    tauri::async_runtime::spawn_blocking(move || work(root))
         .await
         .map_err(FileError::io)?
 }
@@ -95,9 +99,10 @@ impl From<WriteSheetOutcome> for SaveResponse {
 pub async fn list_workspace_files(
     app: tauri::AppHandle,
     scope: Scope,
+    space_id: Option<String>,
     include_private: bool,
 ) -> Result<Vec<String>, FileError> {
-    blocking(app, scope, move |root| {
+    blocking(app, scope, space_id, move |root| {
         if scope == Scope::Global {
             Ok(
                 slate_core::list_workspace_files(root.join("global"), include_private)?
@@ -115,10 +120,11 @@ pub async fn list_workspace_files(
 pub async fn read_workspace_file(
     app: tauri::AppHandle,
     scope: Scope,
+    space_id: Option<String>,
     path: String,
 ) -> Result<Option<Vec<u8>>, FileError> {
     check_scope(scope, &path)?;
-    blocking(app, scope, move |root| {
+    blocking(app, scope, space_id, move |root| {
         Ok(slate_core::read_workspace_file(root, &path)?)
     })
     .await
@@ -127,11 +133,12 @@ pub async fn read_workspace_file(
 pub async fn create_workspace_file(
     app: tauri::AppHandle,
     scope: Scope,
+    space_id: Option<String>,
     path: String,
     bytes: Vec<u8>,
 ) -> Result<bool, FileError> {
     check_scope(scope, &path)?;
-    blocking(app, scope, move |root| {
+    blocking(app, scope, space_id, move |root| {
         Ok(slate_core::create_workspace_file(root, &path, &bytes)?)
     })
     .await
@@ -140,12 +147,13 @@ pub async fn create_workspace_file(
 pub async fn save_workspace_file(
     app: tauri::AppHandle,
     scope: Scope,
+    space_id: Option<String>,
     path: String,
     bytes: Vec<u8>,
     base_bytes: Option<Vec<u8>>,
 ) -> Result<SaveResponse, FileError> {
     check_scope(scope, &path)?;
-    blocking(app, scope, move |root| {
+    blocking(app, scope, space_id, move |root| {
         Ok(slate_core::save_workspace_file(root, &path, &bytes, base_bytes.as_deref())?.into())
     })
     .await
@@ -154,13 +162,14 @@ pub async fn save_workspace_file(
 pub async fn move_workspace_file(
     app: tauri::AppHandle,
     scope: Scope,
+    space_id: Option<String>,
     from: String,
     to: String,
     base_bytes: Vec<u8>,
 ) -> Result<(), FileError> {
     check_scope(scope, &from)?;
     check_scope(scope, &to)?;
-    blocking(app, scope, move |root| {
+    blocking(app, scope, space_id, move |root| {
         Ok(slate_core::move_workspace_file(
             root,
             &from,
@@ -174,6 +183,7 @@ pub async fn move_workspace_file(
 pub async fn trash_workspace_file(
     app: tauri::AppHandle,
     scope: Scope,
+    space_id: Option<String>,
     path: String,
     base_bytes: Vec<u8>,
 ) -> Result<String, FileError> {
@@ -182,20 +192,26 @@ pub async fn trash_workspace_file(
     if scope == Scope::Global {
         return Err(StorageError::InvalidSheetPath.into());
     }
-    blocking(app, scope, move |root| {
+    blocking(app, scope, space_id, move |root| {
         Ok(slate_core::trash_workspace_file(root, &path, &base_bytes)?)
     })
     .await
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Change {
     scope: Scope,
+    space_id: Option<String>,
     error: Option<String>,
 }
 pub struct WorkspaceWatches {
-    _watchers: Vec<RecommendedWatcher>,
-    errors: Vec<String>,
+    inner: std::sync::Mutex<WatchSet>,
+}
+#[derive(Default)]
+struct WatchSet {
+    watchers: std::collections::BTreeMap<String, RecommendedWatcher>,
+    errors: std::collections::BTreeMap<String, String>,
 }
 fn watch_root(
     root: &Path,
@@ -210,43 +226,89 @@ fn watch_root(
 }
 pub fn start_watches(app: &tauri::AppHandle) -> Result<WorkspaceWatches, FileError> {
     let data = app.path().app_data_dir().map_err(FileError::io)?;
-    let mut state = WorkspaceWatches {
-        _watchers: vec![],
-        errors: vec![],
+    let state = WorkspaceWatches {
+        inner: std::sync::Mutex::new(WatchSet::default()),
     };
-    for (scope, root) in [
-        (Scope::Space, scoped_root(&data, Scope::Space)),
-        (Scope::Global, data.join("global")),
-    ] {
-        let handle = app.clone();
-        let watch = watch_root(
-            &root,
-            move |event: notify::Result<notify::Event>| match event {
-                Ok(event) if !event.kind.is_access() => {
-                    let _ = handle.emit("slate://workspace-changed", Change { scope, error: None });
-                }
-                Err(error) => {
-                    let _ = handle.emit(
-                        "slate://workspace-changed",
-                        Change {
-                            scope,
-                            error: Some(error.to_string()),
-                        },
-                    );
-                }
-                _ => {}
-            },
+    {
+        let mut set = state.inner.lock().map_err(FileError::io)?;
+        add_watch(app, &mut set, Scope::Global, None, &data.join("global"));
+        add_watch(
+            app,
+            &mut set,
+            Scope::Space,
+            Some(crate::spaces::DEFAULT_ID),
+            &scoped_root(&data, Scope::Space),
         );
-        match watch {
-            Ok(watcher) => state._watchers.push(watcher),
-            Err(error) => state.errors.push(error.message),
-        }
     }
     Ok(state)
 }
+fn add_watch(
+    app: &tauri::AppHandle,
+    state: &mut WatchSet,
+    scope: Scope,
+    space_id: Option<&str>,
+    root: &Path,
+) {
+    let key = space_id.unwrap_or("global").to_owned();
+    if state.watchers.contains_key(&key) {
+        return;
+    }
+    let handle = app.clone();
+    let space_id = space_id.map(str::to_owned);
+    let watch = watch_root(
+        root,
+        move |event: notify::Result<notify::Event>| match event {
+            Ok(event) if !event.kind.is_access() => {
+                let _ = handle.emit(
+                    "slate://workspace-changed",
+                    Change {
+                        scope,
+                        space_id: space_id.clone(),
+                        error: None,
+                    },
+                );
+            }
+            Err(error) => {
+                let _ = handle.emit(
+                    "slate://workspace-changed",
+                    Change {
+                        scope,
+                        space_id: space_id.clone(),
+                        error: Some(error.to_string()),
+                    },
+                );
+            }
+            _ => {}
+        },
+    );
+    match watch {
+        Ok(watcher) => {
+            state.watchers.insert(key.clone(), watcher);
+            state.errors.remove(&key);
+        }
+        Err(error) => {
+            state.errors.insert(key, error.message);
+        }
+    }
+}
 #[tauri::command]
-pub fn workspace_watch_status(state: tauri::State<'_, WorkspaceWatches>) -> Vec<String> {
-    state.errors.clone()
+pub async fn workspace_watch_status(
+    app: tauri::AppHandle,
+    space_id: Option<String>,
+) -> Result<Vec<String>, FileError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let id = space_id.as_deref().unwrap_or(crate::spaces::DEFAULT_ID);
+        let root = crate::spaces::resolve(&app, Some(id))?;
+        let state = app.state::<WorkspaceWatches>();
+        let mut set = state.inner.lock().map_err(FileError::io)?;
+        add_watch(&app, &mut set, Scope::Space, Some(id), &root);
+        Ok(["global", id]
+            .iter()
+            .filter_map(|key| set.errors.get(*key).cloned())
+            .collect())
+    })
+    .await
+    .map_err(FileError::io)?
 }
 
 #[cfg(test)]

@@ -75,13 +75,21 @@ fn reveal_checked(
 #[tauri::command]
 pub async fn read_workspace_file_info(
     app: tauri::AppHandle,
+    space_id: Option<String>,
     path: String,
 ) -> Result<FileInfo, FileError> {
-    blocking(app, Scope::Space, move |root| read_info(&root, &path)).await
+    blocking(app, Scope::Space, space_id, move |root| {
+        read_info(&root, &path)
+    })
+    .await
 }
 #[tauri::command]
-pub async fn reveal_workspace_file(app: tauri::AppHandle, path: String) -> Result<(), FileError> {
-    blocking(app, Scope::Space, move |root| {
+pub async fn reveal_workspace_file(
+    app: tauri::AppHandle,
+    space_id: Option<String>,
+    path: String,
+) -> Result<(), FileError> {
+    blocking(app, Scope::Space, space_id, move |root| {
         reveal_checked(&root, &path, |file| {
             // Only this checked Space path reaches the native API. No generic opener
             // plugin commands or URL/path-opening permissions are exposed to JS.

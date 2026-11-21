@@ -1,0 +1,18 @@
+.nativeSpacesList {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.nativeSpacesList button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  text-align: start;
+}
+
+.nativeSpacesList span {
+  overflow-wrap: anywhere;
+}

@@ -1,17 +1,22 @@
 use tauri::Manager;
 mod file_info;
 mod legacy_workspace;
+mod spaces;
 mod workspace;
 mod workspace_index;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(workspace_index::WorkspaceIndex::default())
         .setup(|app| {
+            app.manage(spaces::NativeSpaces::new(app.path().app_data_dir()?)?);
             app.manage(workspace::start_watches(app.handle())?);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            spaces::list_native_spaces,
+            spaces::pick_native_space,
             legacy_workspace::write_sheet,
             legacy_workspace::write_numbered_asset,
             legacy_workspace::list_markdown_files,

@@ -6,7 +6,7 @@ use tauri::Manager;
 
 #[derive(Default)]
 pub struct WorkspaceIndex {
-    pool: tauri::async_runtime::Mutex<Option<SqlitePool>>,
+    pools: tauri::async_runtime::Mutex<std::collections::BTreeMap<String, SqlitePool>>,
 }
 
 fn cache_path(root: &Path) -> Result<PathBuf, FileError> {
@@ -39,15 +39,49 @@ async fn schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-async fn pool(app: &tauri::AppHandle, state: &WorkspaceIndex) -> Result<SqlitePool, FileError> {
-    let mut cache = state.pool.lock().await;
-    if let Some(pool) = cache.as_ref() {
+fn space_cache_root(base: &Path, id: &str) -> Result<PathBuf, FileError> {
+    std::fs::create_dir_all(base).map_err(FileError::io)?;
+    let base = std::fs::canonicalize(base).map_err(FileError::io)?;
+    if id == crate::spaces::DEFAULT_ID {
+        return Ok(base);
+    }
+    if !uuid::Uuid::parse_str(id).is_ok_and(|value| value.to_string() == id) {
+        return Err(slate_core::StorageError::PathEscapesRoot.into());
+    }
+    let mut root = base;
+    for part in ["spaces", id] {
+        root.push(part);
+        match std::fs::create_dir(&root) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(FileError::io(error)),
+        }
+        let metadata = std::fs::symlink_metadata(&root).map_err(FileError::io)?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(slate_core::StorageError::PathEscapesRoot.into());
+        }
+    }
+    Ok(root)
+}
+async fn pool(
+    app: &tauri::AppHandle,
+    state: &WorkspaceIndex,
+    space_id: Option<&str>,
+) -> Result<SqlitePool, FileError> {
+    // Admission uses the same opened-root registry as IO; the ID never becomes a path argument.
+    crate::spaces::resolve(app, space_id)?;
+    let id = space_id.unwrap_or(crate::spaces::DEFAULT_ID);
+    let mut cache = state.pools.lock().await;
+    if let Some(pool) = cache.get(id) {
         return Ok(pool.clone());
     }
     let root = app.path().app_cache_dir().map_err(FileError::io)?;
-    let path = tauri::async_runtime::spawn_blocking(move || cache_path(&root))
-        .await
-        .map_err(FileError::io)??;
+    let captured_id = id.to_owned();
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        cache_path(&space_cache_root(&root, &captured_id)?)
+    })
+    .await
+    .map_err(FileError::io)??;
     let options = sqlx::sqlite::SqliteConnectOptions::new()
         .filename(path)
         .create_if_missing(true)
@@ -58,7 +92,7 @@ async fn pool(app: &tauri::AppHandle, state: &WorkspaceIndex) -> Result<SqlitePo
         .await
         .map_err(FileError::io)?;
     schema(&pool).await.map_err(FileError::io)?;
-    *cache = Some(pool.clone());
+    cache.insert(id.to_owned(), pool.clone());
     Ok(pool)
 }
 #[derive(Deserialize)]
@@ -111,9 +145,10 @@ async fn replace(pool: &SqlitePool, rows: Vec<IndexRow>) -> Result<(), sqlx::Err
 pub async fn replace_workspace_index(
     app: tauri::AppHandle,
     state: tauri::State<'_, WorkspaceIndex>,
+    space_id: Option<String>,
     rows: Vec<IndexRow>,
 ) -> Result<(), FileError> {
-    let pool = pool(&app, &state).await?;
+    let pool = pool(&app, &state, space_id.as_deref()).await?;
     replace(&pool, rows).await.map_err(FileError::io)
 }
 
@@ -146,9 +181,10 @@ async fn search(pool: &SqlitePool, query: &str) -> Result<Vec<String>, sqlx::Err
 pub async fn search_workspace_index(
     app: tauri::AppHandle,
     state: tauri::State<'_, WorkspaceIndex>,
+    space_id: Option<String>,
     query: String,
 ) -> Result<Vec<String>, FileError> {
-    search(&pool(&app, &state).await?, &query)
+    search(&pool(&app, &state, space_id.as_deref()).await?, &query)
         .await
         .map_err(FileError::io)
 }
@@ -156,6 +192,63 @@ pub async fn search_workspace_index(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn space_caches_keep_identical_paths_in_independent_databases() {
+        let base = std::env::temp_dir().join(format!("slate-space-cache-{}", uuid::Uuid::new_v4()));
+        tauri::async_runtime::block_on(async {
+            let first_id = uuid::Uuid::new_v4().to_string();
+            let second_id = uuid::Uuid::new_v4().to_string();
+            let first_path = cache_path(&space_cache_root(&base, &first_id).unwrap()).unwrap();
+            let second_path = cache_path(&space_cache_root(&base, &second_id).unwrap()).unwrap();
+            assert_ne!(first_path, second_path);
+            assert_eq!(
+                space_cache_root(&base, crate::spaces::DEFAULT_ID).unwrap(),
+                std::fs::canonicalize(&base).unwrap()
+            );
+            let options = |path| {
+                sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(path)
+                    .create_if_missing(true)
+            };
+            let first = SqlitePool::connect_with(options(first_path)).await.unwrap();
+            let second = SqlitePool::connect_with(options(second_path))
+                .await
+                .unwrap();
+            schema(&first).await.unwrap();
+            schema(&second).await.unwrap();
+            replace(&first, vec![row("same.md", "First unique words")])
+                .await
+                .unwrap();
+            replace(&second, vec![row("same.md", "Second other words")])
+                .await
+                .unwrap();
+            assert_eq!(search(&first, "unique").await.unwrap(), vec!["same.md"]);
+            assert!(search(&second, "unique").await.unwrap().is_empty());
+            replace(&first, vec![]).await.unwrap();
+            assert_eq!(search(&second, "other").await.unwrap(), vec!["same.md"]);
+            first.close().await;
+            second.close().await;
+        });
+        assert_eq!(base.parent(), Some(std::env::temp_dir().as_path()));
+        std::fs::remove_dir_all(base).unwrap();
+    }
+    #[test]
+    fn cache_names_cannot_escape_and_existing_non_directory_names_are_kept() {
+        let base = std::env::temp_dir().join(format!("slate-space-cache-{}", uuid::Uuid::new_v4()));
+        for id in ["../escape", "C:/root", "arbitrary", "../native-default"] {
+            assert!(space_cache_root(&base, id).is_err());
+        }
+        let id = uuid::Uuid::new_v4().to_string();
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("spaces"), b"Keep this file").unwrap();
+        assert!(space_cache_root(&base, &id).is_err());
+        assert_eq!(
+            std::fs::read(base.join("spaces")).unwrap(),
+            b"Keep this file"
+        );
+        assert_eq!(base.parent(), Some(std::env::temp_dir().as_path()));
+        std::fs::remove_dir_all(base).unwrap();
+    }
     fn row(path: &str, body: &str) -> IndexRow {
         IndexRow {
             entry: IndexEntry {

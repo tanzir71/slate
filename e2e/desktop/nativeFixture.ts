@@ -32,9 +32,10 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
     const callbacks = new Map<number, (value: unknown) => void>();
     const listeners = new Map<number, { event: string; callback: number }>();
     let sequence = 0;
-    let rows: { entry: { id: string; path: string; title: string; tags: string[]; links: string[]; words: number; updatedAt?: string }; body: string; contentHash: string }[] = [];
+    type Row = { entry: { id: string; path: string; title: string; tags: string[]; links: string[]; words: number; updatedAt?: string }; body: string; contentHash: string };
+    const indexes = new Map<string, Row[]>();
     Reflect.set(window, "__NATIVE_FIXTURE__", {
-      indexBodies: () => rows.map((row) => row.body),
+      indexBodies: (spaceId = "native-default") => (indexes.get(spaceId) ?? []).map((row) => row.body),
       emit(event: string, payload: unknown) { for (const [id, listener] of listeners) if (listener.event === event) callbacks.get(listener.callback)?.({ event, id, payload }); },
     });
     Reflect.set(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", { unregisterListener: (_event: string, id: number) => listeners.delete(id) });
@@ -43,19 +44,26 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
       transformCallback(callback: (value: unknown) => void) { const id = ++sequence; callbacks.set(id, callback); return id; },
       unregisterCallback(id: number) { callbacks.delete(id); },
       async invoke(command: string, args: Record<string, unknown> = {}) {
-        const path = String(args.path), scope = args.scope;
+        const path = String(args.path), spaceId = String(args.spaceId ?? "native-default");
+        const spaceScope = spaceId === "native-default" ? "space" : "folder:" + spaceId;
+        const scope = args.scope === "space" ? spaceScope : args.scope;
         if (command === "plugin:event|listen") { const id = ++sequence; listeners.set(id, { event: String(args.event), callback: Number(args.handler) }); return id; }
         if (command === "plugin:event|unlisten") { listeners.delete(Number(args.eventId)); return null; }
         if (command === "plugin:window|destroy") { localStorage.setItem("native-destroyed", "true"); return null; }
         if (command === "workspace_watch_status") return [];
+        if (command === "list_native_spaces") {
+          if (localStorage.getItem("native-fail-catalog")) throw { kind: "io", message: "Spaces list is invalid. Your folders were kept." };
+          return JSON.parse(localStorage.getItem("native-spaces") ?? '[{"id":"native-default","name":"Slate","path":null}]') as unknown;
+        }
+        if (command === "pick_native_space") return JSON.parse(localStorage.getItem("native-picked-space") ?? "null") as unknown;
         if (command === "read_workspace_file_info") {
           if (localStorage.getItem("native-fail-info")) throw { kind: "permission", message: "File information unavailable" };
-          const bytes = read("space", path); if (bytes === null) throw { kind: "io", message: "This sheet no longer exists" };
-          return { absolutePath: "C:\\Slate test Space\\" + path.replaceAll("/", "\\"), bytes: bytes.length, modifiedAt: Date.UTC(2026, 10, 20), revealLabel: "Show in Explorer" };
+          const bytes = read(spaceScope, path); if (bytes === null) throw { kind: "io", message: "This sheet no longer exists" };
+          return { absolutePath: (spaceId === "native-default" ? "C:\\Slate test Space\\" : "C:\\Chosen notes\\") + path.replaceAll("/", "\\"), bytes: bytes.length, modifiedAt: Date.UTC(2026, 10, 20), revealLabel: "Show in Explorer" };
         }
         if (command === "reveal_workspace_file") {
           if (localStorage.getItem("native-fail-reveal")) throw { kind: "io", message: "File manager unavailable" };
-          if (read("space", path) === null) throw { kind: "io", message: "This sheet no longer exists" };
+          if (read(spaceScope, path) === null) throw { kind: "io", message: "This sheet no longer exists" };
           localStorage.setItem("native-revealed", path); return null;
         }
         if (command === "list_workspace_files") return Object.keys(localStorage).filter((key) => key.startsWith(prefix(scope))).map((key) => key.slice(prefix(scope).length)).filter((name) => args.includePrivate || !name.startsWith(".slate/")).sort();
@@ -85,11 +93,11 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
         }
         if (command === "replace_workspace_index") {
           if (localStorage.getItem("native-fail-index")) throw { kind: "io", message: "Cache unavailable" };
-          rows = args.rows as typeof rows; return null;
+          indexes.set(spaceId, args.rows as Row[]); return null;
         }
         if (command === "search_workspace_index") {
           const query = String(args.query).toLowerCase();
-          return rows.filter((row) => !query || `${row.entry.title} ${row.body} ${row.entry.tags.join(" ")}`.toLowerCase().includes(query)).map((row) => row.entry.path);
+          return (indexes.get(spaceId) ?? []).filter((row) => !query || `${row.entry.title} ${row.body} ${row.entry.tags.join(" ")}`.toLowerCase().includes(query)).map((row) => row.entry.path);
         }
         throw new Error(`Unexpected native command: ${command}`);
       },

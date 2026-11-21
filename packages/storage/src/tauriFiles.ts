@@ -4,6 +4,7 @@ import type { TauriInvoke } from "./tauriFileSource";
 export type NativeFileScope = "space" | "global";
 export interface TauriWorkspaceFilesOptions {
   readonly scope?: NativeFileScope;
+  readonly spaceId?: string;
   readonly invoke?: TauriInvoke;
 }
 export class NativeFileError extends Error {
@@ -30,9 +31,9 @@ async function nativeInvoke<Result>(command: string, args?: Record<string, unkno
 }
 
 /** Every mutation carries its own byte snapshot; no unchecked write/remove operation is exposed. */
-export function createTauriWorkspaceFiles({ scope = "space", invoke = nativeInvoke }: TauriWorkspaceFilesOptions = {}): CheckedWorkspaceFiles {
+export function createTauriWorkspaceFiles({ scope = "space", spaceId, invoke = nativeInvoke }: TauriWorkspaceFilesOptions = {}): CheckedWorkspaceFiles {
   async function call(command: string, args: Record<string, unknown>) {
-    try { return await invoke<unknown>(command, { scope, ...args }); }
+    try { return await invoke<unknown>(command, { scope, ...(scope === "space" && spaceId !== undefined ? { spaceId } : {}), ...args }); }
     catch (cause) { throw nativeFileError(cause); }
   }
   return {

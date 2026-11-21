@@ -17,17 +17,18 @@ function validInfo(value: unknown): value is WorkspaceFileInfo {
     typeof info.revealLabel === "string" && ["Show in Explorer", "Show in Finder", "Show in file manager"].includes(info.revealLabel);
 }
 /** No generic native opener is exposed; both commands accept only a Space-relative sheet path. */
-export function createNativeFileActions(invoke: TauriInvoke): WorkspaceFileActions {
+export function createNativeFileActions(invoke: TauriInvoke, spaceId?: string): WorkspaceFileActions {
+  const space = spaceId === undefined ? {} : { spaceId };
   return {
     async info(path) {
       try {
-        const reply = await invoke<unknown>("read_workspace_file_info", { path: checkedPath(path) });
+        const reply = await invoke<unknown>("read_workspace_file_info", { ...space, path: checkedPath(path) });
         if (!validInfo(reply)) throw Error("The native file information is invalid. Try opening the Inspector again.");
         return reply;
       } catch (error) { throw nativeFileError(error); }
     },
     async reveal(path) {
-      try { await invoke("reveal_workspace_file", { path: checkedPath(path) }); }
+      try { await invoke("reveal_workspace_file", { ...space, path: checkedPath(path) }); }
       catch (error) { throw nativeFileError(error); }
     },
   };

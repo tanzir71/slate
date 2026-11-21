@@ -28,6 +28,7 @@ pub async fn write_sheet(
     workspace::save_workspace_file(
         app,
         Scope::Space,
+        None,
         path,
         content.into_bytes(),
         base_content.map(String::into_bytes),
@@ -37,16 +38,18 @@ pub async fn write_sheet(
 
 #[tauri::command]
 pub async fn list_markdown_files(app: tauri::AppHandle) -> Result<Vec<String>, FileError> {
-    Ok(workspace::list_workspace_files(app, Scope::Space, false)
-        .await?
-        .into_iter()
-        .filter(|path| path.to_ascii_lowercase().ends_with(".md"))
-        .collect())
+    Ok(
+        workspace::list_workspace_files(app, Scope::Space, None, false)
+            .await?
+            .into_iter()
+            .filter(|path| path.to_ascii_lowercase().ends_with(".md"))
+            .collect(),
+    )
 }
 
 #[tauri::command]
 pub async fn read_markdown_file(app: tauri::AppHandle, path: String) -> Result<String, FileError> {
-    workspace::blocking(app, Scope::Space, move |root| {
+    workspace::blocking(app, Scope::Space, None, move |root| {
         read_markdown_at(&root, &path)
     })
     .await
@@ -58,7 +61,7 @@ pub async fn write_numbered_asset(
     path: String,
     bytes: Vec<u8>,
 ) -> Result<String, FileError> {
-    workspace::blocking(app, Scope::Space, move |root| {
+    workspace::blocking(app, Scope::Space, None, move |root| {
         Ok(slate_core::write_numbered_asset_to_space(
             root, &path, &bytes,
         )?)
@@ -68,7 +71,7 @@ pub async fn write_numbered_asset(
 
 #[tauri::command]
 pub async fn read_tidy_settings(app: tauri::AppHandle) -> Result<Option<Vec<u8>>, FileError> {
-    workspace::read_workspace_file(app, Scope::Space, ".slate/tidy.json".into()).await
+    workspace::read_workspace_file(app, Scope::Space, None, ".slate/tidy.json".into()).await
 }
 
 #[tauri::command]
@@ -80,6 +83,7 @@ pub async fn write_tidy_settings(
     workspace::save_workspace_file(
         app,
         Scope::Space,
+        None,
         ".slate/tidy.json".into(),
         bytes,
         base_bytes,

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createNativeWorkspace, type NativeChange, type NativeLifecycle } from "../src/native/nativeWorkspace";
 import { createTauriWorkspaceFiles } from "@slate/storage/tauri-files";
 import type { TauriInvoke } from "../src/tauriAutosave";
+import { defaultNativeSpace } from "../src/native/nativeSpaces";
 
 function setup(initial: Record<string, string> = {}) {
   const disk = new Map(Object.entries(initial).map(([path, value]) => [path, new TextEncoder().encode(value)]));
@@ -38,6 +39,25 @@ function setup(initial: Record<string, string> = {}) {
 
 beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
+
+it("filters other Spaces' events and retains shared global updates", async () => {
+  const { lifecycle, change } = setup();
+  const space = { id: "chosen", name: "Notes", path: "/Notes" };
+  const session = createNativeWorkspace(lifecycle, undefined, undefined, space);
+  expect(session.store.api.getState().record.id).toBe("chosen");
+  const refresh = vi.fn(), failed = vi.fn();
+  const stop = await session.runtime.observe(refresh, failed);
+  refresh.mockClear();
+  change({ scope: "space", spaceId: defaultNativeSpace.id, error: "Other error" });
+  change({ scope: "space", error: "Legacy default event" });
+  await vi.advanceTimersByTimeAsync(25);
+  expect(refresh).not.toHaveBeenCalled(); expect(failed).not.toHaveBeenCalled();
+  change({ scope: "space", spaceId: space.id, error: null }); await vi.advanceTimersByTimeAsync(25);
+  expect(refresh).toHaveBeenCalledTimes(1);
+  change({ scope: "global", spaceId: null, error: "Shared failure" }); await vi.advanceTimersByTimeAsync(25);
+  expect(refresh).toHaveBeenCalledTimes(2); expect(failed).toHaveBeenCalledWith(new Error("Shared failure"));
+  stop();
+});
 
 it("exposes native file actions only when the lifecycle supplies the real capability", () => {
   const { lifecycle, session } = setup(); expect(session.runtime.fileActions).toBeUndefined();
