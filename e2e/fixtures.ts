@@ -1,4 +1,5 @@
 import { test as base, expect, type BrowserContext, type BrowserContextOptions } from "@playwright/test";
+import { observeOfflineServiceWorker } from "./serviceWorkerObservation";
 
 type ContextFactory = (options?: BrowserContextOptions) => Promise<BrowserContext>;
 
@@ -26,6 +27,10 @@ export const test = base.extend<{ createContext: ContextFactory }>({
     if (browserName !== "webkit") { await use(context); return; }
     const persistent = await createContext();
     await use(persistent);
+  },
+  page: async ({ page }, use, testInfo) => {
+    const finish = await observeOfflineServiceWorker(page, testInfo);
+    try { await use(page); } finally { await finish(); }
   }
 });
 
