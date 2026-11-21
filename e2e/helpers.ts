@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { editorSource } from "./editorSource";
 
 export async function openLibrary(page: Page) {
   await page.goto("./", { waitUntil: "domcontentloaded" });
@@ -24,9 +25,9 @@ export async function replaceEditorText(page: Page, text: string) {
   await editor.click();
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(text);
-  // These recovery fixtures have a heading only on line one; reveal its source marker.
+  // Preserve the original caret setup; assertions read the buffer independently of Live rendering.
   await page.keyboard.press("ControlOrMeta+Home");
-  await expect.poll(async () => (await editor.locator(".cm-line").allTextContents()).join("\n")).toBe(text);
+  await expect.poll(() => editorSource(editor)).toBe(text);
 }
 
 export async function showSheets(page: Page) {

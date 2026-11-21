@@ -44,6 +44,14 @@ it("reveals only the fence line holding a caret and keeps the code editable", ()
   expect(view.state.doc).toBe(original); expect(undo(view)).toBe(false);
 });
 
+it("keeps fully selected code in direct editable lines without changing source or Undo", () => {
+  const source = "```md\nliteral\n```", view = editor(source), original = view.state.doc;
+  view.dispatch({ selection: { anchor: 0, head: source.length } });
+  expect(view.dom.querySelector(".cm-slate-code-block")).toBeNull();
+  expect([...view.dom.querySelectorAll(".cm-slate-code-line")].map(line => line.textContent)).toEqual(source.split("\n"));
+  expect(view.state.doc).toBe(original); expect(undo(view)).toBe(false);
+});
+
 it.each([false, true])("copies only the code, including blank lines, without changing selection or undo (readOnly %s)", async readOnly => {
   const writeText = vi.fn().mockResolvedValue(undefined);
   vi.stubGlobal("navigator", { clipboard: { writeText } });

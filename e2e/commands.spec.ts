@@ -2,6 +2,7 @@ import { expect, test } from "./fixtures";
 import { createSheet, openLibrary, workspaceAction } from "./helpers";
 import { commandsForSurface, slateCommands } from "../packages/core/src/commands";
 import { AxeBuilder } from "@axe-core/playwright";
+import { editorSource } from "./editorSource";
 
 test("the shortcut migration notice uses macOS labels and appears once", async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, "platform", { configurable: true, value: "MacIntel" }));
@@ -57,11 +58,9 @@ test("every default web formatting binding reaches the editor and undoes in one 
     await page.keyboard.insertText(initial);
     await page.keyboard.press(`${modifier}+a`);
     await page.keyboard.press(command.shortcut!.replace("Mod", modifier));
-    await expect(editor, command.id).toHaveText(expected[id]!, {
-      useInnerText: true,
-    });
+    await expect.poll(() => editorSource(editor), { message: command.id }).toBe(expected[id]!);
     await page.keyboard.press(`${modifier}+z`);
-    await expect(editor, `${command.id} undo`).toHaveText(initial);
+    await expect.poll(() => editorSource(editor), { message: `${command.id} undo` }).toBe(initial);
   }
 });
 

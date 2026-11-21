@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## Fully selected code remains direct editable source
+
+When a selection covers an entire fenced-code node, retain the source line decorations and omit its outer BlockWrapper until the selection changes. Chromium and WebKit otherwise add an unintended final newline during native whole-buffer replacement of an unfinished fence; an unchanged-runtime recording confirms that both buffer and saved file acquire it. Avoid intercepting native input, IME or history. Source assertions read the complete CodeMirror buffer through a guarded test-only adapter, including hidden syntax, virtualized text and drafts whose writer failed; they never change view mode, selection or the document, and retain existing exact expected text and deadlines.
+
 ## F-10b footnote previews
 
 Recognize footnote references and composite definitions in the incremental Markdown syntax tree. Preserve literal source, selection and shared Undo; definitions remain editable source and references reveal source on selected lines. Resolve note bodies only on explicit hover/focus/tap, using cancellable 5ms parse slices for offscreen definitions. Flatten note Markdown to text with the existing parser; never mount note HTML, links or remote media. Keep superscript controls keyboard/touch accessible and hover text dismissible with Escape, outside interaction or scrolling. Opening/closing a preview never enters document history. No shell dependency or release budget change.

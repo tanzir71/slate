@@ -77,7 +77,9 @@ export function previewCodeFence(view: EditorView, node: MarkdownNode, active: (
   const language = node.firstChild?.nextSibling?.name === "CodeInfo" ? node.firstChild.nextSibling : null;
   const ranges: Range<Decoration>[] = [];
   const visited = new Set<number>();
-  wrappers.push(BlockWrapper.create({ tagName: "div", rank: 0, attributes: { class: "cm-slate-code-block" } }).range(opening.from, node.to));
+  // Native select-all replacement must see sibling editable lines, without an enclosing block boundary.
+  if (!state.selection.ranges.some(range => range.from <= node.from && range.to >= node.to))
+    wrappers.push(BlockWrapper.create({ tagName: "div", rank: 0, attributes: { class: "cm-slate-code-block" } }).range(opening.from, node.to));
   for (const range of view.visibleRanges) {
     const from = Math.max(opening.number, state.doc.lineAt(range.from).number), to = Math.min(state.doc.lineAt(node.to).number, state.doc.lineAt(range.to).number);
     for (let number = from; number <= to; number++) {
