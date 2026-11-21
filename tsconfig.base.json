@@ -20,6 +20,7 @@
     "paths": {
       "@slate/storage/replace-batch": ["packages/storage/src/replaceBatch.ts"],
       "@slate/storage/tidy-batch": ["packages/storage/src/tidyBatch.ts"],
+      "@slate/ui/native-capture": ["packages/ui/src/native/CaptureApp.tsx"],
       "@slate/ui/native": ["packages/ui/src/native/NativeApp.tsx"],
       "@slate/storage/tauri-workspace-index": ["packages/storage/src/tauriWorkspaceIndex.ts"],
       "@slate/storage/tauri-files": ["packages/storage/src/tauriFiles.ts"],

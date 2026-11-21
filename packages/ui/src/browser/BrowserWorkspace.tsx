@@ -498,6 +498,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const actions: Record<string, () => void> = {
       "app.palette": () => { if (palette) setPalette(undefined); else openPalette("all"); },
       "app.quickOpen": () => openPalette("sheets"),
+      "app.capture": () => { if (runtime?.quickCapture) run(runtime.quickCapture.open); },
       "tidy.document": openTidy,
       "tidy.batch": () => openBatchTidy(store.api.getState().sheets.map((sheet) => sheet.path)),
       "tidy.undoBatch": () => run(store.undoTidyBatch),
@@ -797,6 +798,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       actions={[
         { label: "Command palette", run: () => dispatchCommand("app.palette") },
         { label: "Quick open", run: () => dispatchCommand("app.quickOpen") },
+        ...(runtime?.quickCapture ? [{ label: "Quick Capture", run: () => dispatchCommand("app.capture") }] : []),
         { label: "Search everywhere", run: () => dispatchCommand("sheet.search") },
         { label: "Undo replacements", disabled: !state.owned || !state.hasReplaceBatchUndo, run: () => dispatchCommand("search.undoReplace") },
         { label: "Go back", disabled: navigationState.busy || !navigationState.canBack, run: () => dispatchCommand("navigation.back") },

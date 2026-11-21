@@ -8,7 +8,7 @@ const fromRoot = (path: string): string => fileURLToPath(new URL(path, import.me
 export default defineConfig({
   plugins: [react()],
   worker: { format: "es", plugins: () => [markdownWorker()] },
-  build: { rollupOptions: { input: { app: fromRoot("./index.html"), diagram: fromRoot("./diagram-preview.html") } } },
+  build: { rollupOptions: { input: { app: fromRoot("./index.html"), capture: fromRoot("./capture.html"), diagram: fromRoot("./diagram-preview.html") } } },
   clearScreen: false,
   server: {
     strictPort: true,
@@ -19,6 +19,7 @@ export default defineConfig({
     alias: {
       "@slate/storage/replace-batch": fromRoot("../../packages/storage/src/replaceBatch.ts"),
       "@slate/storage/tidy-batch": fromRoot("../../packages/storage/src/tidyBatch.ts"),
+      "@slate/ui/native-capture": fromRoot("../../packages/ui/src/native/CaptureApp.tsx"),
       "@slate/ui/native": fromRoot("../../packages/ui/src/native/NativeApp.tsx"),
       "@slate/storage/tauri-workspace-index": fromRoot("../../packages/storage/src/tauriWorkspaceIndex.ts"),
       "@slate/storage/tauri-files": fromRoot("../../packages/storage/src/tauriFiles.ts"),

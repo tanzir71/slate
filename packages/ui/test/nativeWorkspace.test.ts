@@ -41,6 +41,32 @@ function setup(initial: Record<string, string> = {}) {
 beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
+it("activates Quick Capture only after admission and keeps shortcut failure nonfatal", async () => {
+  const fixture = setup();
+  fixture.lifecycle.quickCapture = { activate: vi.fn(async () => "Ctrl+Alt+Space is reserved"), open: vi.fn(async () => undefined) };
+  const session = createNativeWorkspace(fixture.lifecycle);
+  expect(fixture.lifecycle.quickCapture.activate).not.toHaveBeenCalled();
+  await session.activate();
+  expect(session.store.api.getState().notice).toBe("Ctrl+Alt+Space is reserved");
+  await session.runtime.quickCapture?.open();
+  expect(fixture.lifecycle.quickCapture.open).toHaveBeenCalledOnce();
+  vi.mocked(fixture.lifecycle.quickCapture.activate).mockRejectedValueOnce(new Error("Capture service unavailable"));
+  await expect(session.activate()).resolves.toBeUndefined();
+  expect(session.store.api.getState().notice).toBe("Capture service unavailable");
+});
+
+it("reports global-capture errors in the main workspace and cleans its listener", async () => {
+  const fixture = setup();
+  let receive: ((error: unknown) => void) | undefined;
+  const stopCapture = vi.fn();
+  fixture.lifecycle.captureErrors = vi.fn(async callback => { receive = callback; return stopCapture; });
+  const session = createNativeWorkspace(fixture.lifecycle), failed = vi.fn();
+  const stop = await session.runtime.observe(vi.fn(), failed);
+  receive!(new Error("Original Space disconnected"));
+  expect(failed).toHaveBeenCalledWith(expect.objectContaining({ message: "Original Space disconnected" }));
+  stop(); expect(stopCapture).toHaveBeenCalledOnce();
+});
+
 it("filters other Spaces' events and retains shared global updates", async () => {
   const { lifecycle, change } = setup();
   const space = { id: "chosen", name: "Notes", path: "/Notes" };

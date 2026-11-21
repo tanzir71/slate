@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "capture",
+  "description": "Quick Capture can keep and append its bound draft; it has no workspace filesystem commands.",
+  "windows": ["capture"],
+  "local": true,
+  "permissions": [
+    "core:default",
+    "core:window:allow-destroy",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-start-dragging",
+    "allow-capture-snapshot",
+    "allow-stash-capture",
+    "allow-save-capture",
+    "allow-capture-show-main"
+  ]
+}

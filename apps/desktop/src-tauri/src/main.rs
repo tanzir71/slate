@@ -1,4 +1,5 @@
 use tauri::Manager;
+mod capture;
 mod file_info;
 mod launches;
 mod legacy_workspace;
@@ -21,12 +22,22 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(workspace_index::WorkspaceIndex::default())
         .setup(|app| {
-            app.manage(spaces::NativeSpaces::new(app.path().app_data_dir()?)?);
+            let data = app.path().app_data_dir()?;
+            app.manage(spaces::NativeSpaces::new(data.clone())?);
+            app.manage(capture::NativeCapture::new(data));
+            capture::start(app.handle());
             app.manage(workspace::start_watches(app.handle())?);
             launches::start(app.handle())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            capture::set_capture_space,
+            capture::capture_status,
+            capture::open_native_capture,
+            capture::capture_snapshot,
+            capture::stash_capture,
+            capture::save_capture,
+            capture::capture_show_main,
             launches::pending_native_launches,
             launches::bind_native_launch,
             launches::begin_native_launch,

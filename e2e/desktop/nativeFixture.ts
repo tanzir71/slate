@@ -76,6 +76,22 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           return null;
         }
         if (command === "workspace_watch_status") return [];
+        if (command === "set_capture_space") {
+          localStorage.setItem("native-capture-space", spaceId);
+          return { shortcutError: localStorage.getItem("native-capture-shortcut-error"), lastError: null };
+        }
+        if (command === "capture_status") return { shortcutError: null, lastError: null };
+        if (command === "open_native_capture") {
+          const state = JSON.parse(localStorage.getItem("native-capture-state") ?? '{"activeDraft":null,"lastCompleted":null}') as { activeDraft: unknown; lastCompleted: unknown };
+          if (!state.activeDraft) {
+            const spaces = JSON.parse(localStorage.getItem("native-spaces") ?? '[{"id":"native-default","name":"Slate"}]') as { id: string; name: string }[];
+            const selected = spaces.find(space => space.id === spaceId);
+            if (!selected) throw Error("Unknown Space");
+            state.activeDraft = { id: crypto.randomUUID(), spaceId, spaceName: selected.name, text: "", pending: false, revision: 0 };
+            localStorage.setItem("native-capture-state", JSON.stringify(state));
+          }
+          return null;
+        }
         if (command === "pending_native_launches") return launchSnapshot(readInbox());
         if (["bind_native_launch", "begin_native_launch", "apply_native_launch", "review_native_launch", "complete_native_launch", "next_native_launch"].includes(command)) {
           const inbox = readInbox(), current = inbox.current, id = String(args.id), claim = String(args.claim);

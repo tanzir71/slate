@@ -1,0 +1,13 @@
+.captureWindow { display: flex; flex-direction: column; block-size: 100dvh; background: var(--bg-canvas); }
+.captureWindow h1 { margin: 0; font-size: 13px; }
+.captureMain { display: flex; flex: 1; min-block-size: 0; padding: 20px; overflow: auto; }
+.captureMain form { display: flex; flex-direction: column; gap: 10px; flex: 1; min-inline-size: 0; }
+.captureMain label { color: var(--text-secondary); font-size: 12px; }
+.captureMain textarea { flex: 1; min-block-size: 90px; resize: none; border: 1px solid var(--border-default); border-radius: 8px; padding: 12px; background: var(--bg-panel); color: var(--text-primary); font: 16px/1.5 var(--font-editor); }
+.captureMain textarea:focus-visible { outline: 2px solid var(--accent-default); outline-offset: 2px; }
+.captureMain textarea::placeholder { color: var(--text-tertiary); font-style: normal; }
+.captureMain p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.captureMain .captureError { color: var(--status-danger); overflow-wrap: anywhere; }
+.captureMain footer { display: flex; align-items: center; gap: 12px; }
+.captureShortcut { margin-inline-start: auto; color: var(--text-tertiary); font-size: 11px; }
+@media (pointer: coarse) { .captureMain button { min-block-size: 44px; } }

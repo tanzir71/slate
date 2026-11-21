@@ -11,8 +11,8 @@ const CATALOG_PATH: &str = "desktop-spaces.json";
 
 #[derive(Clone, Serialize)]
 pub struct SpaceRecord {
-    id: String,
-    name: String,
+    pub(crate) id: String,
+    pub(crate) name: String,
     path: Option<String>,
 }
 #[derive(Clone, Deserialize, Serialize)]
@@ -127,7 +127,7 @@ impl NativeSpaces {
         }
         Ok(actual)
     }
-    fn register(&self, selected: &Path) -> Result<SpaceRecord, FileError> {
+    pub(crate) fn register(&self, selected: &Path) -> Result<SpaceRecord, FileError> {
         let path = std::fs::canonicalize(selected).map_err(FileError::io)?;
         if !path.is_dir() || path.to_str().is_none() || path.starts_with(&self.data) {
             return Err(FileError::io(

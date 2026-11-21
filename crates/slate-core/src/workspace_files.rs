@@ -9,6 +9,8 @@ use std::sync::Mutex;
 static FILE_IO: Mutex<()> = Mutex::new(());
 static NEXT_COPY: AtomicU64 = AtomicU64::new(0);
 const PENDING: &str = ".slate-pending-";
+mod capture;
+pub use capture::append_capture;
 
 fn validate(path: &str) -> Result<Vec<&str>, StorageError> {
     if path.is_empty()
@@ -395,8 +397,17 @@ pub fn save_workspace_file(
     let _guard = FILE_IO
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let (root, target) =
-        target_path(root.as_ref(), path, true)?.ok_or(StorageError::InvalidSheetPath)?;
+    save_checked(root.as_ref(), path, bytes, base, &retain_conflict)
+}
+
+fn save_checked(
+    root: &Path,
+    path: &str,
+    bytes: &[u8],
+    base: Option<&[u8]>,
+    conflict: &dyn Fn(&Path, &Path, &Path) -> Result<WriteSheetOutcome, StorageError>,
+) -> Result<WriteSheetOutcome, StorageError> {
+    let (root, target) = target_path(root, path, true)?.ok_or(StorageError::InvalidSheetPath)?;
     let current = read_checked(&root, &target)?;
     if current.is_some() && fs::metadata(&target)?.permissions().readonly() {
         return Err(StorageError::Io(
@@ -405,7 +416,7 @@ pub fn save_workspace_file(
     }
     let proposal = stage(&target, "proposal", bytes)?;
     if current.as_deref() != base {
-        return retain_conflict(&root, &target, &proposal);
+        return conflict(&root, &target, &proposal);
     }
     if current.is_none() {
         if publish(&proposal, &target)? {
@@ -415,7 +426,7 @@ pub fn save_workspace_file(
                 path: path.into(),
             });
         }
-        return retain_conflict(&root, &target, &proposal);
+        return conflict(&root, &target, &proposal);
     }
     fs::set_permissions(&proposal, fs::metadata(&target)?.permissions())?;
     let probe = stage(&target, "probe", &[])?;
@@ -431,13 +442,14 @@ pub fn save_workspace_file(
         Ok(()) => {}
         Err(error) if error.kind() == ErrorKind::NotFound => {
             let _ = fs::remove_file(previous);
-            return retain_conflict(&root, &target, &proposal);
+            return conflict(&root, &target, &proposal);
         }
         Err(error) => return Err(error.into()),
     }
-    finish_save(&root, &target, &proposal, &previous, bytes, base)
+    finish_save_with(&root, &target, &proposal, &previous, bytes, base, conflict)
 }
 
+#[cfg(test)]
 fn finish_save(
     root: &Path,
     target: &Path,
@@ -445,6 +457,26 @@ fn finish_save(
     previous: &Path,
     bytes: &[u8],
     base: Option<&[u8]>,
+) -> Result<WriteSheetOutcome, StorageError> {
+    finish_save_with(
+        root,
+        target,
+        proposal,
+        previous,
+        bytes,
+        base,
+        &retain_conflict,
+    )
+}
+
+fn finish_save_with(
+    root: &Path,
+    target: &Path,
+    proposal: &Path,
+    previous: &Path,
+    bytes: &[u8],
+    base: Option<&[u8]>,
+    conflict: &dyn Fn(&Path, &Path, &Path) -> Result<WriteSheetOutcome, StorageError>,
 ) -> Result<WriteSheetOutcome, StorageError> {
     let captured = match raw(previous) {
         Ok(bytes) => bytes,
@@ -455,7 +487,7 @@ fn finish_save(
     };
     if captured.as_deref() != base {
         restore(previous, target)?;
-        let outcome = retain_conflict(root, target, proposal)?;
+        let outcome = conflict(root, target, proposal)?;
         archive_previous(target, previous);
         return Ok(outcome);
     }
@@ -479,7 +511,7 @@ fn finish_save(
         }
         Ok(false) => {
             restore(previous, target)?;
-            let outcome = retain_conflict(root, target, proposal)?;
+            let outcome = conflict(root, target, proposal)?;
             archive_previous(target, previous);
             Ok(outcome)
         }

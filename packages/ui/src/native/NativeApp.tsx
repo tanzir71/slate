@@ -55,6 +55,7 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
       if (!active) { stop(); return; }
       closeProtection.current = stop;
       liveSession.current = next;
+      void next.activate();
       const notice = takeShortcutMigrationNotice(shortcutOS(), "desktop");
       if (notice && !next.store.api.getState().notice) next.store.api.setState({ notice });
       setSession(next);
@@ -88,7 +89,7 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
       if (generation.current !== started) { stop(); return; }
       // Install the new close guard only after its folder has loaded successfully.
       closeProtection.current?.(); closeProtection.current = stop;
-      liveSession.current = next; setSession(next);
+      liveSession.current = next; setSession(next); void next.activate();
     } finally { switching.current = false; }
   };
   return <div className="browserSlate">

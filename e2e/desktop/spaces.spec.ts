@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { nativeFixture } from "./nativeFixture";
+import { replaceEditorText } from "../helpers";
 
 const chosen = { id: "12345678-1234-4321-9876-123456789abc", name: "Chosen notes", path: "C:\\Chosen notes" };
 async function prepare(page: Page) {
@@ -27,7 +28,7 @@ async function disk(page: Page, id: string) {
 }
 test("native folder selection flushes the old draft and keeps saves, search and Inspector in the selected Space", async ({ page }) => {
   await prepare(page);
-  await page.locator(".cm-content").fill("First pending draft");
+  await replaceEditorText(page, "First pending draft");
   let dialog = await spaces(page);
   await expect(dialog.getByText(chosen.path, { exact: true })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -36,7 +37,7 @@ test("native folder selection flushes the old draft and keeps saves, search and 
   await expect(dialog).toBeHidden();
   await expect(page.locator(".cm-content")).toHaveText("Second Space words");
   expect(await disk(page, "native-default")).toEqual(Array.from(new TextEncoder().encode("First pending draft")));
-  await page.locator(".cm-content").fill("Second saved draft");
+  await replaceEditorText(page, "Second saved draft");
   await expect.poll(() => disk(page, chosen.id)).toEqual(Array.from(new TextEncoder().encode("Second saved draft")));
   const search = page.getByRole("textbox", { name: "Search sheets", exact: true });
   await search.fill("First pending"); await expect(page.locator(".browserSheetRow")).toHaveCount(0);

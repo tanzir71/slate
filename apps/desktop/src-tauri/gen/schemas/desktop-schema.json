@@ -363,6 +363,24 @@
           "markdownDescription": "Enables the bind_native_launch command without any pre-configured scope."
         },
         {
+          "description": "Enables the capture_show_main command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-capture-show-main",
+          "markdownDescription": "Enables the capture_show_main command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the capture_snapshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-capture-snapshot",
+          "markdownDescription": "Enables the capture_snapshot command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the capture_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-capture-status",
+          "markdownDescription": "Enables the capture_status command without any pre-configured scope."
+        },
+        {
           "description": "Enables the complete_native_launch command without any pre-configured scope.",
           "type": "string",
           "const": "allow-complete-native-launch",
@@ -403,6 +421,12 @@
           "type": "string",
           "const": "allow-next-native-launch",
           "markdownDescription": "Enables the next_native_launch command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the open_native_capture command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-native-capture",
+          "markdownDescription": "Enables the open_native_capture command without any pre-configured scope."
         },
         {
           "description": "Enables the pending_native_launches command without any pre-configured scope.",
@@ -459,6 +483,12 @@
           "markdownDescription": "Enables the review_native_launch command without any pre-configured scope."
         },
         {
+          "description": "Enables the save_capture command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-save-capture",
+          "markdownDescription": "Enables the save_capture command without any pre-configured scope."
+        },
+        {
           "description": "Enables the save_workspace_file command without any pre-configured scope.",
           "type": "string",
           "const": "allow-save-workspace-file",
@@ -469,6 +499,18 @@
           "type": "string",
           "const": "allow-search-workspace-index",
           "markdownDescription": "Enables the search_workspace_index command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_capture_space command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-capture-space",
+          "markdownDescription": "Enables the set_capture_space command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the stash_capture command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-stash-capture",
+          "markdownDescription": "Enables the stash_capture command without any pre-configured scope."
         },
         {
           "description": "Enables the trash_workspace_file command without any pre-configured scope.",
@@ -519,6 +561,24 @@
           "markdownDescription": "Denies the bind_native_launch command without any pre-configured scope."
         },
         {
+          "description": "Denies the capture_show_main command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-capture-show-main",
+          "markdownDescription": "Denies the capture_show_main command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the capture_snapshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-capture-snapshot",
+          "markdownDescription": "Denies the capture_snapshot command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the capture_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-capture-status",
+          "markdownDescription": "Denies the capture_status command without any pre-configured scope."
+        },
+        {
           "description": "Denies the complete_native_launch command without any pre-configured scope.",
           "type": "string",
           "const": "deny-complete-native-launch",
@@ -559,6 +619,12 @@
           "type": "string",
           "const": "deny-next-native-launch",
           "markdownDescription": "Denies the next_native_launch command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the open_native_capture command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-native-capture",
+          "markdownDescription": "Denies the open_native_capture command without any pre-configured scope."
         },
         {
           "description": "Denies the pending_native_launches command without any pre-configured scope.",
@@ -615,6 +681,12 @@
           "markdownDescription": "Denies the review_native_launch command without any pre-configured scope."
         },
         {
+          "description": "Denies the save_capture command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-save-capture",
+          "markdownDescription": "Denies the save_capture command without any pre-configured scope."
+        },
+        {
           "description": "Denies the save_workspace_file command without any pre-configured scope.",
           "type": "string",
           "const": "deny-save-workspace-file",
@@ -625,6 +697,18 @@
           "type": "string",
           "const": "deny-search-workspace-index",
           "markdownDescription": "Denies the search_workspace_index command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_capture_space command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-capture-space",
+          "markdownDescription": "Denies the set_capture_space command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stash_capture command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-stash-capture",
+          "markdownDescription": "Denies the stash_capture command without any pre-configured scope."
         },
         {
           "description": "Denies the trash_workspace_file command without any pre-configured scope.",
@@ -2791,6 +2875,72 @@
           "type": "string",
           "const": "dialog:deny-save",
           "markdownDescription": "Denies the save command without any pre-configured scope."
+        },
+        {
+          "description": "No features are enabled by default, as we believe\nthe shortcuts can be inherently dangerous and it is\napplication specific if specific shortcuts should be\nregistered or unregistered.\n",
+          "type": "string",
+          "const": "global-shortcut:default",
+          "markdownDescription": "No features are enabled by default, as we believe\nthe shortcuts can be inherently dangerous and it is\napplication specific if specific shortcuts should be\nregistered or unregistered.\n"
+        },
+        {
+          "description": "Enables the is_registered command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:allow-is-registered",
+          "markdownDescription": "Enables the is_registered command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the register command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:allow-register",
+          "markdownDescription": "Enables the register command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the register_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:allow-register-all",
+          "markdownDescription": "Enables the register_all command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the unregister command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:allow-unregister",
+          "markdownDescription": "Enables the unregister command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the unregister_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:allow-unregister-all",
+          "markdownDescription": "Enables the unregister_all command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the is_registered command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:deny-is-registered",
+          "markdownDescription": "Denies the is_registered command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the register command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:deny-register",
+          "markdownDescription": "Denies the register command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the register_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:deny-register-all",
+          "markdownDescription": "Denies the register_all command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the unregister command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:deny-unregister",
+          "markdownDescription": "Denies the unregister command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the unregister_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "global-shortcut:deny-unregister-all",
+          "markdownDescription": "Denies the unregister_all command without any pre-configured scope."
         },
         {
           "description": "This permission set allows opening `mailto:`, `tel:`, `https://` and `http://` urls using their default application\nas well as reveal file in directories using default file explorer\n#### This default permission set includes:\n\n- `allow-open-url`\n- `allow-reveal-item-in-dir`\n- `allow-default-urls`",

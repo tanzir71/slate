@@ -8,12 +8,15 @@ import { createTauriWorkspaceIndex } from "@slate/storage/tauri-workspace-index"
 import { defaultNativeSpace, type NativeSpace } from "./nativeSpaces";
 import type { WorkspaceFiles } from "@slate/storage/file-io";
 import { createNativeLaunchSource, type NativeLaunchSource } from "./nativeLaunchSource";
+import { createNativeCaptureActions } from "./nativeCapture";
 
 export interface NativeChange { scope: "space" | "global"; spaceId?: string | null; error: string | null }
 interface CloseRequest { preventDefault(): void }
 export interface NativeLifecycle {
   fileActions?: WorkspaceFileActions;
   launches?: NativeLaunchSource;
+  quickCapture?: ReturnType<typeof createNativeCaptureActions>;
+  captureErrors?(failed: (error: unknown) => void): Promise<() => void>;
   listen(change: (event: NativeChange) => void): Promise<() => void>;
   watchStatus(): Promise<string[]>;
   onClose(request: (event: CloseRequest) => void): Promise<() => void>;
@@ -27,6 +30,8 @@ export async function nativeLifecycle(spaceId = defaultNativeSpace.id): Promise<
   const window = getCurrentWindow();
   return {
     fileActions: createNativeFileActions(invoke, spaceId),
+    quickCapture: createNativeCaptureActions(invoke, spaceId),
+    captureErrors: failed => listen<string>("slate://capture-error", event => failed(new Error(event.payload))),
     launches: createNativeLaunchSource(invoke, receive => listen<unknown>("slate://launch-changed", event => receive(event.payload))),
     listen: (change) => listen<NativeChange>("slate://workspace-changed", (event) => change(event.payload)),
     watchStatus: () => invoke<string[]>("workspace_watch_status", { spaceId }),
@@ -42,6 +47,7 @@ export function createNativeWorkspace(lifecycle: NativeLifecycle, files: Workspa
     surface: "desktop",
     ...(lifecycle.fileActions ? { fileActions: lifecycle.fileActions } : {}),
     ...(lifecycle.launches ? { launches: lifecycle.launches } : {}),
+    ...(lifecycle.quickCapture ? { quickCapture: { open: lifecycle.quickCapture.open } } : {}),
     async openGlobalSnippets() {
       // Native saves compare exact disk bytes under the process-wide filesystem
       // lock; conflicts from another process are retained by the backend, too.
@@ -57,17 +63,27 @@ export function createNativeWorkspace(lifecycle: NativeLifecycle, files: Workspa
         clearTimeout(timer);
         timer = setTimeout(() => { if (active) refresh(); }, 25);
       });
+      let stopCapture: (() => void) | undefined;
+      try { stopCapture = await lifecycle.captureErrors?.(failed); } catch (error) { failed(error); }
       try { for (const error of await lifecycle.watchStatus()) failed(new Error(error)); }
       catch (error) { failed(error); }
       // Reconcile the interval between initial loading and listener registration.
       refresh();
-      return () => { active = false; clearTimeout(timer); stop(); };
+      return () => { active = false; clearTimeout(timer); stop(); stopCapture?.(); };
     },
   };
   return {
     store, runtime, space,
     createIndex: () => createTauriWorkspaceIndex({ spaceId: space.id }),
     async open() { await store.load(); store.setOwned(true); await store.flush(); },
+    async activate() {
+      try {
+        const notice = await lifecycle.quickCapture?.activate();
+        if (typeof notice === "string" && !store.api.getState().notice) store.api.setState({ notice });
+      } catch (error) {
+        store.api.setState({ notice: error instanceof Error ? error.message : "Quick Capture is unavailable. Your workspace remains open." });
+      }
+    },
     async protectClose() {
       let closing = false;
       return lifecycle.onClose((event) => {

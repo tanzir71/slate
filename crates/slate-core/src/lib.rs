@@ -10,8 +10,9 @@ mod tidy_settings;
 pub use tidy_settings::{read_tidy_settings_from_space, write_tidy_settings_to_space};
 mod workspace_files;
 pub use workspace_files::{
-    create_workspace_file, list_workspace_files, move_workspace_file, read_workspace_file,
-    save_workspace_file, trash_workspace_file, workspace_file_info, WorkspaceFileInfo,
+    append_capture, create_workspace_file, list_workspace_files, move_workspace_file,
+    read_workspace_file, save_workspace_file, trash_workspace_file, workspace_file_info,
+    WorkspaceFileInfo,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

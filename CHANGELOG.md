@@ -7,6 +7,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 ## [Unreleased]
 
 ### Added
+- Native Quick Capture through Ctrl+Alt+Space and the desktop menu, with a compact window, draft recovery, exact save retry and a fixed target Space.
 - Custom desktop window controls and empty-space dragging, with macOS traffic-light spacing and draft-safe Close handling on workspace and startup screens.
 
 ## [0.3.0] - 2026-11-18

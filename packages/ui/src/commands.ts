@@ -56,7 +56,10 @@ export function readKeymap(
 /** The file workspace implements the web action set on both platforms, using native chords on desktop. */
 export function workspaceCommands(surface: ShortcutProfile["surface"]) {
   const commands = commandsForSurface("web");
-  return surface === "web" ? commands : commands.map((command) => ({ ...command, surfaces: ["desktop"] as const }));
+  return surface === "web" ? commands : [
+    ...commands.map((command) => ({ ...command, surfaces: ["desktop"] as const })),
+    { id: "app.capture", label: "Quick Capture", group: "Workspace", surfaces: ["desktop"] as const },
+  ];
 }
 
 export function commandShortcut(

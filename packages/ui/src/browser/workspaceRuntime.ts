@@ -17,6 +17,7 @@ export interface WorkspaceRuntime {
   surface: "desktop";
   fileActions?: WorkspaceFileActions;
   launches?: NativeLaunchSource;
+  quickCapture?: { open(): Promise<void> };
   openGlobalSnippets: Parameters<typeof createSnippetLibrary>[1];
   observe(refresh: () => void, failed: (error: unknown) => void): Promise<() => void>;
 }

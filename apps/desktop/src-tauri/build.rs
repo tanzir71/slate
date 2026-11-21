@@ -1,6 +1,13 @@
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "set_capture_space",
+            "capture_status",
+            "open_native_capture",
+            "capture_snapshot",
+            "stash_capture",
+            "save_capture",
+            "capture_show_main",
             "pending_native_launches",
             "bind_native_launch",
             "begin_native_launch",
