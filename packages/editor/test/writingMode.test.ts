@@ -1,5 +1,19 @@
 import { expect, it } from "vitest";
 import { typewriterScrollTop } from "../src/writingMode";
+import { createWritingModeExtensions } from "../src/writingMode";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { createSlateMarkdownExtensions } from "../src/index";
+
+it("keeps the entire math source block in paragraph focus, including its fences and blank lines", () => {
+  const source = "Before\n\n$$\nx^2\n\n+y^2\n$$\n\nAfter", host = document.body.appendChild(document.createElement("div"));
+  const view = new EditorView({ parent: host, state: EditorState.create({ doc: source, selection: { anchor: source.indexOf("x^2") + 1 }, extensions: [createSlateMarkdownExtensions(), createWritingModeExtensions({ focus: "paragraph", typewriter: false, zen: false })] }) });
+  try {
+    const lines = [...view.contentDOM.querySelectorAll(".cm-line")];
+    expect(lines.filter(line => line.classList.contains("cm-writing-dim")).map(line => line.textContent)).toEqual(["Before", "", "", "After"]);
+    expect(lines.filter(line => !line.classList.contains("cm-writing-dim")).map(line => line.textContent)).toEqual(["$$", "x^2", "", "+y^2", "$$"]);
+  } finally { view.destroy(); host.remove(); }
+});
 
 it("places the actual caret centre at45% of the scroll viewport independently of its page offset", () => {
   expect(typewriterScrollTop(200, 100, 600, 450, 486)).toBe(298);

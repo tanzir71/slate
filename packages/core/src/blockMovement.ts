@@ -26,6 +26,7 @@ const labels: Readonly<Record<string, string>> = {
   list: "List",
   blockquote: "Quote",
   code: "Code block",
+  math: "Math block",
   table: "Table",
   html: "HTML block",
   thematicBreak: "Divider",

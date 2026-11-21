@@ -25,6 +25,7 @@ export default defineConfig({
     }
   })],
   worker: { format: "es", plugins: () => [markdownWorker()] },
+  build: { rollupOptions: { input: { app: fromRoot("./index.html"), diagram: fromRoot("./diagram-preview.html") } } },
   resolve: {
     alias: {
       "@slate/storage/replace-batch": fromRoot("../../packages/storage/src/replaceBatch.ts"),

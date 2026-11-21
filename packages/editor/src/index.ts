@@ -19,6 +19,7 @@ import { createFenceInput, type FenceInputOptions } from "./fenceInput.js";
 import { historyIsolation } from "./historyIsolation.js";
 import { lazyCodeLanguage } from "./codeLanguages.js";
 import { createImagePreviewExtension } from "./imagePreview.js";
+import { createRichPreviewExtension } from "./richPreview.js";
 export { imagePreviewLoader, type LoadPreviewImage } from "./imagePreview.js";
 export { createFenceInput, enterEditorFence, chooseEditorFenceLanguage, type EditorFenceRequest, type FenceInputOptions } from "./fenceInput.js";
 export { requestEditorSnippet, insertEditorSnippet, moveEditorSnippetField, clearEditorSnippet, editorSnippetFields, type EditorSnippetRequest } from "./snippetInsertion.js";
@@ -91,6 +92,7 @@ export function createSlateMarkdownExtensions(
     }),
     createLivePreviewExtension(),
     createImagePreviewExtension(),
+    createRichPreviewExtension(),
     highlightActiveLine(),
     syntaxHighlighting(classHighlighter),
     syntaxHighlighting(

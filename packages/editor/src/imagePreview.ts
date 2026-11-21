@@ -4,8 +4,8 @@ import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, typ
 import { parseMarkdownPreview, type MarkdownPreviewNode } from "@slate/core";
 import { editorFrontmatter } from "./frontmatterPreview.js";
 import { livePreviewSettings } from "./livePreviewSettings.js";
-import { editorCallout } from "./calloutPreview.js";
 import { previewTable } from "./tablePreview.js";
+import { previewSourceRange as sourceRange, previewSourceActive as active } from "./previewSource.js";
 
 export type LoadPreviewImage = (destination: string, signal: AbortSignal) => Promise<Blob | undefined>;
 export const imagePreviewLoader = Facet.define<LoadPreviewImage, LoadPreviewImage | undefined>({ combine: values => values.at(-1) });
@@ -79,20 +79,6 @@ function enabled(state: EditorState) {
   const settings = state.facet(livePreviewSettings);
   return state.facet(imagePreviewLoader) !== undefined && settings.hideSyntax && !settings.sourceMode;
 }
-function sourceRange(state: EditorState, from: number, to: number) {
-  let start = from, end = to;
-  for (const position of [from, to]) for (let node: SyntaxNode | null = syntaxTree(state).resolveInner(position, 1); node; node = node.parent) {
-    if (node.name === "Table" || node.name === "Blockquote" && editorCallout(state, node)) {
-      start = Math.min(start, state.doc.lineAt(node.from).from); end = Math.max(end, node.to);
-    }
-  }
-  return { from: start, to: end };
-}
-function active(state: EditorState, from: number, to: number) {
-  const scope = sourceRange(state, from, to);
-  return state.selection.ranges.some(range => scope.from <= state.doc.lineAt(range.to).to && scope.to >= state.doc.lineAt(range.from).from);
-}
-
 /** Direct decorations may change height or replace multiline Markdown safely. */
 const imageDecorations = StateField.define<DecorationSet>({
   create() { return Decoration.none; },

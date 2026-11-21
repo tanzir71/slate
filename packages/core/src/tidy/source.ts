@@ -4,6 +4,7 @@ import { unified } from "unified";
 import { markdownBodyFrom } from "../markdownBody.js";
 import { plainListAst } from "./plainList.js";
 import { plainTailAst } from "./plainTail.js";
+import { mathSourceRanges } from "./math.js";
 
 interface Point {
   readonly line: number;
@@ -49,6 +50,7 @@ export interface TidyDocument {
   readonly lines: readonly TidyLine[];
   readonly visits: readonly TidyVisit[];
   readonly protectedRanges: readonly TidyRange[];
+  readonly mathRanges: readonly TidyRange[];
 }
 const parser = /* @__PURE__ */ unified()
   .use(remarkParse)
@@ -118,6 +120,8 @@ export function parseTidyDocument(source: string): TidyDocument {
       from: bodyFrom + match.index,
       to: bodyFrom + match.index + match[0].length,
     });
+  const mathRanges = mathSourceRanges({ source, bodyFrom, body, root });
+  protectedRanges.push(...mathRanges);
   protectedRanges.sort((a, b) => a.from - b.from || a.to - b.to);
   return {
     source,
@@ -128,6 +132,7 @@ export function parseTidyDocument(source: string): TidyDocument {
     lines: sourceLines(source),
     visits,
     protectedRanges,
+    mathRanges,
   };
 }
 export function lineAt(

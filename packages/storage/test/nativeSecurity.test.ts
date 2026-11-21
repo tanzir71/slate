@@ -15,7 +15,7 @@ it("enforces a local-script desktop CSP with explicit IPC and worker sources", (
   expect(csp["connect-src"]).toBe("'self' ipc: http://ipc.localhost");
   expect(csp["worker-src"]).toBe("'self' blob:");
   expect(csp["object-src"]).toBe("'none'");
-  expect(csp["frame-src"]).toBe("'none'");
+  expect(csp["frame-src"]).toBe("'self' data:");
   expect(csp["base-uri"]).toBe("'none'");
 });
 

@@ -1,6 +1,7 @@
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { markdownBodyFrom } from "../markdownBody.js";
 import { parseTidyAst, type TidyDocument } from "./source.js";
+import { mathSourceRanges } from "./math.js";
 
 type Projection =
   | null
@@ -129,12 +130,9 @@ function metadataProjection(source: string, bodyFrom: number): Projection {
 }
 
 /** Compare meaning and literal data, allowing only the plan's presentation differences. */
-export function projectTidyDocument({
-  source,
-  bodyFrom,
-  body,
-  root,
-}: Pick<TidyDocument, "source" | "bodyFrom" | "body" | "root">): string {
+export function projectTidyDocument(document: Pick<TidyDocument, "source" | "bodyFrom" | "body" | "root"> & Partial<Pick<TidyDocument, "mathRanges">>): string {
+  const { source, bodyFrom, body, root } = document;
+  const math = document.mathRanges ?? mathSourceRanges(document);
   return JSON.stringify({
     bom: source.startsWith("\uFEFF"),
     metadata: metadataProjection(source, bodyFrom),
@@ -144,6 +142,7 @@ export function projectTidyDocument({
       body.matchAll(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g),
       (match) => match[0],
     ),
+    math: math.length ? math.map(range => source.slice(range.from, range.to)) : undefined,
     markdown: astProjection(root),
   });
 }

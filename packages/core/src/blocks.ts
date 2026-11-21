@@ -1,6 +1,7 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import type { TextChange } from "./textChanges.js";
 import { markdownBoundary as boundary } from "./markdownBoundary.js";
 
@@ -513,12 +514,13 @@ export interface MarkdownPreviewNode {
 }
 /** Syntax data only; renderers must escape text and decide which URLs to allow. */
 export function parseMarkdownPreview(source: string): MarkdownPreviewNode {
-  return markdownPreviewParser.parse(source) as MarkdownPreviewNode;
+  return (source.includes("$$") ? mathPreviewParser : markdownPreviewParser).parse(source) as MarkdownPreviewNode;
 }
 function createMarkdownPreviewParser() {
   return unified().use(remarkParse).use(remarkGfm).freeze();
 }
 const markdownPreviewParser = /* @__PURE__ */ createMarkdownPreviewParser();
+const mathPreviewParser = /* @__PURE__ */ unified().use(remarkParse).use(remarkGfm).use(remarkMath, { singleDollarTextMath: false }).freeze();
 export function markdownNodeText(node: MarkdownPreviewNode): string {
   if (node.type === "html") return "";
   return node.value ?? node.alt ?? (node.children ?? []).map(markdownNodeText).join("");

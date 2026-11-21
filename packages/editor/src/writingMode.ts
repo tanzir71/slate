@@ -11,7 +11,7 @@ interface FocusRange { from: number; to: number }
 
 function paragraph(state: EditorState, position: number): FocusRange {
   for (let node = syntaxTree(state).resolveInner(position, -1); node; node = node.parent!) {
-    if (/^(?:Paragraph|ATXHeading[1-6]|SetextHeading[12]|FencedCode|CodeBlock|HorizontalRule)$/.test(node.name))
+    if (/^(?:Paragraph|ATXHeading[1-6]|SetextHeading[12]|FencedCode|CodeBlock|SlateMathBlock|HorizontalRule)$/.test(node.name))
       return { from: node.from, to: node.to };
   }
   const line = state.doc.lineAt(position); return { from: line.from, to: line.to };

@@ -8,6 +8,7 @@ const fromRoot = (path: string): string => fileURLToPath(new URL(path, import.me
 export default defineConfig({
   plugins: [react()],
   worker: { format: "es", plugins: () => [markdownWorker()] },
+  build: { rollupOptions: { input: { app: fromRoot("./index.html"), diagram: fromRoot("./diagram-preview.html") } } },
   clearScreen: false,
   server: {
     strictPort: true,

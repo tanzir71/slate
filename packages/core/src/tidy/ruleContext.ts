@@ -39,6 +39,9 @@ export function ruleContext(
     issues,
     add(rule, offset, message, changes = []) {
       if (!enabled.has(rule)) return;
+      if (document.mathRanges.length && changes.some(change => document.mathRanges.some(range =>
+        change.from === change.to ? range.from < change.from && change.to < range.to
+          : range.from <= change.from && change.to <= range.to))) return;
       const line = lineAt(document, offset);
       const id = `${rule}:${offset}:${changes.map(({ from, to }) => `${from}-${to}`).join(",")}`;
       if (seen.has(id)) return;

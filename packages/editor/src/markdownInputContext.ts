@@ -14,7 +14,7 @@ export function insideEditorFrontmatter(
   return true;
 }
 
-/** Automated Markdown input stays out of code, URLs, HTML and front matter. */
+/** Automated Markdown input stays out of code, TeX, URLs, HTML and front matter. */
 export function markdownInputAllowed(
   state: EditorState,
   position: number,
@@ -25,7 +25,7 @@ export function markdownInputAllowed(
   if (!tree) return false;
   for (let node = tree.resolveInner(position, 1); node; node = node.parent!) {
     if (node.name === "SlateWikiLink" && node.from === ownWikiFrom) continue;
-    if (/Code|Link|URL|Autolink|HTML|Comment/.test(node.name)) return false;
+    if (/Code|Math|Link|URL|Autolink|HTML|Comment/.test(node.name)) return false;
   }
   return true;
 }

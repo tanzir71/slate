@@ -1,6 +1,15 @@
 import { EditorView } from "@codemirror/view";
 
 export const livePreviewTheme = EditorView.baseTheme({
+  ".cm-slate-rich-preview": { position: "relative", display: "inline-flex", alignItems: "center", verticalAlign: "middle", maxWidth: "100%", minHeight: "24px", gap: "4px", color: "var(--text-secondary)" },
+  ".cm-slate-rich-display": { display: "flex", width: "100%", justifyContent: "center", marginBlock: "8px", paddingBlock: "8px" },
+  ".cm-slate-rich-preview iframe": { display: "block", border: "0", maxWidth: "100%", pointerEvents: "none", verticalAlign: "middle" },
+  ".cm-slate-rich-display iframe": { width: "100%" },
+  ".cm-slate-rich-source": { flexShrink: "0", padding: "3px 6px", minHeight: "24px", border: "1px solid var(--border-default)", borderRadius: "4px", color: "var(--text-secondary)", background: "var(--bg-canvas)", cursor: "pointer", font: "11px/16px var(--font-ui, Geist, sans-serif)" },
+  ".cm-slate-rich-source:focus-visible": { outline: "2px solid var(--border-focus)", outlineOffset: "2px" },
+  ".cm-slate-rich-source:hover": { background: "var(--bg-hover)" },
+  ".cm-slate-rich-status": { font: "12px/18px var(--font-ui, Geist, sans-serif)" },
+  ".cm-slate-rich-status:empty": { display: "none" },
   ".cm-slate-image-preview": { display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", maxWidth: "100%", minWidth: "24px", minHeight: "24px", boxSizing: "border-box", gap: "6px", padding: "4px", border: "0", borderRadius: "6px", background: "transparent", color: "var(--text-secondary)", font: "12px/16px var(--font-ui, Geist, sans-serif)", cursor: "pointer" },
   ".cm-slate-image-preview img": { display: "block", maxWidth: "100%", maxHeight: "480px", width: "auto", height: "auto", objectFit: "contain", borderRadius: "4px" },
   ".cm-slate-image-caption": { maxWidth: "100%", whiteSpace: "pre-wrap", overflowWrap: "anywhere", textAlign: "center" },
@@ -200,6 +209,7 @@ export const livePreviewTheme = EditorView.baseTheme({
     background: "var(--bg-app)",
   },
   "@media (pointer: coarse)": {
+    ".cm-slate-rich-source": { minHeight: "44px", minWidth: "44px" },
     ".cm-slate-image-preview": { minWidth: "44px", minHeight: "44px" },
     ".cm-slate-footnote-reference": { minHeight: "44px", minWidth: "44px" },
     ".cm-slate-code-header button": { minHeight: "44px", minWidth: "44px" },

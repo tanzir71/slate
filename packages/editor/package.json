@@ -24,6 +24,8 @@
     "@lezer/highlight": "^1.2.1",
     "@lezer/markdown": "1.7.1",
     "@slate/core": "workspace:*",
+    "katex": "0.19.1",
+    "mermaid": "12.3.0",
     "turndown": "7.2.5",
     "turndown-plugin-gfm": "1.0.2"
   },

@@ -2,6 +2,12 @@ import { expect, it, vi } from "vitest";
 import { markdownHeadings } from "../src/markdownHeadings";
 import * as markdown from "../src/blocks";
 
+it("keeps TeX hash/Setext-like lines out of the outline and table of contents", () => {
+  const source = "# Real\n\n$$\n# literal TeX\n\nvalue\n====\n$$\n\n> $$\n> ## nested TeX\n> $$\n\n## Next";
+  expect(markdownHeadings(source).map(heading => heading.label)).toEqual(["Real", "Next"]);
+  expect(markdown.tableOfContents(source)).toBe("- [Real](#real)\n  - [Next](#next)");
+});
+
 it("avoids full Markdown parsing when a 50k-word body has no possible heading marker", () => {
   const parse = vi.spyOn(markdown, "parseMarkdownPreview");
   try {

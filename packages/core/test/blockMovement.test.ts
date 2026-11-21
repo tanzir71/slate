@@ -5,6 +5,16 @@ import {
 } from "../src/blockMovement";
 import { applyTextChanges } from "../src/textChanges";
 
+it("moves display math as one intact source block even when TeX resembles Markdown", () => {
+  const formula = "$$\r\nx_i\r\n\r\n# literal TeX\r\n\r\n* literal TeX\r\n$$";
+  const source = "\uFEFFIntro\r\n\r\n" + formula + "\r\n\r\nTail";
+  const document = scanMarkdownBlocks(source);
+  expect(document.blocks.map(block => block.kind)).toEqual(["paragraph", "math", "paragraph"]);
+  expect(document.blocks[1]!.label).toBe("Math block");
+  const plan = planMarkdownBlockMove(document, 1, 3)!;
+  expect(applyTextChanges(source, plan.changes)).toBe("\uFEFFIntro\r\n\r\nTail\r\n\r\n" + formula);
+});
+
 it("finds whole blocks with source positions, including lists, fences and Unicode", () => {
   const source =
     "# 🙂\n\nParagraph **kept**.\n\n- A\n  - child\n- B\n\n~~~rust\n# literal\n~~~\n\n| A | B |\n| - | - |\n| 1 | 2 |";

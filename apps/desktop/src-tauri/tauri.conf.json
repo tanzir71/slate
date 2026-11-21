@@ -29,7 +29,7 @@
         "connect-src": "'self' ipc: http://ipc.localhost",
         "worker-src": "'self' blob:",
         "object-src": "'none'",
-        "frame-src": "'none'",
+        "frame-src": "'self' data:",
         "base-uri": "'none'",
         "form-action": "'none'"
       },
@@ -42,7 +42,7 @@
         "connect-src": "'self' ipc: http://ipc.localhost ws://127.0.0.1:1420",
         "worker-src": "'self' blob:",
         "object-src": "'none'",
-        "frame-src": "'none'",
+        "frame-src": "'self' data:",
         "base-uri": "'none'",
         "form-action": "'none'"
       }
