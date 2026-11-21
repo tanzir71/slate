@@ -1,5 +1,9 @@
 # Slate Decisions
 
+## 2026-11-21 - Exact word-only paragraph trees for Tidy
+
+Use a conservative CommonMark subset before general tokenization: one line of Unicode letters, numbers and marks with internal ASCII spaces per paragraph, separated by empty physical lines. Construct the complete standard mdast tree and UTF-16 positions, preserving leading/trailing blank lines and mixed LF/CRLF/CR. Adjacent nonempty lines, indentation, trailing spaces, punctuation and all Markdown/GFM syntax retain the existing parser. Verify complete trees against the unchanged full GFM parser with property tests and a deterministic tokenizer-event bound. This extends the established exact-list/tail allocation reductions; it does not alter rules, content proofs, worker transport, corpora or latency deadlines. Real-worker end-to-end budgets remain separately required.
+
 ## 2026-11-21 - Lazy math and isolated diagrams on unchanged source
 
 - Parse dollar-delimited inline math and fenced display math as literal TeX in the editor. Preserve escape/currency handling, quote/list continuations and incomplete source. Keep initial YAML opaque to Markdown extensions. Rendering, source reveal and theme changes never rewrite the document or create Undo entries; any active table or enclosing callout exposes its complete source synchronously.

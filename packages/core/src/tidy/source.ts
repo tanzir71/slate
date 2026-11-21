@@ -4,6 +4,7 @@ import { unified } from "unified";
 import { markdownBodyFrom } from "../markdownBody.js";
 import { plainListAst } from "./plainList.js";
 import { plainTailAst } from "./plainTail.js";
+import { plainParagraphsAst } from "./plainParagraphs.js";
 import { mathSourceRanges } from "./math.js";
 
 interface Point {
@@ -60,6 +61,8 @@ const commonmarkParser = /* @__PURE__ */ unified().use(remarkParse).freeze();
 export function parseTidyAst(body: string): TidyNode {
   const plainList = plainListAst(body);
   if (plainList) return plainList;
+  const plainParagraphs = plainParagraphsAst(body);
+  if (plainParagraphs) return plainParagraphs;
   const plainTail = plainTailAst(body, (prefix) => parser.parse(prefix));
   if (plainTail) return plainTail;
   // GFM additions require brackets, pipes, tildes, HTML, or autolink candidates.
