@@ -41,3 +41,12 @@ it("serializes remembered choices so a delayed or failed older save cannot overw
   expect(await second).toEqual(folder);
   expect(invoke.mock.calls).toEqual([["remember_native_space", { id: defaultNativeSpace.id }], ["remember_native_space", { id: folder.id }]]);
 });
+
+it("creates a host-owned Documents Space using only a name and welcome note", async () => {
+  const invoke = vi.fn().mockResolvedValueOnce(folder).mockResolvedValueOnce(defaultNativeSpace).mockResolvedValueOnce(null);
+  const catalog = createNativeSpaceCatalog(invoke as TauriInvoke);
+  expect(await catalog.create("বাংলা Notes", "# Welcome\n")).toEqual(folder);
+  expect(invoke.mock.calls[0]).toEqual(["create_native_space", { name: "বাংলা Notes", welcome: "# Welcome\n" }]);
+  await expect(catalog.create("Personal", "Welcome")).rejects.toThrow("did not create");
+  await expect(catalog.create("Personal", "Welcome")).rejects.toThrow("Invalid native Space");
+});

@@ -24,6 +24,7 @@
     "allow-resolve-native-file",
     "allow-list-native-spaces",
     "allow-pick-native-space",
+    "allow-create-native-space",
     "allow-startup-native-space",
     "allow-remember-native-space",
     "allow-write-sheet",

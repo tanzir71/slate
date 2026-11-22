@@ -34,7 +34,7 @@ async function setup(failedStartup = false) {
   const first = makeSession(defaultNativeSpace, "First words"), second = makeSession(folder, "Second words");
   const createSession = vi.fn(async (space = defaultNativeSpace) => space.id === folder.id ? second : first);
   if (failedStartup) createSession.mockRejectedValueOnce(Error("Remembered folder disconnected"));
-  const catalog = { list: vi.fn(async () => [defaultNativeSpace, folder]), pick: vi.fn(async (): Promise<NativeSpace | null> => folder), startup: vi.fn(async () => null), remember: vi.fn(async (id: string) => id === folder.id ? folder : defaultNativeSpace) };
+  const catalog = { list: vi.fn(async () => [defaultNativeSpace, folder]), pick: vi.fn(async (): Promise<NativeSpace | null> => folder), create: vi.fn(async () => folder), startup: vi.fn(async () => null), remember: vi.fn(async (id: string) => id === folder.id ? folder : defaultNativeSpace) };
   const host = document.body.appendChild(document.createElement("div")), root = createRoot(host);
   await act(async () => root.render(createElement(NativeApp, { createSession, catalog })));
   const click = async (label: string) => {
@@ -122,5 +122,49 @@ it("cancels a native picker without changing sessions and shows catalog failures
     await app.click("Switch Space");
     expect(app.host.querySelector('[role="alert"]')?.textContent).toBe("Catalog invalid; files kept");
     expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(defaultNativeSpace.id);
+  } finally { await app.dispose(); }
+});
+
+it("creates a Documents Space through the same flush, load and close-guard transition", async () => {
+  const app = await setup();
+  try {
+    await app.click("Switch Space"); await app.click("Start a new Space");
+    expect(app.host.querySelector<HTMLInputElement>('input[name="spaceName"]')?.value).toBe("Personal");
+    app.first.store.edit("Pending words before creation");
+    await app.click("Create Space");
+    expect(app.catalog.create).toHaveBeenCalledWith("Personal", expect.stringContaining("# Welcome to Slate"));
+    expect(new TextDecoder().decode(await app.first.files.read("same.md"))).toBe("Pending words before creation");
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(folder.id);
+    expect(app.catalog.remember).toHaveBeenLastCalledWith(folder.id);
+    expect(app.first.stop).toHaveBeenCalledOnce(); expect(app.second.stop).not.toHaveBeenCalled();
+  } finally { await app.dispose(); }
+});
+
+it("keeps the active Space after a creation error and allows another creation attempt", async () => {
+  const app = await setup();
+  try {
+    app.catalog.create.mockRejectedValueOnce(Error("That folder already exists. Choose another name."));
+    await app.click("Switch Space"); await app.click("Start a new Space"); await app.click("Create Space");
+    expect(app.host.querySelector('[role="alert"]')?.textContent).toContain("already exists");
+    expect(app.host.querySelector<HTMLInputElement>('input[name="spaceName"]')?.disabled).toBe(false);
+    expect(app.createSession).toHaveBeenCalledTimes(1); expect(app.first.stop).not.toHaveBeenCalled();
+    await app.click("Create Space"); expect(app.catalog.create).toHaveBeenCalledTimes(2);
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(folder.id);
+  } finally { await app.dispose(); }
+});
+
+it("retries opening an already created Space without recreating or replacing its folder", async () => {
+  const app = await setup();
+  try {
+    vi.spyOn(app.second, "open").mockRejectedValueOnce(Error("New Space temporarily unavailable"));
+    await app.click("Switch Space"); await app.click("Start a new Space"); await app.click("Create Space");
+    expect(app.host.querySelector('[role="alert"]')?.textContent).toBe("New Space temporarily unavailable");
+    expect(app.host.querySelector<HTMLInputElement>('input[name="spaceName"]')?.disabled).toBe(true);
+    expect(app.host.textContent).toContain("Created at /Chosen");
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(defaultNativeSpace.id);
+    expect(app.first.stop).not.toHaveBeenCalled();
+    await app.click("Open Space");
+    expect(app.catalog.create).toHaveBeenCalledOnce();
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(folder.id);
   } finally { await app.dispose(); }
 });

@@ -16,3 +16,20 @@
 .nativeSpacesList span {
   overflow-wrap: anywhere;
 }
+
+.nativeNewSpaceForm {
+  display: grid;
+  gap: 16px;
+}
+
+.nativeNewSpaceForm p {
+  margin: 0;
+}
+
+.nativeSpacePath {
+  overflow-wrap: anywhere;
+}
+
+.nativeNewSpaceForm .dialogActions {
+  flex-wrap: wrap;
+}

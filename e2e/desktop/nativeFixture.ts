@@ -175,6 +175,21 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           }
           return selected;
         }
+        if (command === "create_native_space") {
+          localStorage.setItem("native-create-attempts", String(Number(localStorage.getItem("native-create-attempts")) + 1));
+          if (localStorage.getItem("native-hold-create")) await new Promise<void>(resolve => {
+            const timer = setInterval(() => { if (!localStorage.getItem("native-hold-create")) { clearInterval(timer); resolve(); } }, 10);
+          });
+          if (localStorage.getItem("native-fail-create")) throw { kind: "io", message: "That folder already exists in Documents/Slate. Choose another name or use Open a folder." };
+          const spaces = JSON.parse(localStorage.getItem("native-spaces") ?? '[{"id":"native-default","name":"Slate","path":null}]') as { id: string; name: string; path: string | null }[];
+          const name = String(args.name), path = "C:\\Users\\Fixture\\Documents\\Slate\\" + name;
+          if (spaces.some(space => space.path === path)) throw Error("That folder already exists in Documents/Slate. Choose another name or use Open a folder.");
+          const selected = { id: crypto.randomUUID(), name, path };
+          write("folder:" + selected.id, "Welcome.md", Array.from(new TextEncoder().encode(String(args.welcome))));
+          spaces.push(selected); localStorage.setItem("native-spaces", JSON.stringify(spaces));
+          localStorage.setItem("native-created-space", JSON.stringify(selected));
+          return selected;
+        }
         if (command === "startup_native_space" || command === "remember_native_space") {
           if (command === "startup_native_space" && localStorage.getItem("native-selection-invalid")) throw { kind: "io", message: "The saved Space selection is invalid. Your notes were kept." };
           const id = command === "startup_native_space" ? localStorage.getItem("native-last-space") : String(args.id);

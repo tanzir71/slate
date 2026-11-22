@@ -43,6 +43,11 @@ fn validate(path: &str) -> Result<Vec<&str>, StorageError> {
     Ok(parts)
 }
 
+/// Check a portable workspace path without reading or creating anything on disk.
+pub fn validate_workspace_path(path: &str) -> Result<(), StorageError> {
+    validate(path).map(|_| ())
+}
+
 fn root_path(root: &Path, create: bool) -> Result<Option<PathBuf>, StorageError> {
     if create {
         fs::create_dir_all(root)?;

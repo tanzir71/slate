@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 mod associations;
+mod creation;
 mod selection;
 pub(crate) use associations::{markdown, AssociatedFile};
 
@@ -200,6 +201,22 @@ pub async fn pick_native_space(app: tauri::AppHandle) -> Result<Option<SpaceReco
 }
 
 #[tauri::command]
+pub async fn create_native_space(
+    app: tauri::AppHandle,
+    name: String,
+    welcome: String,
+) -> Result<SpaceRecord, FileError> {
+    // Only the host chooses Documents. The renderer supplies no filesystem root.
+    tauri::async_runtime::spawn_blocking(move || {
+        let documents = app.path().document_dir().map_err(FileError::io)?;
+        app.state::<NativeSpaces>()
+            .create_in_documents(&documents, &name, &welcome)
+    })
+    .await
+    .map_err(FileError::io)?
+}
+
+#[tauri::command]
 pub async fn startup_native_space(app: tauri::AppHandle) -> Result<Option<SpaceRecord>, FileError> {
     tauri::async_runtime::spawn_blocking(move || app.state::<NativeSpaces>().startup())
         .await
@@ -218,16 +235,16 @@ pub async fn remember_native_space(
 #[cfg(test)]
 mod tests {
     use super::*;
-    struct Fixture(PathBuf);
+    pub(super) struct Fixture(pub(super) PathBuf);
     impl Fixture {
-        fn new() -> Self {
+        pub(super) fn new() -> Self {
             let path = std::env::temp_dir().join(format!("slate-spaces-{}", uuid::Uuid::new_v4()));
             std::fs::create_dir_all(path.join("data")).unwrap();
             std::fs::create_dir_all(path.join("notes")).unwrap();
             std::fs::create_dir_all(path.join("other")).unwrap();
             Self(path)
         }
-        fn registry(&self) -> NativeSpaces {
+        pub(super) fn registry(&self) -> NativeSpaces {
             NativeSpaces::new(self.0.join("data")).unwrap()
         }
     }

@@ -17,7 +17,7 @@ async function nativeInvoke<Result>(command: string, args?: Record<string, unkno
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<Result>(command, args);
 }
-/** Native picker and OS file requests admit folders. A renderer never supplies a root. */
+/** Native picker, OS file requests and host-owned Documents creation admit folders. */
 export function createNativeSpaceCatalog(invoke: TauriInvoke = nativeInvoke) {
   let saving = Promise.resolve();
   async function call(command: string, args?: Record<string, unknown>) {
@@ -32,6 +32,11 @@ export function createNativeSpaceCatalog(invoke: TauriInvoke = nativeInvoke) {
       return records;
     },
     async pick() { const reply = await call("pick_native_space"); return reply === null ? null : checkedNativeSpace(reply); },
+    async create(name: string, welcome: string) {
+      const space = checkedNativeSpace(await call("create_native_space", { name, welcome }));
+      if (space.id === defaultNativeSpace.id) throw Error("The desktop did not create a new folder Space.");
+      return space;
+    },
     async startup() { const reply = await call("startup_native_space"); return reply === null ? null : checkedNativeSpace(reply); },
     remember(id: string) {
       // A newer successful open must not be overwritten by a delayed earlier IPC write.
