@@ -393,7 +393,9 @@ test("ignoring one rule persists through reload without editing the note or roun
   await createSheet(page, dirty);
   const original = '\uFEFF{\r\n "version":1,"future":9007199254740993\r\n}\r\n';
   await libraryFile(page, ".slate/tidy.json", original);
-  await refresh(page);
+  // Mount with the seeded disk snapshot; dispatching focus does not await its read.
+  await page.reload();
+  await expect(page.locator(".cm-content")).toBeVisible();
   await page.getByRole("button", { name: "Tidy review", exact: true }).click();
   const review = panel(page);
   const heading = review
@@ -402,6 +404,11 @@ test("ignoring one rule persists through reload without editing the note or roun
   await expect(heading).toBeVisible({ timeout: 15_000 });
   await heading.getByRole("button", { name: "Ignore", exact: true }).click();
   await expect(heading).toHaveCount(0);
+  // Analysis can temporarily have no rows while settings are still being read.
+  await expect.poll(async () => {
+    const bytes = await libraryFile(page, ".slate/tidy.json");
+    return bytes ? JSON.parse(new TextDecoder().decode(new Uint8Array(bytes))) as unknown : undefined;
+  }).toMatchObject({ rules: { "heading-space": false } });
   const raw = new TextDecoder("utf-8", { ignoreBOM: true }).decode(
     new Uint8Array((await libraryFile(page, ".slate/tidy.json"))!),
   );
