@@ -7,6 +7,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 ## [Unreleased]
 
 ### Added
+- Local imports from Bear, Notion, Ulysses, Evernote ENEX and Apple Notes HTML, with attachment/link conversion, a review step and recoverable partial writes.
 - Reopen the last selected desktop Space, with explicit recovery for disconnected folders and failed selection saves.
 - Remember the desktop main window's size, position, maximization and fullscreen while keeping Quick Capture geometry and platform titlebars separate.
 - Scoped Markdown file opening from desktop OS launches, with in-place editing, Space selection and queued requests that preserve active confirmations.

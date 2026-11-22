@@ -33,6 +33,9 @@ export * from "./dailyNotePath.js";
 export * from "./starterKit.js";
 export * from "./snippetTemplate.js";
 export * from "./snippets.js";
+export * from "./importPaths.js";
+export * from "./importResourceHash.js";
+export * from "./importCsv.js";
 
 export type SheetId = string;
 

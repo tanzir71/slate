@@ -14,6 +14,7 @@ export default defineConfig({
       "@slate/storage/file-space": fromRoot("./packages/storage/src/fileSpace.ts"),
       "@slate/storage/browser-tidy": fromRoot("./packages/storage/src/browserTidy.ts"),
       "@slate/storage/browser-import": fromRoot("./packages/storage/src/browserImport.ts"),
+      "@slate/storage/note-import": fromRoot("./packages/storage/src/noteImport.ts"),
       "@slate/storage/browser-ownership": fromRoot("./packages/storage/src/browserOwnership.ts"),
       "@slate/storage/browser-files": fromRoot("./packages/storage/src/browserFiles.ts"),
       "@slate/storage/browser-space": fromRoot("./packages/storage/src/browserSpace.ts"),

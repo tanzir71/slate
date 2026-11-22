@@ -10,16 +10,21 @@ export async function exportBrowserArchive(files: WorkspaceFileReader): Promise<
   return new Promise((resolve, reject) => zip(entries, { level: 6 }, (error, data) => error ? reject(error) : resolve(data)));
 }
 
-export async function readBrowserArchive(bytes: Uint8Array): Promise<Record<string, Uint8Array>> {
+export async function readBrowserArchive(bytes: Uint8Array, normalize: (path: string) => string = safeBrowserPath): Promise<Record<string, Uint8Array>> {
   const { unzip } = await import("fflate");
   let advertisedSize = 0;
+  const names = new Set<string>();
   const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
     unzip(bytes, { filter: (file) => {
       // Bound decompression before allocating output, including hostile zip bombs.
       if (file.originalSize > 100 * 1024 * 1024) throw new Error("An imported file exceeds 100 MB.");
       advertisedSize += file.originalSize;
       if (advertisedSize > 500 * 1024 * 1024) throw new Error("The imported Space exceeds 500 MB.");
-      return !file.name.endsWith("/");
+      const directory = file.name.endsWith("/"), path = normalize(directory ? file.name.slice(0, -1) : file.name);
+      if (directory) return false;
+      if (names.has(path)) throw new Error("Duplicate paths in archive.");
+      names.add(path);
+      return true;
     } }, (error, data) => error ? reject(error) : resolve(data));
   });
   const normalized: Record<string, Uint8Array> = {};
@@ -27,7 +32,7 @@ export async function readBrowserArchive(bytes: Uint8Array): Promise<Record<stri
   for (const [path, data] of Object.entries(entries)) {
     total += data.length;
     if (total > 500 * 1024 * 1024) throw new Error("The imported Space exceeds 500 MB.");
-    const safe = safeBrowserPath(path);
+    const safe = normalize(path);
     if (Object.hasOwn(normalized, safe)) throw new Error("Duplicate paths in archive.");
     Object.defineProperty(normalized, safe, { value: data, enumerable: true });
   }

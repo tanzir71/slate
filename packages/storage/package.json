@@ -35,6 +35,10 @@
       "types": "./dist/browserImport.d.ts",
       "import": "./dist/browserImport.js"
     },
+    "./note-import": {
+      "types": "./dist/noteImport.d.ts",
+      "import": "./dist/noteImport.js"
+    },
     "./browser-files": {
       "types": "./dist/browserFiles.d.ts",
       "import": "./dist/browserFiles.js"

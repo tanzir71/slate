@@ -1,4 +1,5 @@
 import { decodeText, encodeText, readMarkdownSnapshot, safeWorkspacePath as safeBrowserPath, type MarkdownFileSnapshot, type WorkspaceFiles } from "./fileIO";
+import { createFileImportBatch } from "./fileImportBatch";
 
 export type FileSheet = MarkdownFileSnapshot;
 export interface FileWriteResult extends FileSheet { conflict: boolean }
@@ -43,6 +44,9 @@ export function createFileSpace(files: WorkspaceFiles, canWrite: () => boolean =
   }
   return {
     files,
+    prepareImport(label: string, entries: Readonly<Record<string, Uint8Array>>) {
+      return createFileImportBatch(files, tryCreate, mutate, label, entries);
+    },
     read,
     flush: () => pending,
     async sheets(): Promise<FileSheet[]> {

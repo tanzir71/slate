@@ -1,0 +1,53 @@
+.sourceImportDialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sourceImportDialog > header,
+.sourceImportDialog > .dialogActions {
+  flex-shrink: 0;
+}
+
+.sourceImportDialog > .dialogActions {
+  margin-block-start: 16px;
+}
+
+.sourceImportBody {
+  min-block-size: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+  margin-inline: -4px;
+  padding-inline: 4px;
+}
+
+.sourceImportBody > label {
+  margin-block: 16px 8px;
+}
+
+.sourceImportPickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 16px;
+}
+
+.sourceImportDialog h3 {
+  margin-block: 20px 8px;
+  font-size: 14px;
+}
+
+.sourceImportDialog details {
+  margin-block: 16px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+}
+
+@media (pointer: coarse) {
+  .sourceImportDialog :is(button, select, summary) {
+    min-block-size: 44px;
+  }
+}

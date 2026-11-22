@@ -26,6 +26,7 @@ export default defineConfig({
       "@slate/storage/file-io": fromRoot("../../packages/storage/src/fileIO.ts"),
       "@slate/storage/file-space": fromRoot("../../packages/storage/src/fileSpace.ts"),
       "@slate/storage/browser-import": fromRoot("../../packages/storage/src/browserImport.ts"),
+      "@slate/storage/note-import": fromRoot("../../packages/storage/src/noteImport.ts"),
       "@slate/storage/browser-space": fromRoot("../../packages/storage/src/browserSpace.ts"),
       "@slate/storage/browser-archive": fromRoot("../../packages/storage/src/browserArchive.ts"),
       "@slate/storage/browser-catalog": fromRoot("../../packages/storage/src/browserCatalog.ts"),

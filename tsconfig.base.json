@@ -35,6 +35,7 @@
       "@slate/storage/browser-tidy": ["packages/storage/src/browserTidy.ts"],
       "@slate/storage/browser-files": ["packages/storage/src/browserFiles.ts"],
       "@slate/storage/browser-import": ["packages/storage/src/browserImport.ts"],
+      "@slate/storage/note-import": ["packages/storage/src/noteImport.ts"],
       "@slate/storage/browser-space": ["packages/storage/src/browserSpace.ts"],
       "@slate/storage/browser-archive": ["packages/storage/src/browserArchive.ts"],
       "@slate/storage/browser-catalog": ["packages/storage/src/browserCatalog.ts"],

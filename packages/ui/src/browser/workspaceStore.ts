@@ -499,6 +499,18 @@ export function createWorkspaceStore(record: BrowserSpaceRecord, files: Workspac
       await space.importFiles(entries);
       await refresh();
       onSaved();
+    },
+    prepareImport(label: string, entries: Readonly<Record<string, Uint8Array>>) {
+      const batch = space.prepareImport(label, entries);
+      return {
+        get root() { return batch.root; },
+        async run() {
+          await flush();
+          const paths = await batch.run();
+          await refresh(); onSaved();
+          return paths;
+        },
+      };
     }
   };
 }

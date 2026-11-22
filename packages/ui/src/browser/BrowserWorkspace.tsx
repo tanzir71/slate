@@ -49,6 +49,7 @@ const NativeLaunchActions = lazy(() => import("../native/NativeLaunchActions"));
 const TemplateGallery = lazy(() => import("../templates/TemplateGallery"));
 const NotebookTemplateDialog = lazy(() => import("../templates/NotebookTemplateDialog"));
 const StarterKitDialog = lazy(() => import("../templates/StarterKitDialog"));
+const SourceImportDialog = lazy(() => import("../imports/SourceImportDialog"));
 const SnippetPicker = lazy(() => import("../snippets/SnippetPicker"));
 const SnippetPrompt = lazy(() => import("../snippets/SnippetPrompt"));
 const BlockSettings = lazy(() => import("../blocks/BlockSettings"));
@@ -143,6 +144,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
   const [notebookTemplateRequest, setNotebookTemplateRequest] = useState<{ notebook: string; returnFocus: HTMLElement | undefined }>();
   const [starterKitRequest, setStarterKitRequest] = useState<{ returnFocus: HTMLElement | undefined }>();
+  const [sourceImport, setSourceImport] = useState(false);
   const editorPreferences = useEditorPreferences();
   const [pane, setPane] = useState<"navigation" | "sheets" | "editor">(() => state.selectedPath ? "editor" : "sheets");
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -316,7 +318,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     const next = paneCursors.current[editorLayout.active]; if (next) cursor.update(next);
   }, [editorLayout, cursor]);
   const focusCreatedSheet = useCallback(() => {
-    if (templateRequest || starterKitRequest || palette || workspaceSearch || launchDialogOpen) return;
+    if (templateRequest || starterKitRequest || sourceImport || palette || workspaceSearch || launchDialogOpen) return;
     const current = store.api.getState(), handle = editorHandle.current;
     const navigation = pendingNavigation.current;
     if (navigation && current.selectedPath === navigation.path && handle?.documentKey() === `${current.record.id}/${navigation.path}` && handle.source() === navigation.source) {
@@ -327,7 +329,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       const source = current.sheets.find((sheet) => sheet.path === current.selectedPath)?.content;
       if (source !== undefined && handle.goToSourceOffset(source, current.initialCursor.position)) store.clearInitialCursor();
     }
-  }, [store, templateRequest, starterKitRequest, palette, workspaceSearch, launchDialogOpen]);
+  }, [store, templateRequest, starterKitRequest, sourceImport, palette, workspaceSearch, launchDialogOpen]);
   const editorBecameReady = useCallback(() => { setEditorReady(true); focusCreatedSheet(); }, [focusCreatedSheet]);
   function activatePane(id: EditorPaneId) {
     if (editors.layout.getSnapshot().active !== id) pendingNavigation.current = undefined;
@@ -352,12 +354,12 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (editors.layout.collapse()) focusSelected(offset);
   }
   useEffect(() => {
-    if (!templateRequest && !starterKitRequest && !palette && !workspaceSearch && !launchDialogOpen && (state.initialCursor || pendingNavigation.current)) {
+    if (!templateRequest && !starterKitRequest && !sourceImport && !palette && !workspaceSearch && !launchDialogOpen && (state.initialCursor || pendingNavigation.current)) {
       // Native dialog cleanup restores its invoker; focus the new editor after it closes.
       const frame = requestAnimationFrame(focusCreatedSheet);
       return () => cancelAnimationFrame(frame);
     }
-  }, [templateRequest, starterKitRequest, palette, workspaceSearch, launchDialogOpen, state.initialCursor, focusCreatedSheet]);
+  }, [templateRequest, starterKitRequest, sourceImport, palette, workspaceSearch, launchDialogOpen, state.initialCursor, focusCreatedSheet]);
   const navigateWiki = useCallback((link: Parameters<WorkspaceStore["followWikiLink"]>[0]) => run(() => store.followWikiLink(link)), [store, run]);
 
   function shortcut(id: string) { return commandShortcut(id, keymap, os); }
@@ -686,7 +688,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }, [state.record.id, state.selectedPath]);
 
   useEffect(() => {
-    const modalOpen = palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings;
+    const modalOpen = palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings;
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") {
@@ -696,7 +698,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         }
         return;
       }
-      if (palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
+      if (palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { if (window.document.querySelector("dialog[open]") || editorViewCommands.has(id) && !canUseViewCommand(event, id)) return; event.preventDefault(); dispatchCommand(id); }
@@ -706,7 +708,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       if (event.defaultPrevented) return;
       const id = matchCommand(priorityBindings, keyboardInput(event), { editor: false, selection: false });
       if (id && editorViewCommands.has(id) && !canUseViewCommand(event, id)) return;
-      if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
+      if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
       // Workspace navigation and view commands take priority over editor keymaps.
       event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
     };
@@ -818,6 +820,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         { label: "Delete sheet", disabled: !selected || selected.unsupportedEncoding || !state.owned, run: () => { setActionPaths([state.selectedPath]); setAction("trash"); } },
         { label: "Import files", disabled: !state.owned, run: () => input.current?.click() },
         { label: "Import folder", disabled: !state.owned, run: () => folderInput.current?.click() },
+        { label: "Import from another app", disabled: !state.owned, run: async () => { await store.flush(); setSourceImport(true); } },
         { label: "Export .zip", run: () => dispatchCommand("space.export") },
         { label: "Keyboard shortcuts", run: () => dispatchCommand("app.shortcuts") },
         { label: "Editor settings", run: () => dispatchCommand("app.editorSettings") },
@@ -897,6 +900,15 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       goal={document?.goal} writable={state.owned && !!selected && !selected.unsupportedEncoding} writing={writing} focusShortcut={shortcut("view.focus")}
       onGoal={() => { writingModes.zen(false); setInspector(true); }} onExit={exitZen} onFocus={toggleWritingFocus} />}
     {!runtime && <LaunchActions key={state.record.id} store={store} pool={editors.pool} onSearch={openSearchWithQuery} onTemplate={openLinkedTemplate} templatesReady={!!templates.library} onSwitchSpace={onSwitchSpace} onTakeover={onTakeover} onDialogChange={setLaunchDialogOpen} onNavigate={() => focusSelected()} />}
+    {sourceImport && <Suspense fallback={<WorkspaceDialog title="Import from another app" onClose={() => setSourceImport(false)}><p role="status">Opening import…</p></WorkspaceDialog>}><SourceImportDialog
+      beforeRead={store.flush}
+      onPrepare={plan => store.prepareImport(plan.label, plan.entries)}
+      onImported={async result => {
+        const first = result.plan.notes[0]; if (first) await store.select(`${result.root}/${first}`);
+        setFilter(result.root); setPane("editor");
+        store.api.setState({ notice: `Imported ${result.plan.notes.length} ${result.plan.notes.length === 1 ? "note" : "notes"} into ${result.root}. Existing files were kept.` });
+        focusSelected();
+      }} onClose={() => { setSourceImport(false); focusSelected(); }} /></Suspense>}
     {runtime?.launches && <Suspense fallback={null}><NativeLaunchActions source={runtime.launches} store={store} pool={editors.pool} onSearch={openSearchWithQuery} onTemplate={openLinkedTemplate} templatesReady={!!templates.library} onSwitchSpace={onSwitchSpace} {...(onOpenNativeSpace ? { onOpenNativeSpace } : {})} onTakeover={onTakeover} onDialogChange={setLaunchDialogOpen} onNavigate={() => focusSelected()} /></Suspense>}
     {tidyBatch && <Suspense fallback={<WorkspaceDialog title="Batch Tidy" returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)}><p role="status">Opening batch review…</p></WorkspaceDialog>}><BatchTidyDialog store={store} paths={tidyBatch.paths} returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)} /></Suspense>}
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
