@@ -32,15 +32,26 @@ async function pickable(page: Page) {
     if (!localStorage.getItem(key + "Existing.md")) localStorage.setItem(key + "Existing.md", JSON.stringify(Array.from(new TextEncoder().encode(original))));
   }, { folder, original });
 }
-test("fresh A10 matches its design geometry and all original asset slots without creating a workspace", async ({ page }) => {
-  await fresh(page); await page.goto("./"); await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+for (const platform of [
+  { name: "windows", navigator: "Win32", titleX: 14, controls: true },
+  { name: "linux", navigator: "Linux x86_64", titleX: 14, controls: true },
+  { name: "mac", navigator: "MacIntel", titleX: 86, controls: false },
+] as const) test(`fresh A10 ${platform.name} matches its design geometry and original platform asset slots without creating a workspace`, async ({ page }) => {
+  await fresh(page);
+  await page.addInitScript(value => Object.defineProperty(navigator, "platform", { configurable: true, get: () => value }), platform.navigator);
+  await page.goto("./"); await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+  const header = page.locator(".nativeTitleBar");
+  await expect(header).toHaveAttribute("data-native-platform", platform.name);
+  await expect(header).toHaveAttribute("data-window-controls", String(platform.controls));
+  await expect(header.locator(".nativeWindowControls button")).toHaveCount(platform.controls ? 3 : 0);
+  expect(await header.evaluate(element => parseFloat(getComputedStyle(element).paddingInlineStart))).toBe(platform.controls ? 8 : 80);
   expect(await files(page)).toEqual({}); expect(await page.evaluate(() => localStorage.getItem("native-last-space"))).toBeNull();
   await expect(page.getByRole("radio", { name: "Start a new Space", exact: true })).toBeChecked();
   await expect(page.getByRole("radio", { name: "Writer", exact: true })).toBeChecked();
   expect(await page.getByRole("radio").count()).toBe(8);
   const box = await page.locator(".nativeOnboardingContent").boundingBox(); expect(box?.x).toBe(280); expect(box?.width).toBe(880);
   expect((await page.locator(".nativeOnboardingBrand").boundingBox())?.y).toBe(150);
-  expect((await page.locator(".nativeStartupTitle").boundingBox())?.x).toBe(14);
+  expect((await page.locator(".nativeStartupTitle").boundingBox())?.x).toBe(platform.titleX);
   expect((await page.getByRole("button", { name: "Continue", exact: true }).boundingBox())?.width).toBe(80);
   const cardGeometry = await page.locator(".nativeOnboardingChoice").evaluateAll(elements => elements.map(element => {
     const box = element.getBoundingClientRect(); return { x: box.x, width: box.width, height: box.height };
@@ -51,7 +62,7 @@ test("fresh A10 matches its design geometry and all original asset slots without
   expect((await page.locator(".nativeOnboardingChoice[data-selected=true] .nativeOnboardingChoiceDescription").boundingBox())?.height).toBe(32);
   expect(await page.locator(".nativeOnboardingPreset").evaluateAll(elements => elements.map(element => element.getBoundingClientRect().width))).toEqual([86, 111, 118, 97, 97]);
   const slots = await page.locator("[data-asset-slot]").evaluateAll(elements => elements.map(element => ({ slot: element.getAttribute("data-asset-slot"), icon: element.getAttribute("data-icon")!, width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height, mask: getComputedStyle(element).maskImage })));
-  expect(slots.map(slot => slot.slot).sort()).toEqual(["brand", "window-minimize", "window-maximize", "window-close", "choice-folder", "choice-new", "choice-import", "preset-writer", "preset-developer", "preset-researcher", "preset-student", "preset-minimal", "no-account", "offline", "local", "cache"].sort());
+  expect(slots.map(slot => slot.slot).sort()).toEqual(["brand", ...(platform.controls ? ["window-minimize", "window-maximize", "window-close"] : []), "choice-folder", "choice-new", "choice-import", "preset-writer", "preset-developer", "preset-researcher", "preset-student", "preset-minimal", "no-account", "offline", "local", "cache"].sort());
   for (const slot of slots) {
     expect(slot.width).toBe(slot.icon === "logo" ? 34 : 16); expect(slot.height).toBe(slot.icon === "logo" ? 34 : 16);
     const url = /^url\(["']?(.+?)["']?\)$/.exec(slot.mask)?.[1]; expect(url).toBeDefined(); expect(url).not.toContain("figma.com");
@@ -59,7 +70,7 @@ test("fresh A10 matches its design geometry and all original asset slots without
     expect(createHash("sha256").update(await response.body()).digest("hex")).toBe(manifest.entries.find(entry => entry.file === sourceFiles[slot.icon])?.sha256);
   }
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: "test-results/a10-first-run-light.png" });
+  await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: `test-results/a10-first-run-${platform.name}-light.png` });
 });
 for (const preset of [
   { id: "writer", name: "Writer", template: "Writer - Draft.md", block: "Writing review.md", trigger: ";draft" },
