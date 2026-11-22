@@ -88,15 +88,30 @@ test("lost save reply and renderer reload retry the same capture without duplica
   expect(await source(inputPage)).toBe("\ufeffPrior\r\n\r\nOnly once\r\n");
 });
 
-test("Close waits for an outstanding save before destroying the compact window", async ({ page, context }) => {
-  await main(page); const inputPage = await capture(context); await inputPage.getByRole("textbox").fill("In flight");
+async function closeDuringSave(page: Page, context: BrowserContext, checkChrome?: (input: Page) => Promise<void>) {
+  await main(page); const inputPage = await capture(context); await checkChrome?.(inputPage); await inputPage.getByRole("textbox").fill("In flight");
   await inputPage.evaluate(() => localStorage.setItem("native-capture-hold-save", "true"));
   await inputPage.getByRole("button", { name: "Save to Inbox", exact: true }).click(); await expect(inputPage.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
-  await inputPage.getByRole("button", { name: "Close window", exact: true }).click();
+  // Native macOS traffic lights live outside the webview. All OS close requests
+  // reach this same handler; Windows/Linux button dispatch has titlebar coverage.
+  await inputPage.evaluate(() => (Reflect.get(window, "__TAURI_INTERNALS__") as { invoke(command: string, args: Record<string, unknown>): Promise<unknown> }).invoke("plugin:window|close", { label: "capture" }));
   expect(await destroyed(inputPage)).toBeNull(); expect(await source(inputPage)).toBe("\ufeffPrior\r\n");
   await inputPage.evaluate(() => (Reflect.get(window, "__CAPTURE_FIXTURE__") as { releaseSave(): void }).releaseSave());
   await expect.poll(() => destroyed(inputPage)).toBe("true"); expect(await source(inputPage)).toBe("\ufeffPrior\r\n\r\nIn flight\r\n");
   expect(await inputPage.evaluate(() => localStorage.getItem("native-capture-stashes"))).toBeNull();
+  return inputPage;
+}
+
+test("Close waits for an outstanding save before destroying the compact window", async ({ page, context }) => {
+  await closeDuringSave(page, context);
+});
+
+test("macOS native Close waits for the same save without a Windows close button", async ({ page, context }) => {
+  await context.addInitScript(() => Object.defineProperty(navigator, "platform", { configurable: true, get: () => "MacIntel" }));
+  await closeDuringSave(page, context, async inputPage => {
+    await expect(inputPage.locator(".workspaceHeader")).toHaveAttribute("data-native-platform", "mac");
+    await expect(inputPage.getByRole("button", { name: "Close window", exact: true })).toHaveCount(0);
+  });
 });
 
 test("failed Close keeps visible words until the draft can be stashed", async ({ page, context }) => {
