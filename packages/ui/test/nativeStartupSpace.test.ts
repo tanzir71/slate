@@ -24,9 +24,18 @@ it("observes file opens during startup, ignores older snapshots and cleans its l
 });
 it("keeps normal startup available while the request UI handles unavailable files or links", async () => {
   for (const ticket of [null, { id: "link", url: "slate://open?path=note.md", phase: "pending" }]) {
-    const invoke = vi.fn(async () => ({ revision: 1, current: ticket, waiting: 0, error: null }));
-    expect(await nativeStartupSpace(invoke as TauriInvoke)).toEqual(defaultNativeSpace); expect(invoke).toHaveBeenCalledOnce();
+    const invoke = vi.fn(async (command: string) => command === "startup_native_space" ? null : ({ revision: 1, current: ticket, waiting: 0, error: null }));
+    expect(await nativeStartupSpace(invoke as TauriInvoke)).toEqual(defaultNativeSpace); expect(invoke).toHaveBeenCalledTimes(2);
   }
-  const failed = vi.fn().mockRejectedValue(Error("Native queue unavailable"));
+  const failed = vi.fn().mockRejectedValueOnce(Error("Native queue unavailable")).mockResolvedValueOnce(null);
   expect(await nativeStartupSpace(failed as TauriInvoke)).toEqual(defaultNativeSpace);
+});
+
+it("restores a remembered folder even when the link queue fails, and surfaces a disconnected choice", async () => {
+  const space = { id: "12345678-1234-4321-9876-123456789abc", name: "Notes", path: "C:\\Notes" };
+  const invoke = vi.fn().mockRejectedValueOnce(Error("Native queue unavailable")).mockResolvedValueOnce(space);
+  expect(await nativeStartupSpace(invoke as TauriInvoke)).toEqual(space);
+  expect(invoke.mock.calls.at(-1)).toEqual(["startup_native_space"]);
+  const failed = vi.fn().mockResolvedValueOnce({ revision: 0, current: null, waiting: 0, error: null }).mockRejectedValueOnce(Error("Folder disconnected"));
+  await expect(nativeStartupSpace(failed as TauriInvoke)).rejects.toThrow("Folder disconnected");
 });

@@ -19,3 +19,25 @@ it("treats picker cancellation as no selection and keeps structured native error
 it.each([null, [], [folder], [defaultNativeSpace, defaultNativeSpace], [defaultNativeSpace, { ...folder, id: "../root" }], [defaultNativeSpace, { ...folder, path: "relative" }], [defaultNativeSpace, { ...folder, name: " " }]])("rejects malformed native catalogs %j", async reply => {
   await expect(createNativeSpaceCatalog(vi.fn(async () => reply) as TauriInvoke).list()).rejects.toThrow(/Invalid native/);
 });
+
+it("reads only host-validated startup records and remembers only the requested ID", async () => {
+  const invoke = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(folder).mockResolvedValueOnce(folder);
+  const catalog = createNativeSpaceCatalog(invoke as TauriInvoke);
+  expect(await catalog.startup()).toBeNull(); expect(await catalog.startup()).toEqual(folder);
+  expect(await catalog.remember(folder.id)).toEqual(folder);
+  expect(invoke.mock.calls).toEqual([["startup_native_space"], ["startup_native_space"], ["remember_native_space", { id: folder.id }]]);
+  invoke.mockResolvedValueOnce(defaultNativeSpace); await expect(catalog.remember(folder.id)).rejects.toThrow("different Space");
+  invoke.mockResolvedValueOnce({ ...folder, path: "relative" }); await expect(catalog.startup()).rejects.toThrow("Invalid native");
+});
+
+it("serializes remembered choices so a delayed or failed older save cannot overwrite the latest choice", async () => {
+  let fail!: (reason: Error) => void;
+  const held = new Promise<unknown>((_resolve, reject) => { fail = reject; });
+  const invoke = vi.fn().mockReturnValueOnce(held).mockResolvedValueOnce(folder);
+  const catalog = createNativeSpaceCatalog(invoke as TauriInvoke);
+  const first = catalog.remember(defaultNativeSpace.id), second = catalog.remember(folder.id);
+  await Promise.resolve(); expect(invoke).toHaveBeenCalledTimes(1);
+  fail(Error("First selection failed")); await expect(first).rejects.toThrow("First selection failed");
+  expect(await second).toEqual(folder);
+  expect(invoke.mock.calls).toEqual([["remember_native_space", { id: defaultNativeSpace.id }], ["remember_native_space", { id: folder.id }]]);
+});

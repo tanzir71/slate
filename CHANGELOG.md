@@ -7,6 +7,7 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 ## [Unreleased]
 
 ### Added
+- Reopen the last selected desktop Space, with explicit recovery for disconnected folders and failed selection saves.
 - Remember the desktop main window's size, position, maximization and fullscreen while keeping Quick Capture geometry and platform titlebars separate.
 - Scoped Markdown file opening from desktop OS launches, with in-place editing, Space selection and queued requests that preserve active confirmations.
 - Native Quick Capture through Ctrl+Alt+Space and the desktop menu, with a compact window, draft recovery, exact save retry and a fixed target Space.

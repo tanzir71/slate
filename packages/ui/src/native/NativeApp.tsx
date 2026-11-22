@@ -18,6 +18,11 @@ import "./nativeWindow.css";
 const loadWorkspace = () => import("../browser/BrowserWorkspace");
 const Workspace = lazy(loadWorkspace);
 type Session = ReturnType<typeof createNativeWorkspace>;
+async function protectAndRemember(session: Session, catalog: NativeSpaceCatalog) {
+  const stop = await session.protectClose();
+  try { await catalog.remember(session.space.id); return stop; }
+  catch (cause) { stop(); throw cause; }
+}
 interface NativeAppProps { createSession?: (space?: NativeSpace) => Promise<Session>; catalog?: NativeSpaceCatalog }
 const catalog = createNativeSpaceCatalog();
 const createSession = async (space?: NativeSpace) => {
@@ -25,15 +30,16 @@ const createSession = async (space?: NativeSpace) => {
   return createNativeWorkspace(await nativeLifecycle(target.id), createTauriWorkspaceFiles({ spaceId: target.id }), undefined, target);
 };
 
-/** Production startup reads the real default Space; samples are never a disk fallback. */
+/** Production startup opens a host-admitted Space; samples are never a disk fallback. */
 export function NativeApp({ createSession: openSession = createSession, catalog: spaceCatalog = catalog }: NativeAppProps) {
   const appearance = useAppearance();
   const [session, setSession] = useState<Session>();
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [startupSpace, setStartupSpace] = useState<NativeSpace>();
   const [about, setAbout] = useState(false);
   const [spaces, setSpaces] = useState(false);
-  const opening = useRef<{ attempt: number; factory: typeof openSession; promise: Promise<Session> } | undefined>(undefined);
+  const opening = useRef<{ attempt: number; factory: typeof openSession; space: NativeSpace | undefined; promise: Promise<Session> } | undefined>(undefined);
   const closeProtection = useRef<(() => void) | undefined>(undefined);
   const liveSession = useRef<Session | undefined>(undefined);
   const switching = useRef(false);
@@ -49,7 +55,7 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
     let active = true, stop: (() => void) | undefined;
     void observeNativeFileStartup(id => {
       if (!active || liveSession.current || startupFiles.current.has(id)) return;
-      startupFiles.current.add(id); setAttempt(value => value + 1);
+      startupFiles.current.add(id); setStartupSpace(undefined); setAttempt(value => value + 1);
     }).then(unlisten => { if (active) stop = unlisten; else unlisten(); }).catch(() => undefined);
     return () => { active = false; stop?.(); };
   }, []);
@@ -58,13 +64,13 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
     let current: Session | undefined;
     setError("");
     void loadWorkspace().catch(() => undefined);
-    if (opening.current?.attempt !== attempt || opening.current.factory !== openSession) {
-      opening.current = { attempt, factory: openSession, promise: openSession().then(async (next) => { await next.open(); return next; }) };
+    if (opening.current?.attempt !== attempt || opening.current.factory !== openSession || opening.current.space?.id !== startupSpace?.id) {
+      opening.current = { attempt, factory: openSession, space: startupSpace, promise: openSession(startupSpace).then(async (next) => { await next.open(); return next; }) };
     }
     void opening.current.promise.then(async (next) => {
       current = next;
       if (!active) return;
-      const stop = await next.protectClose();
+      const stop = await protectAndRemember(next, spaceCatalog);
       if (!active) { stop(); return; }
       closeProtection.current = stop;
       liveSession.current = next;
@@ -81,11 +87,11 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
       liveSession.current = undefined;
       void last?.store.flush().catch(() => undefined);
     };
-  }, [openSession, attempt]);
+  }, [openSession, attempt, startupSpace, spaceCatalog]);
 
   if (!session) return <div className="browserSlate"><WindowTitleBar windowControls={windowChrome}><span className="nativeStartupTitle">Welcome to Slate</span><WindowDragRegion windowControls={windowChrome} /></WindowTitleBar><main className="onboarding"><div className="welcomeBrand"><BrandMark size={36} /><span>Slate</span></div><h1>Your words, on this device.</h1>
-    {error ? <><p role="alert">{error}</p><button className="primaryButton" onClick={() => setAttempt((value) => value + 1)}>Try again</button></> : <p role="status">Opening your Space…</p>}
-  </main></div>;
+    {error ? <><p role="alert">{error}</p><div className="dialogActions"><button onClick={() => setSpaces(true)}>Choose a Space</button><button className="primaryButton" onClick={() => setAttempt((value) => value + 1)}>Try again</button></div></> : <p role="status">Opening your Space…</p>}
+  </main>{spaces && <NativeSpacesDialog catalog={spaceCatalog} onOpen={async space => { setStartupSpace(space); setAttempt(value => value + 1); }} onClose={() => setSpaces(false)} />}</div>;
   const reopen = async () => { await session.store.flush(); await session.store.refresh(); };
   const switchSpace = async (space: NativeSpace) => {
     if (space.id === session.space.id) return;
@@ -98,7 +104,7 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
       const next = await openSession(space);
       await next.open();
       if (generation.current !== started) throw Error("The current window changed. Open this Space again.");
-      const stop = await next.protectClose();
+      const stop = await protectAndRemember(next, spaceCatalog);
       if (generation.current !== started) { stop(); return; }
       // Install the new close guard only after its folder has loaded successfully.
       closeProtection.current?.(); closeProtection.current = stop;

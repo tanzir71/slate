@@ -30,17 +30,18 @@ function makeSession(space: NativeSpace, content: string) {
   const files = createMemoryFiles({ "same.md": content });
   return { ...createNativeWorkspace(lifecycle, files, createMemoryFiles(), space), files, lifecycle, stop };
 }
-async function setup() {
+async function setup(failedStartup = false) {
   const first = makeSession(defaultNativeSpace, "First words"), second = makeSession(folder, "Second words");
   const createSession = vi.fn(async (space = defaultNativeSpace) => space.id === folder.id ? second : first);
-  const catalog = { list: vi.fn(async () => [defaultNativeSpace, folder]), pick: vi.fn(async (): Promise<NativeSpace | null> => folder) };
+  if (failedStartup) createSession.mockRejectedValueOnce(Error("Remembered folder disconnected"));
+  const catalog = { list: vi.fn(async () => [defaultNativeSpace, folder]), pick: vi.fn(async (): Promise<NativeSpace | null> => folder), startup: vi.fn(async () => null), remember: vi.fn(async (id: string) => id === folder.id ? folder : defaultNativeSpace) };
   const host = document.body.appendChild(document.createElement("div")), root = createRoot(host);
   await act(async () => root.render(createElement(NativeApp, { createSession, catalog })));
   const click = async (label: string) => {
     const button = [...host.querySelectorAll("button")].find(item => item.textContent === label || item.querySelector("strong")?.textContent === label);
     expect(button, label).toBeDefined(); await act(async () => button!.click());
   };
-  await vi.waitFor(() => expect(host.querySelector("[data-space]")).not.toBeNull());
+  if (!failedStartup) await vi.waitFor(() => expect(host.querySelector("[data-space]")).not.toBeNull());
   return { first, second, createSession, catalog, host, click, dispose: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
 it("flushes the old Space and loads the chosen folder before swapping close protection", async () => {
@@ -56,6 +57,36 @@ it("flushes the old Space and loads the chosen folder before swapping close prot
     expect(app.host.querySelector("dialog")).toBeNull();
   } finally { await app.dispose(); }
   expect(app.second.stop).toHaveBeenCalledOnce(); expect(app.first.stop).toHaveBeenCalledOnce();
+});
+
+it("keeps the live Space and its Close guard if remembering a new Space fails", async () => {
+  const app = await setup();
+  try {
+    app.first.store.edit("Pending first draft");
+    app.catalog.remember.mockRejectedValueOnce(Error("Selection could not be saved"));
+    await app.click("Switch Space"); await app.click("Chosen");
+    expect(app.host.querySelector('[role="alert"]')?.textContent).toBe("Selection could not be saved");
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(defaultNativeSpace.id);
+    expect(new TextDecoder().decode(await app.first.files.read("same.md"))).toBe("Pending first draft");
+    expect(app.first.stop).not.toHaveBeenCalled(); expect(app.second.stop).toHaveBeenCalledOnce();
+    await app.click("Chosen");
+    expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(folder.id);
+    expect(app.catalog.remember).toHaveBeenLastCalledWith(folder.id);
+  } finally { await app.dispose(); }
+});
+
+it("recovers a failed remembered startup through an explicit Space choice without loading a default", async () => {
+  const app = await setup(true);
+  try {
+    expect(app.host.querySelector('[role="alert"]')?.textContent).toBe("Remembered folder disconnected");
+    expect(app.first.lifecycle.onClose).not.toHaveBeenCalled(); expect(app.catalog.remember).not.toHaveBeenCalled();
+    await app.click("Choose a Space");
+    expect(app.host.querySelector('[aria-current="true"]')).toBeNull();
+    await app.click("Chosen");
+    await vi.waitFor(() => expect(app.host.querySelector("[data-space]")?.getAttribute("data-space")).toBe(folder.id));
+    expect(app.createSession).toHaveBeenNthCalledWith(2, folder);
+    expect(app.first.lifecycle.onClose).not.toHaveBeenCalled(); expect(app.catalog.remember).toHaveBeenCalledExactlyOnceWith(folder.id);
+  } finally { await app.dispose(); }
 });
 it("keeps the current session and close guard after a folder fails to load, then allows retry", async () => {
   const app = await setup();

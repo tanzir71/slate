@@ -19,8 +19,9 @@ async function nativeInvoke<Result>(command: string, args?: Record<string, unkno
 }
 /** Native picker and OS file requests admit folders. A renderer never supplies a root. */
 export function createNativeSpaceCatalog(invoke: TauriInvoke = nativeInvoke) {
-  async function call(command: string) {
-    try { return await invoke<unknown>(command); } catch (cause) { throw nativeFileError(cause); }
+  let saving = Promise.resolve();
+  async function call(command: string, args?: Record<string, unknown>) {
+    try { return args === undefined ? await invoke<unknown>(command) : await invoke<unknown>(command, args); } catch (cause) { throw nativeFileError(cause); }
   }
   return {
     async list() {
@@ -31,6 +32,17 @@ export function createNativeSpaceCatalog(invoke: TauriInvoke = nativeInvoke) {
       return records;
     },
     async pick() { const reply = await call("pick_native_space"); return reply === null ? null : checkedNativeSpace(reply); },
+    async startup() { const reply = await call("startup_native_space"); return reply === null ? null : checkedNativeSpace(reply); },
+    remember(id: string) {
+      // A newer successful open must not be overwritten by a delayed earlier IPC write.
+      const next = saving.then(async () => {
+        const space = checkedNativeSpace(await call("remember_native_space", { id }));
+        if (space.id !== id) throw Error("The desktop remembered a different Space. Your notes were kept.");
+        return space;
+      });
+      saving = next.then(() => {}, () => {});
+      return next;
+    },
   };
 }
 export type NativeSpaceCatalog = ReturnType<typeof createNativeSpaceCatalog>;

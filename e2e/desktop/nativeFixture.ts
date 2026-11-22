@@ -167,7 +167,28 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           if (localStorage.getItem("native-fail-catalog")) throw { kind: "io", message: "Spaces list is invalid. Your folders were kept." };
           return JSON.parse(localStorage.getItem("native-spaces") ?? '[{"id":"native-default","name":"Slate","path":null}]') as unknown;
         }
-        if (command === "pick_native_space") return JSON.parse(localStorage.getItem("native-picked-space") ?? "null") as unknown;
+        if (command === "pick_native_space") {
+          const selected = JSON.parse(localStorage.getItem("native-picked-space") ?? "null") as { id: string; name: string; path: string | null } | null;
+          if (selected) {
+            const spaces = JSON.parse(localStorage.getItem("native-spaces") ?? '[{"id":"native-default","name":"Slate","path":null}]') as { id: string }[];
+            if (!spaces.some(space => space.id === selected.id)) { spaces.push(selected); localStorage.setItem("native-spaces", JSON.stringify(spaces)); }
+          }
+          return selected;
+        }
+        if (command === "startup_native_space" || command === "remember_native_space") {
+          if (command === "startup_native_space" && localStorage.getItem("native-selection-invalid")) throw { kind: "io", message: "The saved Space selection is invalid. Your notes were kept." };
+          const id = command === "startup_native_space" ? localStorage.getItem("native-last-space") : String(args.id);
+          if (id === null) return null;
+          if (id === localStorage.getItem("native-selection-disconnected")) throw { kind: "io", message: "The selected folder is disconnected. Your notes were kept." };
+          if (command === "remember_native_space" && localStorage.getItem("native-fail-remember")) throw { kind: "io", message: "Space selection could not be saved. Your notes were kept." };
+          const selected = id === "native-default" ? { id, name: "Slate", path: null } :
+            (JSON.parse(localStorage.getItem("native-spaces") ?? "[]") as { id: string; name: string; path: string | null }[]).find(space => space.id === id);
+          if (!selected) throw { kind: "io", message: "The selected Space is unavailable. Your notes were kept." };
+          if (command === "remember_native_space") {
+            localStorage.setItem("native-last-space", id); localStorage.removeItem("native-selection-invalid");
+          }
+          return selected;
+        }
         if (command === "read_workspace_file_info") {
           if (localStorage.getItem("native-fail-info")) throw { kind: "permission", message: "File information unavailable" };
           const bytes = read(spaceScope, path); if (bytes === null) throw { kind: "io", message: "This sheet no longer exists" };

@@ -465,6 +465,12 @@
           "markdownDescription": "Enables the read_workspace_file_info command without any pre-configured scope."
         },
         {
+          "description": "Enables the remember_native_space command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-remember-native-space",
+          "markdownDescription": "Enables the remember_native_space command without any pre-configured scope."
+        },
+        {
           "description": "Enables the replace_workspace_index command without any pre-configured scope.",
           "type": "string",
           "const": "allow-replace-workspace-index",
@@ -511,6 +517,12 @@
           "type": "string",
           "const": "allow-set-capture-space",
           "markdownDescription": "Enables the set_capture_space command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the startup_native_space command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-startup-native-space",
+          "markdownDescription": "Enables the startup_native_space command without any pre-configured scope."
         },
         {
           "description": "Enables the stash_capture command without any pre-configured scope.",
@@ -669,6 +681,12 @@
           "markdownDescription": "Denies the read_workspace_file_info command without any pre-configured scope."
         },
         {
+          "description": "Denies the remember_native_space command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-remember-native-space",
+          "markdownDescription": "Denies the remember_native_space command without any pre-configured scope."
+        },
+        {
           "description": "Denies the replace_workspace_index command without any pre-configured scope.",
           "type": "string",
           "const": "deny-replace-workspace-index",
@@ -715,6 +733,12 @@
           "type": "string",
           "const": "deny-set-capture-space",
           "markdownDescription": "Denies the set_capture_space command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the startup_native_space command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-startup-native-space",
+          "markdownDescription": "Denies the startup_native_space command without any pre-configured scope."
         },
         {
           "description": "Denies the stash_capture command without any pre-configured scope.",

@@ -108,9 +108,21 @@ test("native URL target Space requires the picker and writes only the chosen fol
 test("native URL unscoped review keeps its original folder after renderer reload", async ({ page }) => {
   await prepare(page, undefined, true); await page.locator(".spaceSwitcher").click(); await chooseFolder(page);
   await launch(page, "slate://append?path=Kept.md&text=Added"); await expect(modal(page).getByLabel("Text to append", { exact: true })).toBeEnabled();
+  // Reopen another admitted Space explicitly; the pending URI must keep its original binding.
+  await page.evaluate(() => localStorage.setItem("native-last-space", "native-default"));
   await page.reload(); await expect(modal(page).getByRole("alert")).toContainText("This link targets another Space");
   expect(await disk(page)).toEqual(bytes(before));
   await modal(page).getByRole("button", { name: "Switch Space", exact: true }).click(); await chooseFolder(page);
+  await modal(page).getByRole("button", { name: "Continue", exact: true }).click();
+  await expect.poll(() => disk(page, "Kept.md", folder.id)).toEqual(bytes("Folder original\n\nAdded")); expect(await disk(page)).toEqual(bytes(before));
+});
+
+test("native URL unscoped review reopens the remembered folder without changing its binding", async ({ page }) => {
+  await prepare(page, undefined, true); await page.locator(".spaceSwitcher").click(); await chooseFolder(page);
+  await launch(page, "slate://append?path=Kept.md&text=Added"); await expect(modal(page).getByLabel("Text to append", { exact: true })).toBeEnabled();
+  await page.reload(); await expect(page.locator(".spaceSwitcher")).toContainText(folder.name);
+  await expect(modal(page).getByLabel("Text to append", { exact: true })).toBeEnabled();
+  expect(await disk(page, "Kept.md", folder.id)).toEqual(bytes("Folder original")); expect(await disk(page)).toEqual(bytes(before));
   await modal(page).getByRole("button", { name: "Continue", exact: true }).click();
   await expect.poll(() => disk(page, "Kept.md", folder.id)).toEqual(bytes("Folder original\n\nAdded")); expect(await disk(page)).toEqual(bytes(before));
 });

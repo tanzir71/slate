@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 mod associations;
+mod selection;
 pub(crate) use associations::{markdown, AssociatedFile};
 
 pub const DEFAULT_ID: &str = "native-default";
@@ -38,6 +39,7 @@ struct Roots {
 pub struct NativeSpaces {
     data: PathBuf,
     roots: Mutex<Roots>,
+    selection: Mutex<()>,
 }
 fn valid_id(id: &str) -> bool {
     uuid::Uuid::parse_str(id).is_ok_and(|value| value.to_string() == id)
@@ -58,6 +60,7 @@ impl NativeSpaces {
         Ok(Self {
             data: std::fs::canonicalize(data).map_err(FileError::io)?,
             roots: Mutex::new(Roots::default()),
+            selection: Mutex::new(()),
         })
     }
     fn read(&self, roots: &mut Roots) -> Result<(Catalog, Option<Vec<u8>>), FileError> {
@@ -194,6 +197,22 @@ pub async fn pick_native_space(app: tauri::AppHandle) -> Result<Option<SpaceReco
     })
     .await
     .map_err(FileError::io)?
+}
+
+#[tauri::command]
+pub async fn startup_native_space(app: tauri::AppHandle) -> Result<Option<SpaceRecord>, FileError> {
+    tauri::async_runtime::spawn_blocking(move || app.state::<NativeSpaces>().startup())
+        .await
+        .map_err(FileError::io)?
+}
+#[tauri::command]
+pub async fn remember_native_space(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<SpaceRecord, FileError> {
+    tauri::async_runtime::spawn_blocking(move || app.state::<NativeSpaces>().remember(&id))
+        .await
+        .map_err(FileError::io)?
 }
 
 #[cfg(test)]

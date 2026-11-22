@@ -1,19 +1,20 @@
 import type { TauriInvoke } from "../tauriAutosave";
 import { createNativeLaunchSource, type NativeLaunchSnapshot, type NativeLaunchSource } from "./nativeLaunchSource";
-import { defaultNativeSpace } from "./nativeSpaces";
+import { createNativeSpaceCatalog, defaultNativeSpace } from "./nativeSpaces";
 
 async function nativeInvoke<Result>(command: string, args?: Record<string, unknown>): Promise<Result> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<Result>(command, args);
 }
-/** An OS-opened file must not depend on successfully loading the unrelated default Space. */
+/** Prefer a queued OS file, otherwise reopen the host's last selected Space. */
 export async function nativeStartupSpace(invoke: TauriInvoke = nativeInvoke) {
   try {
     const source = createNativeLaunchSource(invoke, async () => () => {});
     const { current } = await source.pending();
     if (current?.fileName) return (await source.resolveFile(current.id)).space;
   } catch { /* The normal request UI retains the host ticket and exposes its recoverable error. */ }
-  return defaultNativeSpace;
+  // Failure to reopen a chosen folder is recoverable; never silently substitute another Space.
+  return await createNativeSpaceCatalog(invoke).startup() ?? defaultNativeSpace;
 }
 
 /** Keep OS-open delivery available even while the default startup is loading or has failed. */

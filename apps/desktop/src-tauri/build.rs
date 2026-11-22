@@ -18,6 +18,8 @@ fn main() {
             "resolve_native_file",
             "list_native_spaces",
             "pick_native_space",
+            "startup_native_space",
+            "remember_native_space",
             "write_sheet",
             "write_numbered_asset",
             "list_markdown_files",

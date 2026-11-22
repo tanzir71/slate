@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-startup-native-space"
+description = "Enables the startup_native_space command without any pre-configured scope."
+commands.allow = ["startup_native_space"]
+
+[[permission]]
+identifier = "deny-startup-native-space"
+description = "Denies the startup_native_space command without any pre-configured scope."
+commands.deny = ["startup_native_space"]

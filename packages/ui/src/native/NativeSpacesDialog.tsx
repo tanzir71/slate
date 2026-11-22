@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceDialog } from "../browser/WorkspaceDialog";
-import type { NativeSpace, NativeSpaceCatalog } from "./nativeSpaces";
+import { defaultNativeSpace, type NativeSpace, type NativeSpaceCatalog } from "./nativeSpaces";
 
 export function NativeSpacesDialog({ current, catalog, onOpen, onClose }: {
-  current: NativeSpace;
-  catalog: NativeSpaceCatalog;
+  current?: NativeSpace;
+  catalog: Pick<NativeSpaceCatalog, "list" | "pick">;
   onOpen(space: NativeSpace): Promise<void>;
   onClose(): void;
 }) {
-  const [records, setRecords] = useState<NativeSpace[]>([]);
+  const [records, setRecords] = useState<NativeSpace[]>([defaultNativeSpace]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,8 +34,8 @@ export function NativeSpacesDialog({ current, catalog, onOpen, onClose }: {
     {loading && <p role="status">Reading Spaces…</p>}
     {error && <p role="alert">{error}</p>}
     <ul className="nativeSpacesList">{records.map(space => <li key={space.id}>
-      <button disabled={busy || loading} aria-current={space.id === current.id ? "true" : undefined} onClick={() => { void run(() => open(space)); }}>
-        <strong>{space.name}</strong><span>{space.path ?? "On this device"}</span>{space.id === current.id && <span>Current Space</span>}
+      <button disabled={busy || loading} aria-current={space.id === current?.id ? "true" : undefined} onClick={() => { void run(() => open(space)); }}>
+        <strong>{space.name}</strong><span>{space.path ?? "On this device"}</span>{space.id === current?.id && <span>Current Space</span>}
       </button>
     </li>)}</ul>
     <button className="primaryButton" disabled={busy || loading} onClick={() => { void run(async () => { const selected = await catalog.pick(); if (selected) await open(selected); }); }}>Open a folder</button>

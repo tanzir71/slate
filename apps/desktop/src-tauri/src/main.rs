@@ -51,6 +51,8 @@ fn main() {
             launches::resolve_native_file,
             spaces::list_native_spaces,
             spaces::pick_native_space,
+            spaces::startup_native_space,
+            spaces::remember_native_space,
             legacy_workspace::write_sheet,
             legacy_workspace::write_numbered_asset,
             legacy_workspace::list_markdown_files,
