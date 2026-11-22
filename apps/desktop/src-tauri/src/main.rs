@@ -6,6 +6,7 @@ mod legacy_workspace;
 mod spaces;
 mod workspace;
 mod workspace_index;
+mod window_state;
 
 fn main() {
     let context = tauri::generate_context!();
@@ -20,6 +21,8 @@ fn main() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(window_state::plugin())
+        .on_window_event(window_state::on_window_event)
         .manage(workspace_index::WorkspaceIndex::default())
         .setup(|app| {
             let data = app.path().app_data_dir()?;

@@ -30,3 +30,13 @@ test("the generated capability manifest exactly matches the native permission so
   const generated = await read("../../apps/desktop/src-tauri/gen/schemas/capabilities.json");
   assert.deepEqual(generated.default, capability);
 });
+
+test("window persistence is registered in the host without renderer access to plugin commands", async () => {
+  const main = await readFile(new URL("../../apps/desktop/src-tauri/src/main.rs", import.meta.url), "utf8");
+  assert.match(main, /\.plugin\(\s*window_state::plugin\(\)\s*\)/);
+  assert.match(main, /\.on_window_event\(window_state::on_window_event\)/);
+  for (const file of ["default", "capture"]) {
+    const capability = await read(`../../apps/desktop/src-tauri/capabilities/${file}.json`);
+    assert.ok(!capability.permissions.some(permission => typeof permission === "string" && permission.startsWith("window-state:")));
+  }
+});
