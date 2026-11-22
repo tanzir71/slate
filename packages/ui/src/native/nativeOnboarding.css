@@ -1,4 +1,4 @@
-.nativeOnboardingShell { display: flex; flex-direction: column; block-size: 100dvh; overflow: hidden; background: var(--bg-canvas); }
+.nativeOnboardingShell { display: flex; flex-direction: column; block-size: 100dvh; overflow: hidden; background: var(--bg-canvas); text-rendering: geometricPrecision; }
 .nativeOnboardingShell > .nativeTitleBar .nativeStartupTitle { margin-inline-start: 6px; }
 .nativeOnboardingShell .nativeWindowControls::before { display: none; }
 .nativeOnboardingStage { display: flex; flex: 1; flex-direction: column; align-items: center; min-block-size: 0; padding-block-start: 110px; background: var(--bg-canvas); }
@@ -11,13 +11,13 @@
 .nativeOnboardingIntro h1 { margin: 0; font: 500 40px/48px Newsreader, Georgia, serif; letter-spacing: -.6px; }
 .nativeOnboardingIntro p { margin: 0; max-inline-size: 600px; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
 .nativeOnboardingChoices { display: flex; align-items: flex-start; gap: 14px; inline-size: 100%; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
-.nativeOnboardingChoice { display: flex; position: relative; flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; min-inline-size: 0; padding: 18px; border: 1px solid var(--border-default); border-radius: 12px; cursor: pointer; background: var(--bg-canvas); }
-.nativeOnboardingChoice[data-selected="true"] { border: 1.5px solid var(--accent-default); background: var(--bg-selected); }
+.nativeOnboardingChoice { --choice-stroke: 1px; --choice-border: var(--border-default); display: flex; position: relative; flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; min-inline-size: 0; padding: calc(18px + var(--choice-stroke)); border: 0; border-radius: 12px; box-shadow: inset 0 0 0 var(--choice-stroke) var(--choice-border); cursor: pointer; background: var(--bg-canvas); }
+.nativeOnboardingChoice[data-selected="true"] { --choice-stroke: 1.5px; --choice-border: var(--accent-default); background: var(--bg-selected); }
 .nativeOnboardingChoice:focus-within, .nativeOnboardingPreset:focus-within { outline: 2px solid var(--accent-default); outline-offset: 3px; }
 .nativeOnboardingChoiceTop { display: flex; align-items: center; justify-content: space-between; gap: 8px; inline-size: 100%; }
 .nativeOnboardingChoiceIcon { display: grid; place-items: center; inline-size: 34px; block-size: 34px; flex-shrink: 0; border-radius: 8px; color: var(--icon-default); background: var(--bg-subtle); }
 .nativeOnboardingChoice[data-selected="true"] .nativeOnboardingChoiceIcon { color: var(--accent-default); background: var(--bg-raised); }
-.nativeOnboardingRecommended { padding: 2px 6px; border-radius: 4px; color: var(--text-secondary); background: var(--bg-subtle); font-size: 12px; line-height: 16px; }
+.nativeOnboardingRecommended { min-inline-size: 95px; padding: 2px 6px; border-radius: 4px; color: var(--text-secondary); background: var(--bg-subtle); font-size: 12px; line-height: 16px; }
 .nativeOnboardingChoice strong { font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: -.1px; }
 .nativeOnboardingChoiceDescription { inline-size: min(240px, 100%); color: var(--text-secondary); font-size: 12px; line-height: 16px; }
 .nativeOnboardingChoiceHint { padding-block-start: 4px; color: var(--text-tertiary); font: 11px/16px "Geist Mono", monospace; overflow-wrap: anywhere; }
@@ -25,14 +25,22 @@
 .nativeOnboardingPresets legend { margin-block-end: 10px; padding: 0; color: var(--text-tertiary); font-size: 11px; font-weight: 500; line-height: 16px; letter-spacing: .4px; }
 .nativeOnboardingPresets > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .nativeOnboardingPreset { display: flex; position: relative; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 999px; background: var(--bg-canvas); font-size: 13px; font-weight: 500; line-height: 20px; cursor: pointer; }
+.nativeOnboardingPreset[data-preset="writer"] { min-inline-size: 86px; }
+.nativeOnboardingPreset[data-preset="developer"] { min-inline-size: 111px; }
+.nativeOnboardingPreset[data-preset="researcher"] { min-inline-size: 118px; }
+.nativeOnboardingPreset[data-preset="student"], .nativeOnboardingPreset[data-preset="minimal"] { min-inline-size: 97px; }
 .nativeOnboardingPreset[data-selected="true"] { border-color: var(--accent-default); color: var(--text-accent); background: var(--accent-soft); }
 .nativeOnboardingPreset:not([data-selected="true"]) .nativeOnboardingAsset { color: var(--icon-default); }
 .nativeOnboardingFooter { display: flex; align-items: center; flex-shrink: 0; gap: 20px; align-self: stretch; margin-block-start: auto; padding: 16px 32px; border-block-start: 1px solid var(--border-subtle); }
 .nativeOnboardingFooter > span:not(.nativeOnboardingFooterSpace) { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; line-height: 16px; white-space: nowrap; }
+.nativeOnboardingFooter > span:nth-child(1) { min-inline-size: 85px; }
+.nativeOnboardingFooter > span:nth-child(2) { min-inline-size: 94px; }
+.nativeOnboardingFooter > span:nth-child(3) { min-inline-size: 176px; }
+.nativeOnboardingFooter > span:nth-child(4) { min-inline-size: 175px; }
 .nativeOnboardingFooterSpace { flex: 1; }
 .nativeOnboardingFooter .nativeOnboardingAsset { color: var(--text-tertiary); }
-.nativeOnboardingFooter > button { block-size: 32px; padding: 0 12px; border: 0; border-radius: 8px; color: var(--text-secondary); font-size: 13px; font-weight: 500; line-height: 20px; }
-.nativeOnboardingFooter > .primaryButton { color: var(--text-on-accent); }
+.nativeOnboardingFooter > button { min-inline-size: 51px; block-size: 32px; padding: 0 12px; border: 0; border-radius: 8px; color: var(--text-secondary); font-size: 13px; font-weight: 500; line-height: 20px; text-rendering: inherit; }
+.nativeOnboardingFooter > .primaryButton { min-inline-size: 80px; color: var(--text-on-accent); }
 .nativeOnboardingAsset { display: inline-block; flex-shrink: 0; inline-size: 16px; block-size: 16px; background: currentColor; mask-position: center; mask-repeat: no-repeat; mask-size: contain; }
 .nativeOnboardingAsset[data-icon="logo"] { mask-image: url("../assets/onboarding/3d191.svg?no-inline"); }
 .nativeOnboardingAsset[data-icon="minus"] { mask-image: url("../assets/onboarding/847f0.svg?no-inline"); }

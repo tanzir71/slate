@@ -68,7 +68,7 @@ export function NativeOnboarding({ catalog, windowChrome, onOpen, onSkip, window
           <span className="nativeOnboardingChoiceTop"><span className="nativeOnboardingChoiceIcon"><Asset icon={item.icon} slot={"choice-" + item.id} /></span>{item.id === "new" && <span className="nativeOnboardingRecommended">Recommended</span>}</span>
           <strong>{item.title}</strong><span id={"nativeDestination-" + item.id} className="nativeOnboardingChoiceDescription">{item.description}</span><span className="nativeOnboardingChoiceHint">{item.id === "folder" ? commandShortcut("space.openFolder", keymap, os) : item.hint}</span>
         </label>)}</fieldset>
-        <fieldset className="nativeOnboardingPresets" disabled={busy}><legend>STARTER KIT — sets your first templates, snippets and blocks</legend><div>{onboardingPresets.map(item => <label key={item.id} className="nativeOnboardingPreset" data-selected={preset === item.id}>
+        <fieldset className="nativeOnboardingPresets" disabled={busy}><legend>STARTER KIT — sets your first templates, snippets and blocks</legend><div>{onboardingPresets.map(item => <label key={item.id} className="nativeOnboardingPreset" data-preset={item.id} data-selected={preset === item.id}>
           <input className="visuallyHidden" type="radio" name="nativePreset" checked={preset === item.id} onChange={() => setPreset(item.id)} value={item.id} /><Asset icon={presetIcons[item.id]} slot={"preset-" + item.id} /><span>{item.name}</span>
         </label>)}</div></fieldset>
         {!flow && (error || windowError) && <p role="alert">{error || windowError}</p>}{busy && !flow && <p role="status">Opening your Space…</p>}

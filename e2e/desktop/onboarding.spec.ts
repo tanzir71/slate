@@ -42,6 +42,14 @@ test("fresh A10 matches its design geometry and all original asset slots without
   expect((await page.locator(".nativeOnboardingBrand").boundingBox())?.y).toBe(150);
   expect((await page.locator(".nativeStartupTitle").boundingBox())?.x).toBe(14);
   expect((await page.getByRole("button", { name: "Continue", exact: true }).boundingBox())?.width).toBe(80);
+  const cardGeometry = await page.locator(".nativeOnboardingChoice").evaluateAll(elements => elements.map(element => {
+    const box = element.getBoundingClientRect(); return { x: box.x, width: box.width, height: box.height };
+  }));
+  for (const [index, target] of [{ x: 280, width: 283.66668701171875, height: 190 }, { x: 577.6666870117188, width: 284.6666564941406, height: 175 }, { x: 876.3333740234375, width: 283.6666564941406, height: 190 }].entries()) {
+    for (const key of ["x", "width", "height"] as const) expect(Math.abs(cardGeometry[index]![key] - target[key])).toBeLessThanOrEqual(1 / 64);
+  }
+  expect((await page.locator(".nativeOnboardingChoice[data-selected=true] .nativeOnboardingChoiceDescription").boundingBox())?.height).toBe(32);
+  expect(await page.locator(".nativeOnboardingPreset").evaluateAll(elements => elements.map(element => element.getBoundingClientRect().width))).toEqual([86, 111, 118, 97, 97]);
   const slots = await page.locator("[data-asset-slot]").evaluateAll(elements => elements.map(element => ({ slot: element.getAttribute("data-asset-slot"), icon: element.getAttribute("data-icon")!, width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height, mask: getComputedStyle(element).maskImage })));
   expect(slots.map(slot => slot.slot).sort()).toEqual(["brand", "window-minimize", "window-maximize", "window-close", "choice-folder", "choice-new", "choice-import", "preset-writer", "preset-developer", "preset-researcher", "preset-student", "preset-minimal", "no-account", "offline", "local", "cache"].sort());
   for (const slot of slots) {
