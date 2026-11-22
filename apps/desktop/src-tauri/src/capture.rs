@@ -86,7 +86,7 @@ fn open_window(app: &tauri::AppHandle, selected: Option<&str>) -> Result<(), Fil
     result
 }
 
-fn show_main(app: &tauri::AppHandle) -> Result<(), FileError> {
+pub(crate) fn show_main(app: &tauri::AppHandle) -> Result<(), FileError> {
     let service = app.state::<NativeCapture>();
     let _guard = service.showing_main.lock().map_err(FileError::io)?;
     if let Some(window) = app.get_webview_window("main") {

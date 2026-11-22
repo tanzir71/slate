@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resolve-native-file"
+description = "Enables the resolve_native_file command without any pre-configured scope."
+commands.allow = ["resolve_native_file"]
+
+[[permission]]
+identifier = "deny-resolve-native-file"
+description = "Denies the resolve_native_file command without any pre-configured scope."
+commands.deny = ["resolve_native_file"]

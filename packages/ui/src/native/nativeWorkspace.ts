@@ -7,11 +7,12 @@ import { createNativeFileActions } from "./nativeFileActions";
 import { createTauriWorkspaceIndex } from "@slate/storage/tauri-workspace-index";
 import { defaultNativeSpace, type NativeSpace } from "./nativeSpaces";
 import type { WorkspaceFiles } from "@slate/storage/file-io";
-import { createNativeLaunchSource, type NativeLaunchSource } from "./nativeLaunchSource";
+import { createNativeLaunchSource, createNativeLaunchWork, type NativeLaunchSource } from "./nativeLaunchSource";
 import { createNativeCaptureActions } from "./nativeCapture";
 
 export interface NativeChange { scope: "space" | "global"; spaceId?: string | null; error: string | null }
 interface CloseRequest { preventDefault(): void }
+const launchWork = createNativeLaunchWork();
 export interface NativeLifecycle {
   fileActions?: WorkspaceFileActions;
   launches?: NativeLaunchSource;
@@ -32,7 +33,7 @@ export async function nativeLifecycle(spaceId = defaultNativeSpace.id): Promise<
     fileActions: createNativeFileActions(invoke, spaceId),
     quickCapture: createNativeCaptureActions(invoke, spaceId),
     captureErrors: failed => listen<string>("slate://capture-error", event => failed(new Error(event.payload))),
-    launches: createNativeLaunchSource(invoke, receive => listen<unknown>("slate://launch-changed", event => receive(event.payload))),
+    launches: createNativeLaunchSource(invoke, receive => listen<unknown>("slate://launch-changed", event => receive(event.payload)), launchWork),
     listen: (change) => listen<NativeChange>("slate://workspace-changed", (event) => change(event.payload)),
     watchStatus: () => invoke<string[]>("workspace_watch_status", { spaceId }),
     onClose: (request) => window.onCloseRequested(request),

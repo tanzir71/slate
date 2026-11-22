@@ -5,6 +5,7 @@
   "plugins": { "deep-link": { "desktop": { "schemes": ["slate-preview"] } } },
   "bundle": {
     "active": true,
+    "fileAssociations": [{ "ext": ["md"], "name": "SlatePreview.Markdown", "description": "Markdown document", "mimeType": "text/markdown", "role": "Editor", "rank": "Alternate" }],
     "createUpdaterArtifacts": false,
     "shortDescription": "Unsigned Slate desktop preview",
     "windows": {

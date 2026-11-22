@@ -45,6 +45,7 @@ fn main() {
             launches::review_native_launch,
             launches::complete_native_launch,
             launches::next_native_launch,
+            launches::resolve_native_file,
             spaces::list_native_spaces,
             spaces::pick_native_space,
             legacy_workspace::write_sheet,
@@ -65,6 +66,19 @@ fn main() {
             workspace_index::replace_workspace_index,
             workspace_index::search_workspace_index
         ])
-        .run(context)
-        .expect("failed to run Slate desktop shell");
+        .build(context)
+        .expect("failed to run Slate desktop shell")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = event {
+                let paths = urls
+                    .into_iter()
+                    .filter(|url| url.query().is_none() && url.fragment().is_none())
+                    .filter_map(|url| url.to_file_path().ok())
+                    .collect();
+                launches::open_files(app, paths);
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
+        });
 }

@@ -471,6 +471,12 @@
           "markdownDescription": "Enables the replace_workspace_index command without any pre-configured scope."
         },
         {
+          "description": "Enables the resolve_native_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-resolve-native-file",
+          "markdownDescription": "Enables the resolve_native_file command without any pre-configured scope."
+        },
+        {
           "description": "Enables the reveal_workspace_file command without any pre-configured scope.",
           "type": "string",
           "const": "allow-reveal-workspace-file",
@@ -667,6 +673,12 @@
           "type": "string",
           "const": "deny-replace-workspace-index",
           "markdownDescription": "Denies the replace_workspace_index command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the resolve_native_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-resolve-native-file",
+          "markdownDescription": "Denies the resolve_native_file command without any pre-configured scope."
         },
         {
           "description": "Denies the reveal_workspace_file command without any pre-configured scope.",

@@ -51,7 +51,8 @@
   },
   "plugins": { "deep-link": { "desktop": { "schemes": ["slate"] } } },
   "bundle": {
-    "active": false,
+    "active": true,
+    "fileAssociations": [{ "ext": ["md"], "name": "Slate.Markdown", "description": "Markdown document", "mimeType": "text/markdown", "role": "Editor", "rank": "Alternate" }],
     "targets": "all",
     "icon": [
       "icons/icon.png",

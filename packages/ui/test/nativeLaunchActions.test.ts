@@ -18,14 +18,14 @@ afterAll(() => { for (const [name, descriptor] of descriptors) { if (descriptor)
 beforeEach(() => { localStorage.clear(); history.replaceState({ kept: true }, "", "/?kept=1"); });
 afterEach(() => vi.restoreAllMocks());
 
-function transport(uri: string, phase: NativeLaunchRequest["phase"] = "pending") {
-  let snapshot: NativeLaunchSnapshot = { revision: 0, current: { id: "first", url: uri, phase }, waiting: 0, error: null };
+function transport(uri: string, phase: NativeLaunchRequest["phase"] = "pending", fileName?: string) {
+  let snapshot: NativeLaunchSnapshot = { revision: 0, current: { id: "first", url: uri, phase, ...(fileName ? { fileName } : {}) }, waiting: 0, error: null };
   let receive: ((value: NativeLaunchSnapshot) => void) | undefined;
   let fail: ((cause: unknown) => void) | undefined;
   const queued: NativeLaunchRequest[] = [];
   const commit = (current: NativeLaunchRequest | null) => { snapshot = { ...snapshot, revision: snapshot.revision + 1, current, waiting: queued.length }; receive?.(snapshot); return snapshot; };
   const source = {
-    run: vi.fn(async (work: () => Promise<void>) => work()),
+    run: vi.fn(async <T>(work: () => Promise<T>) => work()),
     quiesce: vi.fn(async () => () => {}),
     pending: vi.fn(async () => snapshot),
     bind: vi.fn(async (_id: string, spaceId: string) => commit({ ...snapshot.current!, spaceId })),
@@ -34,30 +34,79 @@ function transport(uri: string, phase: NativeLaunchRequest["phase"] = "pending")
     complete: vi.fn(async (_id: string) => commit(null)),
     review: vi.fn(async (_id: string) => commit({ ...snapshot.current!, phase: "pending" })),
     next: vi.fn(async () => commit(queued.shift() ?? null)),
+    resolveFile: vi.fn(async () => ({ space: { id: "native-default", name: "Slate", path: null }, path: "Kept.md", url: "slate://open?space=native-default&path=Kept.md" })),
     listen: vi.fn(async (next: (value: NativeLaunchSnapshot) => void, failed: (cause: unknown) => void) => { receive = next; fail = failed; return () => { receive = undefined; }; }),
   } satisfies NativeLaunchSource;
   return { source, stale: () => receive?.({ revision: 0, current: null, waiting: 0, error: null }), fail: () => fail?.(new Error("Event unavailable")), enqueue: (url: string) => { queued.push({ id: "next", url, phase: "pending" }); commit(snapshot.current); }, snapshot: () => snapshot };
 }
-async function setup(uri: string, phase: NativeLaunchRequest["phase"] = "pending", configure?: (source: ReturnType<typeof transport>["source"]) => void) {
-  const native = transport(uri, phase);
+async function setup(uri: string, phase: NativeLaunchRequest["phase"] = "pending", configure?: (source: ReturnType<typeof transport>["source"]) => void, fileName?: string) {
+  const native = transport(uri, phase, fileName);
   configure?.(native.source);
   const files = createMemoryFiles({ "Kept.md": "\uFEFFOriginal\r\n", "Other.md": "Other words." });
   const store = createWorkspaceStore({ id: "native-default", name: "Slate", tier: "folder" }, files);
   await store.load(); store.setOwned(true);
   const pool = createEditorDocumentPool(store); pool.connect();
   const host = document.body.appendChild(document.createElement("div")), root = createRoot(host);
-  const onSearch = vi.fn(), onTemplate = vi.fn(async () => {}), onSwitchSpace = vi.fn(async () => {});
-  const props = { source: native.source, store, pool, onSearch, onTemplate, onSwitchSpace, onTakeover: vi.fn(async () => {}), onDialogChange: vi.fn(), onNavigate: vi.fn(), templatesReady: true };
+  const onSearch = vi.fn(), onTemplate = vi.fn(async () => {}), onSwitchSpace = vi.fn(async () => {}), onOpenNativeSpace = vi.fn(async () => {});
+  const props = { source: native.source, store, pool, onSearch, onTemplate, onSwitchSpace, onOpenNativeSpace, onTakeover: vi.fn(async () => {}), onDialogChange: vi.fn(), onNavigate: vi.fn(), templatesReady: true };
   await act(async () => root.render(createElement(NativeLaunchActions, props)));
   const click = async (label: string) => {
     const button = [...host.querySelectorAll("button")].find(item => item.textContent === label); expect(button, label).toBeDefined();
     await act(async () => button!.click());
   };
-  return { ...native, files, store, pool, host, click, onSearch, onTemplate, onSwitchSpace,
+  return { ...native, files, store, pool, host, click, onSearch, onTemplate, onSwitchSpace, onOpenNativeSpace, onNavigate: props.onNavigate,
     remount: async (nextStore = store, nextPool = pool) => { await act(async () => root.render(createElement(NativeLaunchActions, { ...props, store: nextStore, pool: nextPool, key: "reloaded" }))); },
     dispose: async () => { await act(async () => root.unmount()); pool.dispose(); host.remove(); },
   };
 }
+
+it("opens an OS file from its host ticket without imports, note writes or browser URL changes", async () => {
+  const app = await setup("", "pending", undefined, "Kept.md");
+  try {
+    await vi.waitFor(() => expect(app.source.complete).toHaveBeenCalledOnce());
+    expect(app.source.resolveFile).toHaveBeenCalledExactlyOnceWith("first");
+    expect(app.source.bind).not.toHaveBeenCalled();
+    expect(app.store.api.getState().selectedPath).toBe("Kept.md");
+    expect(new TextDecoder("utf-8", { ignoreBOM: true }).decode(await app.files.read("Kept.md"))).toBe("\uFEFFOriginal\r\n");
+    expect(await app.files.list()).toEqual(["Kept.md", "Other.md"]);
+    expect(location.search).toBe("?kept=1");
+  } finally { await app.dispose(); }
+});
+
+it("retains a failed OS file ticket for retry without falling back to another note", async () => {
+  const app = await setup("", "pending", source => source.resolveFile.mockRejectedValueOnce(Error("Original folder disconnected")), "Kept.md");
+  try {
+    expect(app.host.textContent).toContain("Original folder disconnected");
+    expect(app.source.begin).not.toHaveBeenCalled(); expect(app.source.complete).not.toHaveBeenCalled();
+    await app.click("Try again");
+    expect(app.source.resolveFile).toHaveBeenCalledTimes(2); expect(app.source.complete).toHaveBeenCalledOnce();
+  } finally { await app.dispose(); }
+});
+
+it("switches to the admitted native Space before opening the same ticket there", async () => {
+  const space = { id: "12345678-1234-4321-9876-123456789abc", name: "Folder notes", path: "C:\\Notes" };
+  const app = await setup("", "pending", source => source.resolveFile.mockResolvedValue({ space, path: "Notebook/target.md", url: `slate://open?space=${space.id}&path=Notebook%2Ftarget.md` }), "target.md");
+  const files = createMemoryFiles({ "Notebook/target.md": "\uFEFFExact\r\n" });
+  const store = createWorkspaceStore({ id: space.id, name: space.name, tier: "folder" }, files);
+  await store.load(); store.setOwned(true); const pool = createEditorDocumentPool(store); pool.connect();
+  try {
+    expect(app.onOpenNativeSpace).toHaveBeenCalledExactlyOnceWith(space);
+    expect(app.source.begin).not.toHaveBeenCalled();
+    await app.remount(store, pool);
+    await vi.waitFor(() => expect(app.source.complete).toHaveBeenCalledOnce());
+    expect(store.api.getState().selectedPath).toBe("Notebook/target.md");
+    expect(new TextDecoder("utf-8", { ignoreBOM: true }).decode(await files.read("Notebook/target.md"))).toBe("\uFEFFExact\r\n");
+  } finally { await app.dispose(); pool.dispose(); }
+});
+
+it("retries completion of an opened OS file without reopening it", async () => {
+  const app = await setup("", "pending", source => source.complete.mockRejectedValueOnce(Error("Finish unavailable")), "Kept.md");
+  try {
+    expect(app.host.textContent).toContain("Finish unavailable");
+    await app.click("Finish request");
+    expect(app.onNavigate).toHaveBeenCalledOnce(); expect(app.source.resolveFile).toHaveBeenCalledOnce();
+  } finally { await app.dispose(); }
+});
 it("confirms native creation without touching browser URL state and cancels without writes", async () => {
   const app = await setup("slate://new?title=Native&text=%EF%BB%BFNew%0D%0A");
   try {

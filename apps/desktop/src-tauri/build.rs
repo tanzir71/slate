@@ -15,6 +15,7 @@ fn main() {
             "review_native_launch",
             "complete_native_launch",
             "next_native_launch",
+            "resolve_native_file",
             "list_native_spaces",
             "pick_native_space",
             "write_sheet",

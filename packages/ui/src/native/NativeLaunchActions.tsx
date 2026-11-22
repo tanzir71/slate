@@ -3,9 +3,11 @@ import { WorkspaceLaunchRequest, type LaunchProps } from "../browser/LaunchActio
 import { WorkspaceDialog } from "../browser/WorkspaceDialog";
 import { parseNativeLaunchURL } from "./nativeLaunchURL";
 import type { NativeLaunchRequest, NativeLaunchSnapshot, NativeLaunchSource } from "./nativeLaunchSource";
+import type { NativeSpace } from "./nativeSpaces";
+import { NativeFileRequest } from "./NativeFileRequest";
 
 const message = (cause: unknown) => cause instanceof Error ? cause.message : "Desktop links could not be read. Your files were kept.";
-type Props = LaunchProps & { source: NativeLaunchSource };
+type Props = LaunchProps & { source: NativeLaunchSource; onOpenNativeSpace?(space: NativeSpace): Promise<void> };
 
 /** Backend authority keeps active/queued requests intact when a Space unmounts. */
 export default function NativeLaunchActions({ source, ...props }: Props) {
@@ -50,6 +52,8 @@ function NativeRequest({ ticket, source, receive, ...props }: Props & { ticket: 
     await update(source.review(ticket.id)); setInterrupted(false);
   }} />;
   if (alreadyApplied) return <FinishRequest onDialogChange={props.onDialogChange} finish={finish} />;
+  if (ticket.fileName) return <NativeFileRequest {...props} ticket={ticket} source={source} finish={finish}
+    beforeApply={() => update(source.begin(ticket.id, claim))} afterApply={() => update(source.applied(ticket.id, claim))} />;
   if (parsed.action && !parsed.action.space && !ticket.spaceId) return <BindRequest onDialogChange={props.onDialogChange} finish={finish}
     bind={() => update(source.bind(ticket.id, props.store.api.getState().record.id))} />;
   const request = parsed.action && ticket.spaceId && !parsed.action.space ? { ...parsed, action: { ...parsed.action, space: ticket.spaceId } } : parsed;

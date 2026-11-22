@@ -6,10 +6,11 @@ import { takeShortcutMigrationNotice } from "../shortcutMigrationNotice";
 import { WorkspaceDialog } from "../browser/WorkspaceDialog";
 import { createNativeWorkspace, nativeLifecycle } from "./nativeWorkspace";
 import { createTauriWorkspaceFiles } from "@slate/storage/tauri-files";
-import { createNativeSpaceCatalog, defaultNativeSpace, type NativeSpace, type NativeSpaceCatalog } from "./nativeSpaces";
+import { createNativeSpaceCatalog, type NativeSpace, type NativeSpaceCatalog } from "./nativeSpaces";
 import { NativeSpacesDialog } from "./NativeSpacesDialog";
 import { useNativeWindowChrome } from "./useNativeWindowChrome";
 import { WindowDragRegion, WindowTitleBar } from "../browser/WindowTitleBar";
+import { nativeStartupSpace, observeNativeFileStartup } from "./nativeStartupSpace";
 import "./nativeSpaces.css";
 import "../browser/browser.css";
 import "./nativeWindow.css";
@@ -19,7 +20,10 @@ const Workspace = lazy(loadWorkspace);
 type Session = ReturnType<typeof createNativeWorkspace>;
 interface NativeAppProps { createSession?: (space?: NativeSpace) => Promise<Session>; catalog?: NativeSpaceCatalog }
 const catalog = createNativeSpaceCatalog();
-const createSession = async (space = defaultNativeSpace) => createNativeWorkspace(await nativeLifecycle(space.id), createTauriWorkspaceFiles({ spaceId: space.id }), undefined, space);
+const createSession = async (space?: NativeSpace) => {
+  const target = space ?? await nativeStartupSpace();
+  return createNativeWorkspace(await nativeLifecycle(target.id), createTauriWorkspaceFiles({ spaceId: target.id }), undefined, target);
+};
 
 /** Production startup reads the real default Space; samples are never a disk fallback. */
 export function NativeApp({ createSession: openSession = createSession, catalog: spaceCatalog = catalog }: NativeAppProps) {
@@ -34,12 +38,21 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
   const liveSession = useRef<Session | undefined>(undefined);
   const switching = useRef(false);
   const generation = useRef(0);
+  const startupFiles = useRef(new Set<string>());
   const windowFailure = useCallback((failure: unknown) => {
     const message = failure instanceof Error ? failure.message : "The window action could not be completed.";
     if (liveSession.current) liveSession.current.store.api.setState({ error: message });
     else setError(message);
   }, []);
   const windowChrome = useNativeWindowChrome(windowFailure);
+  useEffect(() => {
+    let active = true, stop: (() => void) | undefined;
+    void observeNativeFileStartup(id => {
+      if (!active || liveSession.current || startupFiles.current.has(id)) return;
+      startupFiles.current.add(id); setAttempt(value => value + 1);
+    }).then(unlisten => { if (active) stop = unlisten; else unlisten(); }).catch(() => undefined);
+    return () => { active = false; stop?.(); };
+  }, []);
   useEffect(() => {
     let active = true;
     let current: Session | undefined;
@@ -94,7 +107,7 @@ export function NativeApp({ createSession: openSession = createSession, catalog:
   };
   return <div className="browserSlate">
     <Suspense fallback={<WindowTitleBar windowControls={windowChrome}><span className="nativeStartupTitle">Opening workspace…</span><WindowDragRegion windowControls={windowChrome} /></WindowTitleBar>}><Workspace key={session.space.id} store={session.store} runtime={session.runtime} appearance={appearance} createIndex={session.createIndex} windowChrome={windowChrome}
-      onKeepSample={reopen} onTakeover={reopen} onSwitchSpace={async () => { await session.store.flush(); setSpaces(true); }} onAbout={() => setAbout(true)} onInstall={undefined} /></Suspense>
+      onKeepSample={reopen} onTakeover={reopen} onSwitchSpace={async () => { await session.store.flush(); setSpaces(true); }} onOpenNativeSpace={switchSpace} onAbout={() => setAbout(true)} onInstall={undefined} /></Suspense>
     {spaces && <NativeSpacesDialog current={session.space} catalog={spaceCatalog} onOpen={switchSpace} onClose={() => setSpaces(false)} />}
     {about && <WorkspaceDialog title="About Slate" onClose={() => setAbout(false)}><p>A calm Markdown workspace. Your words stay in ordinary files, on your device.</p><AppearanceControl preference={appearance.preference} onChange={appearance.change} /></WorkspaceDialog>}
   </div>;

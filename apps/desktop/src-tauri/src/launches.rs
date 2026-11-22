@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, Url};
 use tauri_plugin_deep_link::DeepLinkExt;
+mod files;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -21,6 +22,10 @@ pub struct Request {
     space_id: Option<String>,
     #[serde(skip)]
     claim: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file_name: Option<String>,
+    #[serde(skip)]
+    file: Option<files::FileInput>,
 }
 #[derive(Clone, Serialize)]
 pub struct Snapshot {
@@ -58,13 +63,18 @@ impl NativeLaunches {
         let mut inbox = Inbox::default();
         // Capture the first URI before the single-instance listener can receive another.
         if let Ok(args) = args
-            .into_iter()
+            .iter()
+            .cloned()
             .map(std::ffi::OsString::into_string)
             .collect::<Result<Vec<_>, _>>()
         {
             if let Some(url) = cli_url(&args) {
                 inbox.push(scheme(identifier), url);
             }
+        }
+        #[cfg(any(windows, target_os = "linux"))]
+        for path in files::cli_files(&args) {
+            inbox.push_file(path);
         }
         Self(Mutex::new(inbox))
     }
@@ -88,7 +98,12 @@ impl Inbox {
             phase: Phase::Pending,
             space_id: None,
             claim: None,
+            file_name: None,
+            file: None,
         };
+        self.enqueue(request)
+    }
+    fn enqueue(&mut self, request: Request) -> bool {
         if self.current.is_none() && self.waiting.is_empty() {
             self.current = Some(request);
         } else {
@@ -105,6 +120,11 @@ impl Inbox {
             .ok_or_else(|| FileError::io("This request is no longer active."))?;
         if request.space_id.as_deref() == Some(space_id) {
             return Ok(());
+        }
+        if request.file.is_some() {
+            return Err(FileError::io(
+                "This file belongs to the Space admitted by its native open request.",
+            ));
         }
         if request.phase != Phase::Pending || request.space_id.is_some() {
             return Err(FileError::io(
@@ -195,20 +215,45 @@ fn receive(app: &tauri::AppHandle, urls: Vec<Url>) {
         Ok(())
     });
     if admitted {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.unminimize();
-            let _ = window.set_focus();
-        }
+        wake_main(app);
     }
 }
 pub fn secondary(app: &tauri::AppHandle, args: Vec<String>) {
-    if let Some(url) = cli_url(&args) {
+    let file_args = args
+        .iter()
+        .map(std::ffi::OsString::from)
+        .collect::<Vec<_>>();
+    let paths = files::cli_files(&file_args);
+    if !paths.is_empty() {
+        open_files(app, paths);
+    } else if let Some(url) = cli_url(&args) {
         receive(app, vec![url]);
-    } else if let Some(window) = app.get_webview_window("main") {
+    } else {
+        wake_main(app);
+    }
+}
+fn wake_main(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+    } else if app.try_state::<crate::capture::NativeCapture>().is_some() {
+        let handle = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let _ = crate::capture::show_main(&handle);
+        });
+    }
+}
+pub fn open_files(app: &tauri::AppHandle, paths: Vec<std::path::PathBuf>) {
+    let mut admitted = false;
+    let _ = change(app, |inbox| {
+        for path in paths {
+            admitted |= inbox.push_file(path);
+        }
+        Ok(())
+    });
+    if admitted {
+        wake_main(app);
     }
 }
 pub fn start(app: &tauri::AppHandle) -> Result<(), FileError> {
@@ -278,6 +323,15 @@ pub fn complete_native_launch(app: tauri::AppHandle, id: String) -> Result<Snaps
 #[tauri::command]
 pub fn next_native_launch(app: tauri::AppHandle) -> Result<Snapshot, FileError> {
     change(&app, Inbox::next)
+}
+#[tauri::command]
+pub async fn resolve_native_file(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<files::FileTarget, FileError> {
+    tauri::async_runtime::spawn_blocking(move || files::resolve(&app, &id))
+        .await
+        .map_err(FileError::io)?
 }
 
 #[cfg(test)]

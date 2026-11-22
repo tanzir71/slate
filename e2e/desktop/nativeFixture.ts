@@ -34,15 +34,28 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
     let sequence = 0;
     type Row = { entry: { id: string; path: string; title: string; tags: string[]; links: string[]; words: number; updatedAt?: string }; body: string; contentHash: string };
     const indexes = new Map<string, Row[]>();
-    type Ticket = { id: string; url: string; phase: "pending" | "started" | "applied"; spaceId?: string; claim?: string };
+    type Ticket = { id: string; url: string; phase: "pending" | "started" | "applied"; spaceId?: string; claim?: string; fileName?: string };
+    type FileTarget = { space: { id: string; name: string; path: string | null }; path: string };
     type Inbox = { revision: number; current: Ticket | null; queued: Ticket[]; completed?: string };
     const readInbox = (): Inbox => JSON.parse(localStorage.getItem("native-launch-inbox") ?? '{"revision":0,"current":null,"queued":[]}') as Inbox;
-    const launchSnapshot = (inbox: Inbox) => ({ revision: inbox.revision, current: inbox.current ? { id: inbox.current.id, url: inbox.current.url, phase: inbox.current.phase, spaceId: inbox.current.spaceId ?? null } : null, waiting: inbox.queued.length, error: null });
+    const launchSnapshot = (inbox: Inbox) => ({ revision: inbox.revision, current: inbox.current ? { id: inbox.current.id, url: inbox.current.url, phase: inbox.current.phase, spaceId: inbox.current.spaceId ?? null, fileName: inbox.current.fileName } : null, waiting: inbox.queued.length, error: null });
+    const workspaceReads: { command: string; spaceId: string; scope: unknown; path: string }[] = [];
     const emit = (event: string, payload: unknown) => { for (const [id, listener] of listeners) if (listener.event === event) callbacks.get(listener.callback)?.({ event, id, payload }); };
     const publish = (inbox: Inbox) => { localStorage.setItem("native-launch-inbox", JSON.stringify(inbox)); const snapshot = launchSnapshot(inbox); emit("slate://launch-changed", snapshot); return snapshot; };
     Reflect.set(window, "__NATIVE_FIXTURE__", {
       indexBodies: (spaceId = "native-default") => (indexes.get(spaceId) ?? []).map((row) => row.body),
       emit,
+      workspaceReads: () => workspaceReads.slice(),
+      openFiles(files: FileTarget[]) {
+        const inbox = readInbox(), targets = JSON.parse(localStorage.getItem("native-os-file-targets") ?? "{}") as Record<string, FileTarget>;
+        for (const target of files) {
+          const ticket: Ticket = { id: crypto.randomUUID(), url: "", phase: "pending", fileName: target.path.split("/").pop()! };
+          targets[ticket.id] = target;
+          if (!inbox.current && !inbox.queued.length) inbox.current = ticket; else inbox.queued.push(ticket);
+          inbox.revision++;
+        }
+        localStorage.setItem("native-os-file-targets", JSON.stringify(targets)); publish(inbox);
+      },
       launch(url: string) {
         if (new URL(url).protocol !== "slate:") return;
         const inbox = readInbox(), ticket: Ticket = { id: crypto.randomUUID(), url, phase: "pending" };
@@ -60,6 +73,10 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
         const path = String(args.path), spaceId = String(args.spaceId ?? "native-default");
         const spaceScope = spaceId === "native-default" ? "space" : "folder:" + spaceId;
         const scope = args.scope === "space" ? spaceScope : args.scope;
+        if (["list_workspace_files", "read_workspace_file"].includes(command)) {
+          workspaceReads.push({ command, spaceId, scope: args.scope, path });
+          if (spaceId === "native-default" && args.scope === "space" && localStorage.getItem("native-default-unavailable")) throw { kind: "io", message: "Default Space unavailable" };
+        }
         if (command === "plugin:event|listen") { const id = ++sequence; listeners.set(id, { event: String(args.event), callback: Number(args.handler) }); return id; }
         if (command === "plugin:event|unlisten") { listeners.delete(Number(args.eventId)); return null; }
         if (command === "plugin:window|destroy") { localStorage.setItem("native-destroyed", "true"); return null; }
@@ -93,6 +110,22 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           return null;
         }
         if (command === "pending_native_launches") return launchSnapshot(readInbox());
+        if (command === "resolve_native_file") {
+          const inbox = readInbox(), current = inbox.current;
+          if (!current?.fileName || current.id !== args.id) throw { kind: "io", message: "This native file request is no longer active" };
+          if (localStorage.getItem("native-file-unavailable")) throw { kind: "io", message: "The original file is unavailable. Your folders were kept." };
+          const targets = JSON.parse(localStorage.getItem("native-os-file-targets") ?? "{}") as Record<string, FileTarget>;
+          const target = targets[current.id]; if (!target) throw Error("Native file target unavailable");
+          const fileScope = target.space.id === "native-default" ? "space" : "folder:" + target.space.id;
+          if (read(fileScope, target.path) === null) throw Error("The original file is unavailable. Your folders were kept.");
+          const spaces = JSON.parse(localStorage.getItem("native-spaces") ?? '[{"id":"native-default","name":"Slate","path":null}]') as FileTarget["space"][];
+          const existing = spaces.find(space => space.id === target.space.id);
+          if (existing && existing.path !== target.space.path) throw Error("This file belongs to its original Space");
+          if (!existing) { spaces.push(target.space); localStorage.setItem("native-spaces", JSON.stringify(spaces)); }
+          const url = new URL("slate://open"); url.searchParams.set("space", target.space.id); url.searchParams.set("path", target.path);
+          if (current.url !== url.toString()) { current.url = url.toString(); current.spaceId = target.space.id; inbox.revision++; publish(inbox); }
+          return { space: target.space, path: target.path, url: url.toString() };
+        }
         if (["bind_native_launch", "begin_native_launch", "apply_native_launch", "review_native_launch", "complete_native_launch", "next_native_launch"].includes(command)) {
           const inbox = readInbox(), current = inbox.current, id = String(args.id), claim = String(args.claim);
           if (command === "next_native_launch") {
@@ -102,6 +135,7 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           if (command === "complete_native_launch" && inbox.completed === id) return launchSnapshot(inbox);
           if (!current || current.id !== id) throw { kind: "io", message: "Request is no longer active" };
           if (command === "bind_native_launch") {
+            if (current.fileName) throw Error("Native file roots come only from the host request");
             const target = String(args.spaceId);
             if (current.spaceId === target) return launchSnapshot(inbox);
             if (current.spaceId || current.phase !== "pending") throw { kind: "io", message: "Request belongs to its original Space" };
@@ -112,6 +146,7 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           } else if (command === "begin_native_launch") {
             if (current.phase === "started" && current.claim === claim) return launchSnapshot(inbox);
             if (current.phase !== "pending") throw { kind: "io", message: "Review the interrupted request" };
+            if (current.fileName) localStorage.setItem("native-associated-begins", String(Number(localStorage.getItem("native-associated-begins")) + 1));
             current.phase = "started"; current.claim = claim;
           } else if (command === "apply_native_launch") {
             if (localStorage.getItem("native-fail-applied")) throw { kind: "io", message: "Finishing unavailable" };

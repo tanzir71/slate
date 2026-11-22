@@ -21,6 +21,7 @@
     "allow-review-native-launch",
     "allow-complete-native-launch",
     "allow-next-native-launch",
+    "allow-resolve-native-file",
     "allow-list-native-spaces",
     "allow-pick-native-space",
     "allow-write-sheet",

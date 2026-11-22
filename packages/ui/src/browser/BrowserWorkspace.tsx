@@ -81,6 +81,7 @@ const emptyBlocks = [] as const, emptyTemplates = [] as const, emptySnippets = [
 const editorViewCommands: ReadonlySet<string> = new Set(["view.mode", "view.focus", "view.typewriter", "view.zen"]);
 const priorityCommands: ReadonlySet<string> = new Set([...editorViewCommands, "view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
 interface WorkspaceProps {
+  onOpenNativeSpace?: (space: import("../native/nativeSpaces").NativeSpace) => Promise<void>;
   windowChrome?: false | WindowChrome;
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
@@ -93,7 +94,7 @@ interface WorkspaceProps {
   onInstall: (() => void) | undefined;
 }
 
-export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onAbout, onInstall, appearance, runtime, windowChrome = false }: WorkspaceProps) {
+export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onOpenNativeSpace, onAbout, onInstall, appearance, runtime, windowChrome = false }: WorkspaceProps) {
   const state = useStore(store.api);
   const writingModes = useMemo(createWorkspaceWritingModes, [store]);
   const writing = useSyncExternalStore(writingModes.subscribe, writingModes.getSnapshot);
@@ -896,7 +897,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       goal={document?.goal} writable={state.owned && !!selected && !selected.unsupportedEncoding} writing={writing} focusShortcut={shortcut("view.focus")}
       onGoal={() => { writingModes.zen(false); setInspector(true); }} onExit={exitZen} onFocus={toggleWritingFocus} />}
     {!runtime && <LaunchActions key={state.record.id} store={store} pool={editors.pool} onSearch={openSearchWithQuery} onTemplate={openLinkedTemplate} templatesReady={!!templates.library} onSwitchSpace={onSwitchSpace} onTakeover={onTakeover} onDialogChange={setLaunchDialogOpen} onNavigate={() => focusSelected()} />}
-    {runtime?.launches && <Suspense fallback={null}><NativeLaunchActions source={runtime.launches} store={store} pool={editors.pool} onSearch={openSearchWithQuery} onTemplate={openLinkedTemplate} templatesReady={!!templates.library} onSwitchSpace={onSwitchSpace} onTakeover={onTakeover} onDialogChange={setLaunchDialogOpen} onNavigate={() => focusSelected()} /></Suspense>}
+    {runtime?.launches && <Suspense fallback={null}><NativeLaunchActions source={runtime.launches} store={store} pool={editors.pool} onSearch={openSearchWithQuery} onTemplate={openLinkedTemplate} templatesReady={!!templates.library} onSwitchSpace={onSwitchSpace} {...(onOpenNativeSpace ? { onOpenNativeSpace } : {})} onTakeover={onTakeover} onDialogChange={setLaunchDialogOpen} onNavigate={() => focusSelected()} /></Suspense>}
     {tidyBatch && <Suspense fallback={<WorkspaceDialog title="Batch Tidy" returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)}><p role="status">Opening batch review…</p></WorkspaceDialog>}><BatchTidyDialog store={store} paths={tidyBatch.paths} returnFocus={tidyBatch.returnFocus} onClose={() => setTidyBatch(undefined)} /></Suspense>}
     {editorSettings && <EditorSettingsDialog preferences={editorPreferences.preferences} onChange={editorPreferences.change} onClose={() => setEditorSettings(false)} onBlocks={blocks.library ? () => { setEditorSettings(false); openBlockSettings(editorSettingsInvoker.current); } : undefined} onSnippets={snippets.library ? () => { setEditorSettings(false); openSnippetSettings(); } : undefined} />}
     {snippetPicker && snippets.library && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPicker.target.element} onClose={() => setSnippetPicker(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetPicker library={snippets.library} invocation={snippetPicker} spaceName={state.record.name} onClose={() => setSnippetPicker(undefined)} onChoose={(definition) => { applySnippet(snippetPicker, definition); setSnippetPicker(undefined); }} onManage={() => { openSnippetSettings(snippetPicker.target.element); setSnippetPicker(undefined); }} /></Suspense>}

@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
+mod associations;
+pub(crate) use associations::{markdown, AssociatedFile};
 
 pub const DEFAULT_ID: &str = "native-default";
 const CATALOG_PATH: &str = "desktop-spaces.json";
