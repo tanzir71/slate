@@ -72,6 +72,7 @@ export const slateCommands: readonly CommandDefinition[] = [
   { id: "sheet.save", label: "Save", group: "Workspace", shortcut: "Mod+s" },
   { id: "space.export", label: "Export Space as .zip", group: "Workspace" },
   { id: "space.switch", label: "Switch Space", group: "Workspace" },
+  { id: "space.openFolder", label: "Open a folder", group: "Workspace", shortcut: "Mod+o", surfaces: ["desktop"] },
   { id: "search.undoReplace", label: "Undo replacements", group: "Edit", surfaces: ["web"] },
   { id: "navigation.back", label: "Go back", group: "Workspace", shortcut: "Alt+ArrowLeft", surfaces: ["web"] },
   { id: "navigation.forward", label: "Go forward", group: "Workspace", shortcut: "Alt+ArrowRight", surfaces: ["web"] },

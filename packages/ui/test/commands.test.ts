@@ -30,7 +30,10 @@ describe("workspace keyboard adapter", () => {
     expect(commandShortcut("navigation.back", native, "mac")).toBe("⌥ ←");
     expect(commandShortcut("navigation.forward", readKeymap(undefined, "windows"), "windows")).toBe("Alt →");
     expect(native.issues).toEqual([]);
-    expect(workspaceCommands("desktop").filter(command => command.id !== "app.capture").map((command) => command.id)).toEqual(workspaceCommands("web").map((command) => command.id));
+    expect(workspaceCommands("desktop").filter(command => command.id !== "app.capture" && command.id !== "space.openFolder").map((command) => command.id)).toEqual(workspaceCommands("web").map((command) => command.id));
+    expect(commandShortcut("space.openFolder", native, "mac")).toBe("⌘ O");
+    expect(workspaceCommands("desktop").find(command => command.id === "space.openFolder")?.label).toBe("Open a folder");
+    expect(workspaceCommands("web").some(command => command.id === "space.openFolder")).toBe(false);
     expect(workspaceCommands("desktop").find(command => command.id === "app.capture")?.label).toBe("Quick Capture");
     expect(workspaceCommands("web").some(command => command.id === "app.capture")).toBe(false);
     expect(workspaceCommands("desktop").some((command) => command.id.startsWith("space.activate"))).toBe(false);

@@ -1,0 +1,54 @@
+.nativeOnboardingShell { display: flex; flex-direction: column; block-size: 100dvh; overflow: hidden; background: var(--bg-canvas); }
+.nativeOnboardingShell > .nativeTitleBar .nativeStartupTitle { margin-inline-start: 6px; }
+.nativeOnboardingShell .nativeWindowControls::before { display: none; }
+.nativeOnboardingStage { display: flex; flex: 1; flex-direction: column; align-items: center; min-block-size: 0; padding-block-start: 110px; background: var(--bg-canvas); }
+.nativeOnboardingContent { display: flex; flex-direction: column; align-items: flex-start; gap: 28px; inline-size: min(880px, calc(100% - 64px)); padding-block-end: 28px; overflow: auto; }
+.nativeOnboardingContent > * { flex-shrink: 0; }
+.nativeOnboardingBrand { display: flex; align-items: center; gap: 10px; font: 600 24px/32px Newsreader, Georgia, serif; letter-spacing: -.3px; }
+.nativeOnboardingLogo { display: grid; place-items: center; inline-size: 34px; block-size: 34px; }
+.nativeOnboardingLogo .nativeOnboardingAsset { inline-size: 32px; block-size: 32px; transform: scale(1.0625); }
+.nativeOnboardingIntro { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.nativeOnboardingIntro h1 { margin: 0; font: 500 40px/48px Newsreader, Georgia, serif; letter-spacing: -.6px; }
+.nativeOnboardingIntro p { margin: 0; max-inline-size: 600px; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.nativeOnboardingChoices { display: flex; align-items: flex-start; gap: 14px; inline-size: 100%; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.nativeOnboardingChoice { display: flex; position: relative; flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; min-inline-size: 0; padding: 18px; border: 1px solid var(--border-default); border-radius: 12px; cursor: pointer; background: var(--bg-canvas); }
+.nativeOnboardingChoice[data-selected="true"] { border: 1.5px solid var(--accent-default); background: var(--bg-selected); }
+.nativeOnboardingChoice:focus-within, .nativeOnboardingPreset:focus-within { outline: 2px solid var(--accent-default); outline-offset: 3px; }
+.nativeOnboardingChoiceTop { display: flex; align-items: center; justify-content: space-between; gap: 8px; inline-size: 100%; }
+.nativeOnboardingChoiceIcon { display: grid; place-items: center; inline-size: 34px; block-size: 34px; flex-shrink: 0; border-radius: 8px; color: var(--icon-default); background: var(--bg-subtle); }
+.nativeOnboardingChoice[data-selected="true"] .nativeOnboardingChoiceIcon { color: var(--accent-default); background: var(--bg-raised); }
+.nativeOnboardingRecommended { padding: 2px 6px; border-radius: 4px; color: var(--text-secondary); background: var(--bg-subtle); font-size: 12px; line-height: 16px; }
+.nativeOnboardingChoice strong { font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: -.1px; }
+.nativeOnboardingChoiceDescription { inline-size: min(240px, 100%); color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+.nativeOnboardingChoiceHint { padding-block-start: 4px; color: var(--text-tertiary); font: 11px/16px "Geist Mono", monospace; overflow-wrap: anywhere; }
+.nativeOnboardingPresets { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.nativeOnboardingPresets legend { margin-block-end: 10px; padding: 0; color: var(--text-tertiary); font-size: 11px; font-weight: 500; line-height: 16px; letter-spacing: .4px; }
+.nativeOnboardingPresets > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.nativeOnboardingPreset { display: flex; position: relative; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 999px; background: var(--bg-canvas); font-size: 13px; font-weight: 500; line-height: 20px; cursor: pointer; }
+.nativeOnboardingPreset[data-selected="true"] { border-color: var(--accent-default); color: var(--text-accent); background: var(--accent-soft); }
+.nativeOnboardingPreset:not([data-selected="true"]) .nativeOnboardingAsset { color: var(--icon-default); }
+.nativeOnboardingFooter { display: flex; align-items: center; flex-shrink: 0; gap: 20px; align-self: stretch; margin-block-start: auto; padding: 16px 32px; border-block-start: 1px solid var(--border-subtle); }
+.nativeOnboardingFooter > span:not(.nativeOnboardingFooterSpace) { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; line-height: 16px; white-space: nowrap; }
+.nativeOnboardingFooterSpace { flex: 1; }
+.nativeOnboardingFooter .nativeOnboardingAsset { color: var(--text-tertiary); }
+.nativeOnboardingFooter > button { block-size: 32px; padding: 0 12px; border: 0; border-radius: 8px; color: var(--text-secondary); font-size: 13px; font-weight: 500; line-height: 20px; }
+.nativeOnboardingFooter > .primaryButton { color: var(--text-on-accent); }
+.nativeOnboardingAsset { display: inline-block; flex-shrink: 0; inline-size: 16px; block-size: 16px; background: currentColor; mask-position: center; mask-repeat: no-repeat; mask-size: contain; }
+.nativeOnboardingAsset[data-icon="logo"] { mask-image: url("../assets/onboarding/3d191.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="minus"] { mask-image: url("../assets/onboarding/847f0.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="square"] { mask-image: url("../assets/onboarding/87c1a.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="close"] { mask-image: url("../assets/onboarding/bf41a.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="folder"] { mask-image: url("../assets/onboarding/baa7d.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="sparkles"] { mask-image: url("../assets/onboarding/955fb.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="download"] { mask-image: url("../assets/onboarding/0eced.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="feather"] { mask-image: url("../assets/onboarding/2ba84.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="code"] { mask-image: url("../assets/onboarding/95ffd.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="flask"] { mask-image: url("../assets/onboarding/fa28e.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="book"] { mask-image: url("../assets/onboarding/75bdc.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="check"] { mask-image: url("../assets/onboarding/0e816.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="lock"] { mask-image: url("../assets/onboarding/bcbd8.svg?no-inline"); }
+.nativeOnboardingAsset[data-icon="drive"] { mask-image: url("../assets/onboarding/c08b3.svg?no-inline"); }
+@media (height <= 760px) { .nativeOnboardingStage { padding-block-start: 48px; } }
+@media (width <= 1100px) { .nativeOnboardingFooter { flex-wrap: wrap; gap: 12px; } .nativeOnboardingFooterSpace { min-inline-size: 0; } }
+@media (width <= 700px) { .nativeOnboardingStage { padding-block-start: 28px; } .nativeOnboardingContent { inline-size: calc(100% - 32px); } .nativeOnboardingChoices { flex-direction: column; } .nativeOnboardingChoice { inline-size: 100%; } .nativeOnboardingIntro h1 { font-size: 32px; line-height: 40px; } .nativeOnboardingFooter { padding-inline: 16px; } }
+@media (pointer: coarse) { .nativeOnboardingPreset, .nativeOnboardingFooter > button { min-block-size: 44px; } }

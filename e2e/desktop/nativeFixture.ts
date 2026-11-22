@@ -220,6 +220,11 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
           return read(scope, path);
         }
         if (command === "create_workspace_file") {
+          if (localStorage.getItem("native-hold-create-file") === path) await new Promise<void>(resolve => {
+            localStorage.setItem("native-create-file-waiting", path);
+            const timer = setInterval(() => { if (localStorage.getItem("native-hold-create-file") !== path) { clearInterval(timer); localStorage.removeItem("native-create-file-waiting"); resolve(); } }, 10);
+          });
+          if (localStorage.getItem("native-fail-create-file") === path) throw { kind: "permission", message: "Starter file is unavailable. Existing files were kept." };
           if (read(scope, path) !== null) return false;
           write(scope, path, args.bytes as number[]); return true;
         }

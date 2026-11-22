@@ -1,2 +1,5 @@
 # Bundle identical Markdown assets on every release platform.
 packages/ui/src/templates/builtins/*.md text eol=lf
+
+# Preserve the supplied Figma originals, including their exact byte digests.
+packages/ui/src/assets/onboarding/*.svg -text

@@ -36,6 +36,7 @@ export * from "./snippets.js";
 export * from "./importPaths.js";
 export * from "./importResourceHash.js";
 export * from "./importCsv.js";
+export * from "./onboardingPresets.js";
 
 export type SheetId = string;
 

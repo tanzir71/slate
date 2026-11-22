@@ -1,0 +1,133 @@
+{
+  "figmaFile": "FNHwat8pwvfOY0fmrA840C",
+  "node": "17:2079",
+  "session": "8be2309a-cdf8-4fba-9bb1-6e49bb1b367d",
+  "entries": [
+    {
+      "name": "imgLogoMark",
+      "file": "3d191.svg",
+      "bytes": 1050,
+      "sha256": "922426d8c53ec52b00b4a4c6ac1d496da9e3364892ae25fe1a299998a8fbed26",
+      "width": "32",
+      "height": "32",
+      "viewBox": "0 0 32 32"
+    },
+    {
+      "name": "imgIconMinus",
+      "file": "847f0.svg",
+      "bytes": 328,
+      "sha256": "89e2237aaf6f2e05eecddf84f5892dfc0d2c1465ed120508393ca3ab826a3e98",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconSquare",
+      "file": "87c1a.svg",
+      "bytes": 552,
+      "sha256": "2f29e1c19569cd7f3f0354a1876f2dd0f7b1d768a0f51328f2d65f20950355b1",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconX",
+      "file": "bf41a.svg",
+      "bytes": 440,
+      "sha256": "40cfba9116fc486dba0a7f2500639dc558df32e6edce6899de57c0588b99300a",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconFolderOpen",
+      "file": "baa7d.svg",
+      "bytes": 1234,
+      "sha256": "e5dc55565d71f743f658dafb56ae624869b42a17204d5737dab1bc74f486ab7c",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconSparkles",
+      "file": "955fb.svg",
+      "bytes": 1588,
+      "sha256": "eaf67c24ed470bdeed5acd8a120108fe743a8b2fb48d4ae002319159e7446965",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconDownload",
+      "file": "0eced.svg",
+      "bytes": 770,
+      "sha256": "f8abc95f0132ca8835a645103c9ffe30beff918f533a37b2932bd35eaeff0759",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconFeather",
+      "file": "2ba84.svg",
+      "bytes": 1050,
+      "sha256": "5e67a4cb06f53ee2d0ad509598ac7285fe086a74a35d2ad70932aed2c7996616",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconCode",
+      "file": "95ffd.svg",
+      "bytes": 485,
+      "sha256": "5207abf66529842fecc473787865128b43f61b23d08497e2975de6d84bd5564f",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconFlask",
+      "file": "fa28e.svg",
+      "bytes": 1114,
+      "sha256": "2c4f2b361660b8db8c3dd21d79b3ae10097861f7c765bb364c6cb02fe807bafd",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconBookOpen",
+      "file": "75bdc.svg",
+      "bytes": 1121,
+      "sha256": "a76dfebe4819ae7a9ba9ef8d3962014a2782fa86ab4c40d56ea619eed6178abe",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconCheck",
+      "file": "0e816.svg",
+      "bytes": 340,
+      "sha256": "06b26fbf5c3e0e2d29bfc395e63b63489de33b7978fc2786010505c65dabd3b7",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconLock",
+      "file": "bcbd8.svg",
+      "bytes": 844,
+      "sha256": "02798224265e5ae323cd148e5b55540fd7082a06992f4b5d6b66d3d3dbc4f893",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "name": "imgIconDrive",
+      "file": "c08b3.svg",
+      "bytes": 1151,
+      "sha256": "67279e9fad8cb7bef155573999fb17d9636bbef3d772d02e6e7c6ac364b152f3",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    }
+  ]
+}

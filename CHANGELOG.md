@@ -7,6 +7,8 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 ## [Unreleased]
 
 ### Added
+- Desktop first-run setup with existing-folder, Documents Space and reviewed import choices; five local starter presets preserve existing library files and recover interrupted additions.
+- Native Open a folder through Ctrl/Cmd+O in setup and the workspace.
 - Local imports from Bear, Notion, Ulysses, Evernote ENEX and Apple Notes HTML, with attachment/link conversion, a review step and recoverable partial writes.
 - Reopen the last selected desktop Space, with explicit recovery for disconnected folders and failed selection saves.
 - Remember the desktop main window's size, position, maximization and fullscreen while keeping Quick Capture geometry and platform titlebars separate.

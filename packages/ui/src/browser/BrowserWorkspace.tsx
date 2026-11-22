@@ -83,6 +83,8 @@ const editorViewCommands: ReadonlySet<string> = new Set(["view.mode", "view.focu
 const priorityCommands: ReadonlySet<string> = new Set([...editorViewCommands, "view.inspector", "view.split", "view.newTab", "view.closeTab", "view.reopenTab", "view.nextTab", "view.previousTab"]);
 interface WorkspaceProps {
   onOpenNativeSpace?: (space: import("../native/nativeSpaces").NativeSpace) => Promise<void>;
+  onPickNativeSpace?: () => Promise<void>;
+  initialImport?: boolean;
   windowChrome?: false | WindowChrome;
   runtime?: WorkspaceRuntime;
   appearance: ReturnType<typeof useAppearance>;
@@ -95,7 +97,7 @@ interface WorkspaceProps {
   onInstall: (() => void) | undefined;
 }
 
-export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onOpenNativeSpace, onAbout, onInstall, appearance, runtime, windowChrome = false }: WorkspaceProps) {
+export default function BrowserWorkspace({ store, createIndex, onKeepSample, onTakeover, onSwitchSpace, onOpenNativeSpace, onPickNativeSpace, initialImport = false, onAbout, onInstall, appearance, runtime, windowChrome = false }: WorkspaceProps) {
   const state = useStore(store.api);
   const writingModes = useMemo(createWorkspaceWritingModes, [store]);
   const writing = useSyncExternalStore(writingModes.subscribe, writingModes.getSnapshot);
@@ -144,7 +146,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
   const [notebookTemplateRequest, setNotebookTemplateRequest] = useState<{ notebook: string; returnFocus: HTMLElement | undefined }>();
   const [starterKitRequest, setStarterKitRequest] = useState<{ returnFocus: HTMLElement | undefined }>();
-  const [sourceImport, setSourceImport] = useState(false);
+  const [sourceImport, setSourceImport] = useState(initialImport);
   const editorPreferences = useEditorPreferences();
   const [pane, setPane] = useState<"navigation" | "sheets" | "editor">(() => state.selectedPath ? "editor" : "sheets");
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -441,6 +443,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     if (action.kind === "blocks" || action.kind === "snippets")
       return owned && (palette.target?.matches() ?? false) && (action.kind !== "snippets" || !!snippets.library && !!snippets.session);
     if (action.kind !== "commands") return true;
+    if (action.command.id === "space.openFolder" && !onPickNativeSpace) return false;
     if (editorViewCommands.has(action.command.id)) return !viewDisabled || action.command.id === "view.zen" && writing.zen;
     if (/^(format|table)\./.test(action.command.id) && !palette.target?.matches()) return false;
     if (["sheet.new", "sheet.fromTemplate", "sheet.save", "sheet.pin", "view.density", "tidy.undoBatch", "search.undoReplace", "snippet.picker"].includes(action.command.id) && !owned) return false;
@@ -524,6 +527,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       "sheet.save": () => run(store.save),
       "space.export": () => run(exportZip),
       "space.switch": () => run(onSwitchSpace),
+      "space.openFolder": () => { if (onPickNativeSpace) run(onPickNativeSpace); },
       "navigation.back": () => navigateHistory(-1),
       "navigation.forward": () => navigateHistory(1),
       "view.inspector": () => setInspector((open) => !open),

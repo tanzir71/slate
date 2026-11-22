@@ -11,8 +11,9 @@ export interface WindowChrome {
 }
 
 /** The web uses the same header without native controls or a drag region. */
-export function WindowTitleBar({ windowControls, children, onKeyDown }: {
+export function WindowTitleBar({ windowControls, children, onKeyDown, controlIcons }: {
   windowControls: false | WindowChrome; children: ReactNode; onKeyDown?: KeyboardEventHandler<HTMLElement>;
+  controlIcons?: { minimize: ReactNode; maximize: ReactNode; close: ReactNode };
 }) {
   const controls = windowControls && windowControls.platform !== "mac";
   return <header className={`workspaceHeader${windowControls ? " nativeTitleBar" : ""}`}
@@ -21,14 +22,14 @@ export function WindowTitleBar({ windowControls, children, onKeyDown }: {
     {children}
     {controls && <div className="nativeWindowControls" role="group" aria-label="Window controls">
       <button aria-label="Minimize" title="Minimize" onClick={windowControls.minimize}>
-        <span className="windowControlIcon windowMinimizeIcon" aria-hidden="true" />
+        {controlIcons?.minimize ?? <span className="windowControlIcon windowMinimizeIcon" aria-hidden="true" />}
       </button>
       <button aria-label={windowControls.maximized ? "Restore window" : "Maximize"}
         title={windowControls.maximized ? "Restore window" : "Maximize"} onClick={windowControls.maximize}>
-        {windowControls.maximized ? <Copy size={16} aria-hidden="true" /> : <span className="windowControlIcon windowMaximizeIcon" aria-hidden="true" />}
+        {windowControls.maximized ? <Copy size={16} aria-hidden="true" /> : controlIcons?.maximize ?? <span className="windowControlIcon windowMaximizeIcon" aria-hidden="true" />}
       </button>
       <button aria-label="Close window" title="Close window" onClick={windowControls.close}>
-        <span className="windowControlIcon windowCloseIcon" aria-hidden="true" />
+        {controlIcons?.close ?? <span className="windowControlIcon windowCloseIcon" aria-hidden="true" />}
       </button>
     </div>}
   </header>;

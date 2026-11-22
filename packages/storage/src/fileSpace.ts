@@ -1,5 +1,6 @@
 import { decodeText, encodeText, readMarkdownSnapshot, safeWorkspacePath as safeBrowserPath, type MarkdownFileSnapshot, type WorkspaceFiles } from "./fileIO";
 import { createFileImportBatch } from "./fileImportBatch";
+import { createStarterPresetBatch } from "./starterPresetBatch";
 
 export type FileSheet = MarkdownFileSnapshot;
 export interface FileWriteResult extends FileSheet { conflict: boolean }
@@ -44,6 +45,9 @@ export function createFileSpace(files: WorkspaceFiles, canWrite: () => boolean =
   }
   return {
     files,
+    prepareStarterPreset(id: string) {
+      return createStarterPresetBatch(files, tryCreate, mutate, id);
+    },
     prepareImport(label: string, entries: Readonly<Record<string, Uint8Array>>) {
       return createFileImportBatch(files, tryCreate, mutate, label, entries);
     },

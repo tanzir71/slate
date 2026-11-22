@@ -34,9 +34,10 @@ test("a native startup failure preserves files and retry opens the real note", a
   await expect(page.locator(".cm-content")).toHaveText("Words already on disk");
 });
 
-test("native startup stays empty until creating a real note, then reopens its exact bytes", async ({ page }) => {
+test("an empty managed Space after Skip stays empty until creating a real note, then reopens its exact bytes", async ({ page }) => {
   await nativeFixture(page, {});
   await page.goto("./");
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
   await expect(page.getByRole("heading", { name: "A fresh page awaits." })).toBeVisible();
   expect(await page.locator(".cm-content").count()).toBe(0);
   expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("native-file:")))).toEqual([]);

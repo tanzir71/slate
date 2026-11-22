@@ -58,6 +58,7 @@ export function workspaceCommands(surface: ShortcutProfile["surface"]) {
   const commands = commandsForSurface("web");
   return surface === "web" ? commands : [
     ...commands.map((command) => ({ ...command, surfaces: ["desktop"] as const })),
+    ...commandsForSurface("desktop").filter(command => command.id === "space.openFolder"),
     { id: "app.capture", label: "Quick Capture", group: "Workspace", surfaces: ["desktop"] as const },
   ];
 }
