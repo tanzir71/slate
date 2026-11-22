@@ -217,6 +217,10 @@ export async function nativeFixture(page: Page, initial: Record<string, string> 
         if (command === "list_workspace_files") return Object.keys(localStorage).filter((key) => key.startsWith(prefix(scope))).map((key) => key.slice(prefix(scope).length)).filter((name) => args.includePrivate || !name.startsWith(".slate/")).sort();
         if (command === "read_workspace_file") {
           if (localStorage.getItem("native-fail-read")) throw { kind: "permission", message: "Access denied. Your files were kept." };
+          if (path === ".slate/keymap.json" && localStorage.getItem("native-hold-keymap-read")) await new Promise<void>(resolve => {
+            localStorage.setItem("native-keymap-read-waiting", "true");
+            const timer = setInterval(() => { if (!localStorage.getItem("native-hold-keymap-read")) { clearInterval(timer); localStorage.removeItem("native-keymap-read-waiting"); resolve(); } }, 10);
+          });
           return read(scope, path);
         }
         if (command === "create_workspace_file") {

@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "file": "keyboard.svg",
+      "width": 16,
+      "height": 16,
+      "sha256": "7a8fb9cc297682397e520387fef5fdb56391c190b578260e0626dd889f8c4b2c"
+    },
+    {
+      "file": "search.svg",
+      "width": 16,
+      "height": 16,
+      "sha256": "92e694e710de115cd661870edd1a8393a7cb5ac71ea64912ef51764fe7be14d5"
+    },
+    {
+      "file": "close.svg",
+      "width": 16,
+      "height": 16,
+      "sha256": "40cfba9116fc486dba0a7f2500639dc558df32e6edce6899de57c0588b99300a"
+    },
+    {
+      "file": "print.svg",
+      "width": 16,
+      "height": 16,
+      "sha256": "9275c9f4001c8a456a04658cf1380d38c1c37bbc88b54a46c49d9e33724e388d"
+    }
+  ]
+}

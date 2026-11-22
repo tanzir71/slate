@@ -238,6 +238,11 @@ function bindingIssues(
   const issues: KeymapIssue[] = [];
   for (const [index, binding] of bindings.entries()) {
     const { chord, command } = binding;
+    const browserModifier = profile.os === "mac" ? chord.meta && !chord.ctrl : chord.ctrl && !chord.meta;
+    const browserTabCycle = chord.key === "tab" && chord.ctrl && !chord.meta;
+    if (profile.surface === "web" && !chord.alt &&
+        (browserTabCycle || browserModifier && ["n", "t", "w", "tab"].includes(chord.key)))
+      issues.push({ commandId: command.id, message: "This shortcut is reserved by the browser. Use an Alt alternative." });
     if (
       profile.os !== "mac" &&
       chord.ctrl &&

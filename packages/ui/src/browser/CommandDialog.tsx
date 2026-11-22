@@ -3,6 +3,7 @@ import { Keyboard, Search, X } from "lucide-react";
 import {
   commandAvailable,
   commandsForSurface,
+  parseShortcut,
   slateCommands,
   type CommandDefinition,
   type ResolvedKeymap,
@@ -23,6 +24,7 @@ interface CommandDialogProps {
   onCommand: (id: string) => void;
   surface?: ShortcutProfile["surface"];
   registry?: readonly CommandDefinition[];
+  onCustomize?: (() => void) | undefined;
 }
 
 export function CommandDialog({
@@ -36,10 +38,13 @@ export function CommandDialog({
   onCommand,
   surface = "web",
   registry = slateCommands,
+  onCustomize,
 }: CommandDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const [previewOS, setPreviewOS] = useState(os);
+  const displayed = { ...keymap, bindings: keymap.bindings.map(binding => ({ ...binding, chord: parseShortcut(binding.shortcut, previewOS) })) };
   const shortcuts = kind === "shortcuts";
   const title = shortcuts ? "Keyboard shortcuts" : "Command palette";
   const available = commandsForSurface(surface, registry);
@@ -63,7 +68,7 @@ export function CommandDialog({
 
   function row(id: string) {
     const command = commands.find((entry) => entry.id === id)!;
-    const label = commandShortcut(id, keymap, os);
+    const label = commandShortcut(id, displayed, previewOS);
     return (
       <div className="shortcutRow" key={id}>
         <span>
@@ -105,7 +110,7 @@ export function CommandDialog({
 
   const searchField = (
     <label className="commandSearch">
-      <Search size={16} strokeWidth={shortcuts ? 1.75 : undefined} />
+      {shortcuts ? <ShortcutAsset icon="search" /> : <Search size={16} />}
       <input
         ref={search}
         aria-label={shortcuts ? "Search shortcuts" : "Search commands"}
@@ -128,15 +133,17 @@ export function CommandDialog({
     >
       <header>
         <h1>
-          <Keyboard size={shortcuts ? 16 : 17} strokeWidth={shortcuts ? 1.75 : undefined} />
+          {shortcuts ? <ShortcutAsset icon="keyboard" /> : <Keyboard size={17} />}
           {title}
         </h1>
-        <span className="shortcutProfile">
-          {os === "mac" ? "macOS" : os === "windows" ? "Windows" : "Linux"} · {surface === "web" ? "Browser" : "Desktop"}
-        </span>
+        {shortcuts ? <div className="shortcutProfileSwitch" role="group" aria-label="Shortcut platform preview">
+          <button aria-pressed={previewOS !== "mac"} onClick={() => setPreviewOS(os === "linux" ? "linux" : "windows")}>Windows · Linux</button>
+          <button aria-pressed={previewOS === "mac"} onClick={() => setPreviewOS("mac")}>macOS</button>
+        </div> : <span className="shortcutProfile">{os === "mac" ? "macOS" : os === "windows" ? "Windows" : "Linux"} · {surface === "web" ? "Browser" : "Desktop"}</span>}
         {shortcuts && searchField}
+        {shortcuts && onCustomize && <button className="shortcutCustomize" onClick={onCustomize}>Customize</button>}
         <button aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>
-          <X size={shortcuts ? 16 : 18} strokeWidth={shortcuts ? 1.75 : undefined} />
+          {shortcuts ? <ShortcutAsset icon="close" /> : <X size={18} />}
         </button>
       </header>
       {!shortcuts && searchField}
@@ -180,8 +187,12 @@ export function CommandDialog({
         <p className="commandEmpty">No commands match. Try another search.</p>
       )}
       <footer>
-        Shortcuts for this {surface === "web" ? "browser" : "desktop app"}<span>Esc to close</span>
+        {shortcuts ? <><span>{onCustomize ? <>Every command is rebindable. Bindings live in <code>keymap.json</code> · conflicts are flagged before you save.<span className="shortcutProfile"> · {surface === "web" ? "Browser" : "Desktop"}</span></> : `Shortcuts for this ${surface === "web" ? "Browser" : "Desktop app"}`}</span><button className="shortcutPrint" onClick={() => window.print()}><ShortcutAsset icon="print" />Print cheat sheet</button></> : <>Shortcuts for this {surface === "web" ? "browser" : "desktop app"}<span>Esc to close</span></>}
       </footer>
     </dialog>
   );
+}
+
+function ShortcutAsset({ icon }: { icon: "keyboard" | "search" | "close" | "print" }) {
+  return <span className="shortcutAsset" aria-hidden="true" data-shortcut-asset={icon} />;
 }

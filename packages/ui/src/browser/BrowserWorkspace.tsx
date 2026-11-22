@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { flushSync } from "react-dom";
 import { useStore } from "zustand";
 import { CalendarDays, ChevronDown, Hash, Inbox, Plus, Search, Download, BookOpen, Info, Pin, HardDrive, Keyboard, Filter, Gauge, FileText, Settings } from "lucide-react";
-import { commandAvailable, matchCommand, resolveCommandKeymap, type PaletteEntry, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
+import { commandAvailable, matchCommand, type PaletteEntry, type WikiCompletionTarget, type ScopedSnippet } from "@slate/core";
 import { useTemplateLibrary } from "../blocks/useTemplateLibrary";
 import { useBlockLibrary } from "../blocks/useBlockLibrary";
 import { useSnippetLibrary } from "../snippets/useSnippetLibrary";
@@ -15,9 +15,10 @@ import type { BrowserAppProps } from "./BrowserApp";
 import { LaunchActions, type LaunchTemplateRequest } from "./LaunchActions";
 import { AppearanceControl, type useAppearance } from "../appearance";
 import { BrandMark } from "../BrandMark";
-import { commandShortcut, createCursorStore, keyboardInput, readKeymap, shortcutOS, workspaceCommands, type EditorCreationTarget, type MarkdownEditorHandle, type EditorCursor } from "../commands";
+import { commandShortcut, createCursorStore, keyboardInput, shortcutOS, workspaceCommands, type EditorCreationTarget, type MarkdownEditorHandle, type EditorCursor } from "../commands";
 import type { WorkspaceRuntime } from "./workspaceRuntime";
 import { CommandDialog } from "./CommandDialog";
+import { useSpaceKeymap } from "./useSpaceKeymap";
 import { PaletteDialog } from "./PaletteDialog";
 import { paletteIdentity, workspacePalette, type WorkspacePalette } from "./workspacePalette";
 import { WorkspaceTitleBar } from "./WorkspaceTitleBar";
@@ -54,6 +55,7 @@ const SnippetPicker = lazy(() => import("../snippets/SnippetPicker"));
 const SnippetPrompt = lazy(() => import("../snippets/SnippetPrompt"));
 const BlockSettings = lazy(() => import("../blocks/BlockSettings"));
 const SnippetSettings = lazy(() => import("../snippets/SnippetSettings"));
+const KeymapEditor = lazy(() => import("./KeymapEditor"));
 const TidyPanel = lazy(() => import("../tidy/TidyPanel"));
 const BatchTidyDialog = lazy(() => import("../tidy/BatchTidyDialog"));
 const WorkspaceSearchDialog = lazy(() => import("../search/WorkspaceSearchDialog"));
@@ -141,6 +143,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const [palette, setPalette] = useState<PaletteRequest>();
   const [workspaceSearch, setWorkspaceSearch] = useState<{ returnFocus: HTMLElement | undefined; restoreFocus: (() => void) | undefined; query?: string }>();
   const [shortcuts, setShortcuts] = useState(false);
+  const [keymapEditor, setKeymapEditor] = useState(false);
   const [editorSettings, setEditorSettings] = useState(false);
   const [templateRequest, setTemplateRequest] = useState<TemplateRequest>();
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
@@ -159,7 +162,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   const os = shortcutOS();
   const surface = runtime?.surface ?? "web";
   const registry = useMemo(() => workspaceCommands(surface), [surface]);
-  const [keymap, setKeymap] = useState(() => readKeymap(undefined, os, surface));
+  const { keymap, ready: keymapReady, accept: acceptKeymap } = useSpaceKeymap(store, os, surface);
   const [action, setAction] = useState<"rename" | "move" | "trash" | "notebook" | undefined>();
   const [actionValue, setActionValue] = useState("");
   const [extraNotebooks, setExtraNotebooks] = useState<string[]>([]);
@@ -551,21 +554,6 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }
 
   useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const next = readKeymap(await store.space.files.read(".slate/keymap.json"), os, surface);
-        if (active) setKeymap(next);
-      } catch {
-        if (active) setKeymap({ ...resolveCommandKeymap({ os, surface }, undefined, registry), issues: [{ commandId: "", message: "The Space keymap could not be read. Default shortcuts remain active." }] });
-      }
-    };
-    void load();
-    window.addEventListener("focus", load);
-    return () => { active = false; window.removeEventListener("focus", load); };
-  }, [store, os, surface, registry]);
-
-  useEffect(() => {
     try { localStorage.setItem(inspectorKey, String(inspector)); } catch { /* View preferences are optional. */ }
   }, [inspectorKey, inspector]);
 
@@ -692,7 +680,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
   }, [state.record.id, state.selectedPath]);
 
   useEffect(() => {
-    const modalOpen = palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings;
+    const modalOpen = palette || workspaceSearch || shortcuts || keymapEditor || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings;
     const listener = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === "Escape") {
@@ -702,7 +690,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
         }
         return;
       }
-      if (palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
+      if (!keymapReady || palette || workspaceSearch || shortcuts || keymapEditor || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings) return;
       const editor = editorHandle.current;
       const id = matchCommand(keymap.bindings.filter((binding) => binding.command.group !== "Format"), keyboardInput(event), { editor: editor?.hasFocus() ?? false, selection: editor?.hasSelection() ?? false, get tableColumns() { return editor?.tableColumns() ?? 0; } });
       if (id) { if (window.document.querySelector("dialog[open]") || editorViewCommands.has(id) && !canUseViewCommand(event, id)) return; event.preventDefault(); dispatchCommand(id); }
@@ -712,7 +700,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
       if (event.defaultPrevented) return;
       const id = matchCommand(priorityBindings, keyboardInput(event), { editor: false, selection: false });
       if (id && editorViewCommands.has(id) && !canUseViewCommand(event, id)) return;
-      if (!id || palette || workspaceSearch || shortcuts || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
+      if (!id || !keymapReady || palette || workspaceSearch || shortcuts || keymapEditor || action || editorSettings || templateRequest || notebookTemplateRequest || starterKitRequest || sourceImport || snippetPicker || snippetPrompt || snippetSettings || blockSettings || window.document.querySelector("dialog[open]")) return;
       // Workspace navigation and view commands take priority over editor keymaps.
       event.preventDefault(); event.stopPropagation(); dispatchCommand(id);
     };
@@ -871,7 +859,7 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
               onPointerDownCapture={() => activatePane(id)} onFocusCapture={() => activatePane(id)}>
               <div className="documentToolbar"><h1>{summary?.title || "Your next idea starts here"}</h1></div>
               {sheet?.unsupportedEncoding ? <div className="browserEmpty editorEmpty"><h1>This file needs UTF-8.</h1><p>Slate kept the original bytes. Download the file to convert a copy to UTF-8, then import that copy to edit.</p><button className="primaryButton" onClick={() => run(() => downloadOriginal(path))}>Download original</button></div>
-                : sheet ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={documentKey} pool={editors.pool} store={store} path={path} title={summary?.title ?? "Untitled"}
+                : !keymapReady ? <p role="status">Loading shortcuts…</p> : sheet ? <Suspense fallback={<p role="status">Opening editor…</p>}><Editor key={documentKey} pool={editors.pool} store={store} path={path} title={summary?.title ?? "Untitled"}
                   documentKey={documentKey} viewKey={id === "primary" ? documentKey : documentKey + "/split"} onDocumentError={documentError}
                   sourceMode={active && tidy.open || viewModes.mode(path) === "source"} tidyLines={active ? tidyLines : []} initialCursor={active && state.initialCursor?.path === path ? state.initialCursor.position : undefined}
                   writingFocus={active ? writing.focus : "none"} typewriter={active && writing.typewriter} zen={writing.zen}
@@ -920,7 +908,8 @@ export default function BrowserWorkspace({ store, createIndex, onKeepSample, onT
     {snippetPrompt && <Suspense fallback={<WorkspaceDialog title="Insert snippet" returnFocus={snippetPrompt.target.element} onClose={() => setSnippetPrompt(undefined)}><p role="status">Opening snippet fields…</p></WorkspaceDialog>}><SnippetPrompt request={snippetPrompt} onClose={() => setSnippetPrompt(undefined)} /></Suspense>}
     {blockSettings && blocks.library && <Suspense fallback={<WorkspaceDialog title="Custom blocks" returnFocus={blockSettings.returnFocus} onClose={() => setBlockSettings(undefined)}><p role="status">Opening custom blocks…</p></WorkspaceDialog>}><BlockSettings library={blocks.library} store={store} returnFocus={blockSettings.returnFocus} onTakeover={onTakeover} onClose={() => setBlockSettings(undefined)} /></Suspense>}
     {snippetSettings && snippets.library && <Suspense fallback={<WorkspaceDialog title="Snippets" returnFocus={snippetSettings.returnFocus} onClose={() => setSnippetSettings(undefined)}><p role="status">Opening snippets…</p></WorkspaceDialog>}><SnippetSettings library={snippets.library} store={store} returnFocus={snippetSettings.returnFocus} onTakeover={onTakeover} onClose={() => setSnippetSettings(undefined)} /></Suspense>}
-    {shortcuts && <CommandDialog surface={surface} registry={registry} kind="shortcuts" keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => setShortcuts(false)} onCommand={dispatchCommand} />}
+    {shortcuts && <CommandDialog surface={surface} registry={registry} kind="shortcuts" keymap={keymap} os={os} editor={!!selected && !selected.unsupportedEncoding && state.owned} selection={editorHandle.current?.hasSelection() ?? false} tableColumns={editorHandle.current?.tableColumns() ?? 0} onClose={() => setShortcuts(false)} onCommand={dispatchCommand} onCustomize={() => setKeymapEditor(true)} />}
+    {keymapEditor && <Suspense fallback={<WorkspaceDialog title="Customize shortcuts" onClose={() => setKeymapEditor(false)}><p role="status">Opening shortcuts…</p></WorkspaceDialog>}><KeymapEditor store={store} profile={{ os, surface }} onClose={() => setKeymapEditor(false)} onSaved={bytes => { acceptKeymap(bytes); setKeymapEditor(false); }} /></Suspense>}
     {palette && <PaletteDialog entries={palette.catalog.entries} index={palette.catalog.index} initialMode={palette.mode} returnFocus={palette.returnFocus} os={os} allowSplit={!!selected && !selected.unsupportedEncoding}
       shortcut={(entry) => entry.kind === "commands" ? shortcut(entry.id) : ""} available={paletteAvailable} visible={(entry) => entry.kind !== "commands" || paletteAvailable(entry)} preview={palettePreview} onChoose={choosePalette} onClose={() => setPalette(undefined)} />}
     {templateRequest && <Suspense fallback={<WorkspaceDialog title="New from template" returnFocus={templateRequest.returnFocus} onClose={() => { setTemplateRequest(undefined); if (templates.library) run(templates.library.refresh); }}><p role="status">Opening templates…</p></WorkspaceDialog>}><TemplateGallery store={store} notebook={templateRequest.notebook} selection={templateRequest.selection} returnFocus={templateRequest.returnFocus} initialTemplateId={templateRequest.initialTemplateId} initialDestination={templateRequest.initialDestination} initialTitle={templateRequest.initialTitle} initialBodyText={templateRequest.initialBodyText} onClose={() => { setTemplateRequest(undefined); if (templates.library) run(templates.library.refresh); }} onStarterKits={() => { setStarterKitRequest({ returnFocus: templateRequest.returnFocus }); setTemplateRequest(undefined); }} /></Suspense>}

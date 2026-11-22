@@ -1,0 +1,15 @@
+.keymapEditor { inline-size: min(820px, calc(100% - 32px)); }
+.keymapEditor[open] { display: flex; flex-direction: column; block-size: min(720px, 85dvh); }
+.keymapEditor > header, .keymapEditor > p, .keymapEditor > footer { flex-shrink: 0; }
+.keymapEditor > p { color: var(--text-secondary); }
+.keymapEditor fieldset { flex: 1; min-inline-size: 0; min-block-size: 0; overflow: auto; margin: 0; padding: 4px; border: 0; }
+.keymapEditorTools { display: flex; align-items: end; gap: 12px; margin-block-end: 20px; }
+.keymapEditorTools label { flex: 1; }
+.keymapEditor textarea { inline-size: 100%; resize: vertical; padding: 12px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-primary); background: var(--bg-canvas); font: 12px/20px "Geist Mono", monospace; }
+.keymapEditorRows { display: grid; gap: 12px; }
+.keymapEditorRow { display: flex; align-items: end; gap: 8px; }
+.keymapEditorRow label { flex: 1; }
+.keymapEditorRow input { font-family: "Geist Mono", monospace; }
+.keymapEditor footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block-start: 24px; }
+.keymapEditor footer > span { flex: 1; }
+@media (max-width: 560px) { .keymapEditorTools { flex-wrap: wrap; } .keymapEditorTools label { flex-basis: 100%; } }

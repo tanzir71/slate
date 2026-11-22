@@ -7,6 +7,7 @@ import type { MarkdownHeading } from "./markdownHeadings.js";
 import { markdownTextRanges } from "./markdownText.js";
 
 export * from "./commands.js";
+export * from "./keymapEditing.js";
 export * from "./palette.js";
 export * from "./workspaceSearch.js";
 export * from "./markdownHeadings.js";
