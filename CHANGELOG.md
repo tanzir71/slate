@@ -6,6 +6,9 @@ The format is based on Keep a Changelog, and this project uses Conventional Comm
 
 ## [Unreleased]
 
+### Changed
+- Precache the editable browser shell, fonts and SQLite WASM; cache optional feature chunks on first use, including requests made before worker control, and preserve valid cached rich-document assets during upgrades.
+
 ### Added
 - Desktop first-run setup with existing-folder, Documents Space and reviewed import choices; five local starter presets preserve existing library files and recover interrupted additions.
 - Native Open a folder through Ctrl/Cmd+O in setup and the workspace.

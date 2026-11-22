@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserApp } from "@slate/ui/browser";
 import { registerSW } from "virtual:pwa-register";
 import { createBrowserIndex } from "./indexClient";
+import { observeFirstUseAssets } from "./firstUseCache";
 
 const root = document.getElementById("root");
 
@@ -15,12 +16,13 @@ function App() {
   const [updateVersion, setUpdateVersion] = useState<string>();
   useEffect(() => {
     let active = true;
-    registerSW({ onNeedRefresh: () => {
+    const firstUse = observeFirstUseAssets();
+    registerSW({ onRegisteredSW: (_url, registration) => { if (active) firstUse.registered(registration); }, onNeedRefresh: () => {
       if (!active) return;
       setUpdateReady(true);
       void waitingVersion().then((version) => { if (active) setUpdateVersion(version); }).catch(() => undefined);
     }, onNeedReload: () => undefined });
-    return () => { active = false; };
+    return () => { active = false; firstUse.dispose(); };
   }, []);
   return <BrowserApp version={__SLATE_VERSION__} createIndex={createBrowserIndex} updateReady={updateReady} updateVersion={updateVersion} onReload={reloadWaitingWorker} />;
 }

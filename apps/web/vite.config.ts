@@ -4,22 +4,34 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { VitePWA } from "vite-plugin-pwa";
 import { markdownWorker } from "../../scripts/markdown-worker";
+import { shellPrecache } from "../../scripts/service-worker-precache";
 
 const fromRoot = (path: string): string =>
   fileURLToPath(new URL(path, import.meta.url));
 const appVersion = (JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string }).version;
+const precache = shellPrecache();
 
 export default defineConfig({
   base: "./",
   define: { __SLATE_VERSION__: JSON.stringify(appVersion) },
-  plugins: [react(), VitePWA({
+  plugins: [react(), precache.plugin, VitePWA({
     registerType: "prompt",
     injectRegister: false,
     manifest: false,
     workbox: {
       globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm,json,webmanifest}"],
       maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      manifestTransforms: [precache.transform],
+      importScripts: ["cache-migrate.js"],
+      runtimeCaching: [
+        {
+          urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+\.(?:js|css|woff2|wasm|svg|png|json)$/.test(url.pathname),
+          handler: "CacheFirst",
+          options: { cacheName: "slate-lazy-assets-v1" },
+        },
+      ],
       navigateFallback: "index.html",
+      navigateFallbackDenylist: [/\/diagram-preview\.html$/],
       cleanupOutdatedCaches: true,
       clientsClaim: true
     }
