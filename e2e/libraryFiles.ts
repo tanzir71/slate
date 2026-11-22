@@ -54,10 +54,11 @@ export async function libraryFile(
           new Uint8Array(await (await handle.getFile()).arrayBuffer()),
         );
       } catch (error) {
+        // A read-only poll reacquires a File changed after getFile().
         if (
           content === undefined &&
           error instanceof DOMException &&
-          error.name === "NotFoundError"
+          (error.name === "NotFoundError" || error.name === "NotReadableError")
         )
           return undefined;
         throw error;
@@ -79,7 +80,7 @@ export async function libraryFileMatches(page: Page, path: string, expected: str
       const actual = new Uint8Array(await (await handle.getFile()).arrayBuffer()), wanted = new TextEncoder().encode(expected);
       return actual.length === wanted.length && actual.every((byte, index) => byte === wanted[index]);
     } catch (error) {
-      if (error instanceof DOMException && error.name === "NotFoundError") return false;
+      if (error instanceof DOMException && (error.name === "NotFoundError" || error.name === "NotReadableError")) return false;
       throw error;
     }
   }, { path, expected });
